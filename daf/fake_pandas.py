@@ -3,7 +3,7 @@ Fake Pandas
 -----------
 
 Pandas doesn't provide type annotations. We don't try to overcome this here, but we do want to allow for saying "this is
-a pandas series with integer elements", at least as an option. To do this we need to use ``typing.Annotate`` which
+a pandas frame in column-major layout", at least as an option. To do this we need to use ``typing.Annotate`` which
 requires the annotated class to be known. As a workaround we define fake pandas series and frame classes and use them
 for the annotation instead. To shut ``mypy`` up we need to populate them with all the public interface of the real
 classes.
