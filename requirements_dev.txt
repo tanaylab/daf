@@ -1,0 +1,13 @@
+black
+bumpversion
+flake8
+isort
+mypy
+mypy_extensions
+pylint
+pytest
+pytest-cov
+sphinx
+sphinx_rtd_theme
+twine
+tox

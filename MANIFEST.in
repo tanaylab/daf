@@ -1,0 +1,12 @@
+include HISTORY.rst
+include LICENSE.rst
+include README.rst
+include requirements.txt
+include requirements_test.txt
+include requirements_dev.txt
+
+recursive-include tests *
+recursive-include daf *.py
+recursive-include daf py.typed
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
