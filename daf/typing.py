@@ -61,6 +61,12 @@ __all__ = [
     "Matrix",
     "is_matrix",
     "be_matrix",
+    "MatrixRows",
+    "is_matrix_rows",
+    "be_matrix_rows",
+    "MatrixColumns",
+    "is_matrix_columns",
+    "be_matrix_columns",
     # 2D numpy arrays:
     "Array2D",
     "is_array2d",
@@ -689,11 +695,95 @@ def be_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None)
     a matrix of strings.
     """
     if dtype is None:
-        assert is_matrix(data), f"expected a matrix of any reasonable type, got {_data_description(data)}"
+        assert is_matrix(data), f"expected a some-major matrix of any reasonable type, got {_data_description(data)}"
     else:
         if isinstance(dtype, str):
             dtype = (dtype,)
-        assert is_matrix(data), f"expected a matrix of {' or '.join(dtype)}, got {_data_description(data)}"
+        assert is_matrix(data), f"expected a some-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: Any 2D data in row-major layout.
+MatrixRows = Union[ArrayRows, FrameRows, SparseRows]
+
+
+def is_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixRows]:
+    """
+    Assert that some ``data`` is an :py:const:`MatrixRows`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    return is_array_rows(data, dtype=dtype) or is_frame_rows(data, dtype=dtype) or is_sparse_rows(data, dtype=dtype)
+
+
+def be_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixRows:
+    """
+    Assert that some ``data`` is a :py:const:`MatrixRows`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    if dtype is None:
+        assert is_matrix_rows(
+            data
+        ), f"expected a row-major matrix of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_matrix_rows(
+            data
+        ), f"expected a row-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: Any 2D data in column-major layout.
+MatrixColumns = Union[ArrayColumns, FrameColumns, SparseColumns]
+
+
+def is_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixColumns]:
+    """
+    Assert that some ``data`` is an :py:const:`MatrixColumns`, optionally only of some ``dtype``, and return it as such
+    for ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    return (
+        is_array_columns(data, dtype=dtype)
+        or is_frame_columns(data, dtype=dtype)
+        or is_sparse_columns(data, dtype=dtype)
+    )
+
+
+def be_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixColumns:
+    """
+    Assert that some ``data`` is a :py:const:`MatrixColumns`, optionally only of some ``dtype``, and return it as such
+    for ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    if dtype is None:
+        assert is_matrix_columns(
+            data
+        ), f"expected a column-major matrix of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_matrix_columns(
+            data
+        ), f"expected a row-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
     return data
 
 

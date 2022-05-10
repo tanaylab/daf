@@ -44,6 +44,7 @@ def test_array2d() -> None:
     be_array_rows(array2d_of_int, dtype="int64")
     be_array_columns(array2d_of_int.T)
     be_matrix(array2d_of_int)
+    be_matrix_rows(array2d_of_int)
 
     be_array1d(array2d_of_int[:, 0])
     be_array1d(array2d_of_int[0, :])
@@ -54,6 +55,7 @@ def test_array2d() -> None:
     be_array_rows(array2d_of_str)
     be_array_columns(array2d_of_str.T, dtype="str")
     be_matrix(array2d_of_str)
+    be_matrix_columns(array2d_of_str.T)
 
     be_array1d(array2d_of_str[:, 0])
     be_array1d(array2d_of_str[0, :])
@@ -72,6 +74,7 @@ def test_frame() -> None:
     be_frame(frame_of_int, dtype="int64")
     assert not is_frame(frame_of_int, dtype="bool")
     be_matrix(frame_of_int)
+    be_matrix_rows(frame_of_int)
 
     array2d_of_int: Array2D = as_array2d(frame_of_int)
     be_array2d(array2d_of_int)
@@ -93,6 +96,7 @@ def test_frame() -> None:
     array2d_of_str: Array2D = as_array2d(frame_of_str)
     be_array2d(array2d_of_str)
     be_matrix(frame_of_str)
+    be_matrix_columns(frame_of_str.T)
 
     be_series(frame_of_str["x"])
     be_series(frame_of_str.loc["a", :])
@@ -105,12 +109,19 @@ def test_frame() -> None:
     column_of_str: Frame = be_frame(pd.DataFrame(np.zeros((2, 1), dtype="U"), index=["a", "b"], columns=["x"]))
     be_array1d(as_array1d(column_of_str))
 
+    frame_of_mix: Frame = be_frame(pd.DataFrame(dict(a=[1, 2, 3], b=["X", "Y", "Z"]), index=["x", "y", "z"]))
+
+    be_series(frame_of_mix["a"], dtype="int64")
+    be_series(frame_of_mix["b"], dtype="str")
+    be_frame_columns(frame_of_mix)
+
 
 def test_sparse() -> None:
     sparse_of_float32: Sparse = be_sparse(sp.csr_matrix([[1, 0], [0, 1]], dtype="float32"))
     be_sparse(sparse_of_float32, dtype="float32")
     assert not is_sparse(sparse_of_float32, dtype="float16")
     be_matrix(sparse_of_float32, dtype="float32")
+    be_matrix_rows(sparse_of_float32, dtype="float32")
 
     be_array1d(as_array1d(sparse_of_float32[0, :]))
     be_array1d(as_array1d(sparse_of_float32[:, 0]))
@@ -120,3 +131,4 @@ def test_sparse() -> None:
     be_sparse_columns(sparse_of_float32.T)
     be_sparse_columns(sparse_of_float32.T, dtype="float32")
     be_matrix(sparse_of_float32.T)
+    be_matrix_columns(sparse_of_float32.T)
