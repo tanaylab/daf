@@ -16,6 +16,7 @@ less likely.
 # pylint: disable=unused-argument,missing-function-docstring,no-self-use,invalid-name
 # pylint: disable=too-many-public-methods,too-many-lines
 
+from abc import ABC
 from typing import Any
 from typing import Tuple
 
@@ -27,7 +28,7 @@ except ImportError:
 __all__ = ["SparseMatrix"]
 
 
-class SparseMatrix:
+class SparseMatrix(ABC):
     """
     Fake class for ``mypy``.
 

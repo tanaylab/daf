@@ -11,8 +11,13 @@ strings is different between the different APIs.
 
     The check for string values in ``pandas`` data will accept any object type.
 
-In addition, it is crucial to track the layout of the data, as running column-oriented algorithms on row-major
-data (or vice verse) results in orders of magnitude slowdown for non-trivial data sizes.
+Matrices in particular can be represented in a wide range of formats and variants within each format. Efficient code for
+each representation requires different code paths which places a high burden on the consumers of matrix data from daf
+containers.
+
+To minimize this burden, daf restricts the matrices it stores to a few variants, specifically either using row-major or
+column-major layout for dense matrices and either CSR or CSC format for sparse matrices, as these are the most commonly
+used layouts, and these require only a small number of code paths to ensure efficient computation.
 
 Finally, it would be nice to track the data type of the elements, but this would result in a combinatorical explosion of
 types (as ``mypy`` generic types are not up to the task).
@@ -26,12 +31,14 @@ type annotations only support the restricted subset we allow to store out of the
 
 # pylint: disable=too-many-lines
 
+from abc import ABC
 from typing import Annotated
 from typing import Any
 from typing import Collection
 from typing import NewType
 from typing import Optional
 from typing import TypeGuard
+from typing import TypeVar
 from typing import Union
 from typing import overload
 
@@ -44,6 +51,9 @@ from .fake_pandas import PandasSeries
 from .fake_sparse import SparseMatrix
 
 __all__ = [
+    "is_optimized",
+    "be_optimized",
+    "optimize",
     # 1D vectors:
     "Vector",
     "is_vector",
@@ -57,6 +67,11 @@ __all__ = [
     "is_series",
     "be_series",
     "as_array1d",
+    # 2D Layout
+    "AnyMajor",
+    "ROW_MAJOR",
+    "COLUMN_MAJOR",
+    "matrix_layout",
     # 2D data:
     "Matrix",
     "is_matrix",
@@ -333,7 +348,7 @@ def be_array_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] 
     return data
 
 
-#: 2-dimensional ``numpy`` in some-major layout.
+#: 2-dimensional ``numpy`` in any-major layout.
 Array2D = Union[ArrayRows, ArrayColumns]
 
 
@@ -372,13 +387,13 @@ def be_array2d(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None
     if dtype is None:
         assert is_array2d(
             data
-        ), f"expected a some-major numpy.ndarray of any reasonable type, got {_data_description(data)}"
+        ), f"expected a any-major numpy.ndarray of any reasonable type, got {_data_description(data)}"
     else:
         if isinstance(dtype, str):
             dtype = (dtype,)
         assert is_array2d(
             data, dtype=dtype
-        ), f"expected a some-major numpy.ndarray of {' or '.join(dtype)}, got {_data_description(data)}"
+        ), f"expected a any-major numpy.ndarray of {' or '.join(dtype)}, got {_data_description(data)}"
     return data
 
 
@@ -458,7 +473,7 @@ def be_frame_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] 
     return data
 
 
-#: 2-dimensional ``pandas`` frame in some-major layout.
+#: 2-dimensional ``pandas`` frame in any-major layout.
 Frame = Union[FrameRows, FrameColumns]
 
 
@@ -492,13 +507,13 @@ def be_frame(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) 
     if dtype is None:
         assert is_frame(
             data
-        ), f"expected a some-major pandas.DataFrame of any reasonable type, got {_data_description(data)}"
+        ), f"expected a any-major pandas.DataFrame of any reasonable type, got {_data_description(data)}"
     else:
         if isinstance(dtype, str):
             dtype = (dtype,)
         assert is_frame(
             data
-        ), f"expected a some-major pandas.DataFrame of {' or '.join(dtype)}, got {_data_description(data)}"
+        ), f"expected a any-major pandas.DataFrame of {' or '.join(dtype)}, got {_data_description(data)}"
     return data
 
 
@@ -695,11 +710,11 @@ def be_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None)
     a matrix of strings.
     """
     if dtype is None:
-        assert is_matrix(data), f"expected a some-major matrix of any reasonable type, got {_data_description(data)}"
+        assert is_matrix(data), f"expected a any-major matrix of any reasonable type, got {_data_description(data)}"
     else:
         if isinstance(dtype, str):
             dtype = (dtype,)
-        assert is_matrix(data), f"expected a some-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
+        assert is_matrix(data), f"expected a any-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
     return data
 
 
@@ -785,6 +800,216 @@ def be_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]]
             data
         ), f"expected a row-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
     return data
+
+
+class AnyMajor(ABC):
+    """
+    Allow for either row-major or column-major matrix layout.
+    """
+
+    def __init__(self) -> None:
+        #: Name for messages.
+        self.name = "any-major"
+
+    def __eq__(self, other: Any) -> bool:
+        return id(self.__class__) == id(other.__class__)
+
+    def __ne__(self, other: Any) -> bool:
+        return id(self.__class__) != id(other.__class__)
+
+
+class RowMajor(AnyMajor):  # pylint: disable=too-few-public-methods
+    """
+    Require row-major layout.
+    """
+
+    def __init__(self) -> None:
+        #: Name for messages.
+        super().__init__()
+        self.name = "row-major"
+
+
+#: Require row-major layout.
+ROW_MAJOR = RowMajor()
+
+
+class ColumnMajor(AnyMajor):  # pylint: disable=too-few-public-methods
+    """
+    Require column-major layout.
+    """
+
+    def __init__(self) -> None:
+        #: Name for messages.
+        super().__init__()
+        self.name = "column-major"
+
+
+#: Require column-major layout.
+COLUMN_MAJOR = ColumnMajor()
+
+
+@overload
+def matrix_layout(matrix: MatrixRows) -> RowMajor:
+    ...
+
+
+@overload
+def matrix_layout(matrix: MatrixColumns) -> ColumnMajor:
+    ...
+
+
+def matrix_layout(matrix: Matrix) -> AnyMajor:
+    """
+    Return the layout of a matrix.
+    """
+    if is_matrix_rows(matrix):
+        return ROW_MAJOR
+    if is_matrix_columns(matrix):
+        return COLUMN_MAJOR
+    assert False, f"expected an any-major matrix of any reasonable type, got {_data_description(matrix)}"
+
+
+def is_optimized(data: Any) -> bool:
+    """
+    Whether the ``data`` is in an "optimized" format.
+
+    Even if keeping within the subset of data types supported by daf, there are still cases where the format is
+    sub-optimal, resulting in inefficient processing code. For example, a CSR or CSC matrix may contain duplicate or
+    unsorted indices, or a matrix or a vector may have strides between its elements.
+
+    It is possible to end up with sub-optimal data formats by performing all sort of operations on "optimized" format
+    inputs; this is especially common for sparse matrices. This isn't necessarily an issue for intermediate results.
+    However, we restrict data stored in daf containers to only be in "optimized" formats.
+
+    This function tests whether "any" matrix representation is, in fact, in one of the supported, "optimized" formats.
+    """
+    if isinstance(data, sp.spmatrix):
+        return (
+            isinstance(data, (sp.csr_matrix, sp.csc_matrix)) and data.has_canonical_format and data.has_sorted_indices
+        )
+    if isinstance(data, (pd.DataFrame, pd.Series)):
+        data = data.values
+        if not isinstance(data, np.ndarray):
+            return True
+    if isinstance(data, np.ndarray) and 1 <= data.ndim <= 2:
+        return data.flags["F_CONTIGUOUS"] or data.flags["C_CONTIGUOUS"]
+    assert False, f"expected a matrix or a vector, got {_data_description(data)}"
+
+
+T = TypeVar("T")
+
+
+def be_optimized(data: T) -> T:
+    """
+    Assert that some data is in "optimized" format and return it as-is.
+    """
+    assert is_optimized(data), f"expected an optimized matrix or a vector, got {_data_description(data)}"
+    return data
+
+
+@overload
+def optimize(data: Array1D, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> Array1D:
+    ...
+
+
+@overload
+def optimize(data: Series, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> Series:
+    ...
+
+
+@overload
+def optimize(data: ArrayRows, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> ArrayRows:
+    ...
+
+
+@overload
+def optimize(data: ArrayColumns, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> ArrayColumns:
+    ...
+
+
+@overload
+def optimize(data: np.ndarray, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> np.ndarray:
+    ...
+
+
+@overload
+def optimize(data: FrameRows, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> FrameRows:
+    ...
+
+
+@overload
+def optimize(data: FrameColumns, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> FrameColumns:
+    ...
+
+
+@overload
+def optimize(data: PandasFrame, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> PandasFrame:
+    ...
+
+
+@overload
+def optimize(data: SparseRows, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> SparseRows:
+    ...
+
+
+@overload
+def optimize(data: SparseColumns, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> SparseColumns:
+    ...
+
+
+@overload
+def optimize(data: SparseMatrix, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> SparseMatrix:
+    ...
+
+
+@overload
+def optimize(data: sp.spmatrix, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> sp.spmatrix:
+    ...
+
+
+def optimize(data: Any, *, force_copy: bool = False, preferred_layout: AnyMajor = ROW_MAJOR) -> Any:
+    """
+    Given some ``data`` in any (reasonable) format, return it in a supported, "optimized" format.
+
+    If possible, and ``force_copy`` is not specified, this optimizes the data in-place. Otherwise, a copy is created.
+    E.g. this will sort the indices of a CSR or CSC matrix in-place.
+
+    If the data is a matrix, and it has no clear layout, a copy will be created using the ``preferred_layout``. E.g.
+    this will determine whether a COO matrix will be converted to a CSR or CSC matrix. For vector data, this argument is
+    ignored.
+    """
+    if isinstance(data, np.ndarray) and 1 <= data.ndim <= 2:
+        if force_copy or (not data.flags["F_CONTIGUOUS"] and not data.flags["C_CONTIGUOUS"]):
+            return np.array(data)
+        return data
+
+    if isinstance(data, pd.Series):
+        if force_copy or not is_optimized(data):
+            data = pd.Series(np.array(data.values), index=data.index)
+        return data
+
+    if isinstance(data, pd.DataFrame):
+        if force_copy or not is_optimized(data):
+            data = pd.DataFrame(np.array(data.values), index=data.index, columns=data.columns)
+        return data
+
+    if isinstance(data, sp.spmatrix):
+        if isinstance(data, (sp.csr_matrix, sp.csc_matrix)):
+            klass = data.__class__
+        elif preferred_layout == ROW_MAJOR:
+            force_copy = True
+            klass = sp.csr_matrix
+        else:
+            assert preferred_layout == COLUMN_MAJOR
+            force_copy = True
+            klass = sp.csc_matrix
+        if force_copy:
+            data = klass(data)
+        data.sum_duplicates()
+        data.sort_indices()
+        return data
+
+    assert False, f"expected a matrix or a vector, got {_data_description(data)}"
 
 
 def _is_numpy_dtypes(dtype: str, dtypes: Optional[Union[str, Collection[str]]]) -> bool:

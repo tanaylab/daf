@@ -17,13 +17,14 @@ even less likely.
 # pylint: disable=unused-argument,missing-function-docstring,no-self-use,invalid-name
 # pylint: disable=too-many-public-methods,too-many-lines
 
+from abc import ABC
 from typing import Any
 from typing import Tuple
 
 __all__ = ["PandasSeries", "PandasFrame"]
 
 
-class PandasSeries:
+class PandasSeries(ABC):
     """
     Fake class for ``mypy``.
 
@@ -797,7 +798,7 @@ class PandasSeries:
     # pylint: enable=unused-argument,missing-function-docstring,no-self-use,invalid-name
 
 
-class PandasFrame:  # pylint: disable=too-many-public-methods,
+class PandasFrame(ABC):  # pylint: disable=too-many-public-methods
     """
     Fake class for ``mypy``.
 
