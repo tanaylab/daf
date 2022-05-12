@@ -3,13 +3,14 @@ Typing
 ------
 
 The code has to deal with many different alternative data types for what is essentially two basic data types: 2D
-matrices and 1D vectors. Even though python supports "duck typing", these alternative data types expose different APIs
-and require different code paths for realistic algorithms. Even a simple thing like checking whether the data contains
-strings is different between the different APIs.
+matrices and 1D vectors. Even though python supports "duck typing" in theory, in practice these alternative data types
+expose different APIs and require different code paths for realistic algorithms. Even simple things like copying or
+checking whether the data contains strings are different between the different APIs.
 
 .. todo::
 
-    The check for string values in ``pandas`` data will accept any object type.
+    The check for string values will accept any ``object`` type because between ``pandas`` and ``numpy`` the ``dtype``
+    devolves into the generic ``object`` because that's the only ``dtype`` they both agree on.
 
 Matrices in particular can be represented in a wide range of formats and variants within each format. Efficient code for
 each representation requires different code paths which places a high burden on the consumers of matrix data from daf
@@ -44,6 +45,7 @@ Specifically we establish the following taxonomy:
   In addition, we provide the following two dimensional union types:
 
   * py:const:`Grid` is a union of ``Array2D`` and ``Sparse``, that is, plain data without names.
+  * py:const:`Dense` is a union of ``Array2D`` and ``Frame``, that is, dense data without compression.
   * Each of the above types can be suffixed with ``Rows`` or ``Columns`` to indicate that it is stored in row-major or
     column-major layputt. This *matters* as performing computations on the wrong layout will be
     *drastically* inefficient for non-trivial sizes.
@@ -70,6 +72,9 @@ quick-and-dirty scripts), and if you want to benefit from them (for serious code
 # pylint: disable=too-many-lines
 
 from abc import ABC
+from concurrent.futures import ThreadPoolExecutor
+from math import ceil
+from math import sqrt
 from typing import Annotated
 from typing import Any
 from typing import Collection
@@ -110,6 +115,7 @@ __all__ = [
     "ROW_MAJOR",
     "COLUMN_MAJOR",
     "matrix_layout",
+    "as_layout",
     # 2D data:
     "Matrix",
     "is_matrix",
@@ -120,6 +126,7 @@ __all__ = [
     "MatrixColumns",
     "is_matrix_columns",
     "be_matrix_columns",
+    "matrix_copy",
     # 2D unnamed data:
     "Grid",
     "is_grid",
@@ -130,6 +137,17 @@ __all__ = [
     "GridColumns",
     "is_grid_columns",
     "be_grid_columns",
+    # 2D dense data:
+    "Dense",
+    "is_dense",
+    "be_dense",
+    "DenseRows",
+    "is_dense_rows",
+    "be_dense_rows",
+    "DenseColumns",
+    "is_dense_columns",
+    "be_dense_columns",
+    "as_array2d",
     # 2D numpy arrays:
     "Array2D",
     "is_array2d",
@@ -160,7 +178,6 @@ __all__ = [
     "FrameColumns",
     "is_frame_columns",
     "be_frame_columns",
-    "as_array2d",
 ]
 
 #: 1-dimensional ``numpy`` array of bool values.
@@ -277,7 +294,7 @@ def as_array1d(data: Any, *, force_copy: bool = False) -> Array1D:
     array1d = data.values
 
     if force_copy or not isinstance(array1d, np.ndarray) or array1d_dtype != series_dtype:
-        array1d = np.array(array1d, array1d_dtype)
+        array1d = np.array(array1d)
 
     return array1d
 
@@ -331,7 +348,7 @@ def is_array_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = N
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return is_array2d(data, dtype=dtype) and _is_array_row_major(data)
+    return is_array2d(data, dtype=dtype) and _is_array_layout(data, ROW_MAJOR)
 
 
 def be_array_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> ArrayRows:
@@ -370,7 +387,7 @@ def is_array_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] 
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return is_array2d(data, dtype=dtype) and _is_array_column_major(data)
+    return is_array2d(data, dtype=dtype) and _is_array_layout(data, COLUMN_MAJOR)
 
 
 def be_array_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> ArrayColumns:
@@ -687,7 +704,7 @@ def is_frame_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = N
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return is_frame(data, dtype=dtype) and _is_array_row_major(data.values)
+    return is_frame(data, dtype=dtype) and _is_array_layout(data.values, ROW_MAJOR)
 
 
 def be_frame_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> FrameRows:
@@ -726,7 +743,7 @@ def is_frame_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] 
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return is_frame(data, dtype=dtype) and _is_array_column_major(data.values)
+    return is_frame(data, dtype=dtype) and _is_array_layout(data.values, COLUMN_MAJOR)
 
 
 def be_frame_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> FrameColumns:
@@ -794,27 +811,149 @@ def be_frame(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) 
     return data
 
 
+#: Any dense 2D data in row-major layout.
+DenseRows = Union[ArrayRows, FrameRows]
+
+
+def is_dense_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[DenseRows]:
+    """
+    Assert that some ``data`` is an :py:const:`DenseRows`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a dense of strings.
+    """
+    return is_array_rows(data, dtype=dtype) or is_frame_rows(data, dtype=dtype)
+
+
+def be_dense_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> DenseRows:
+    """
+    Assert that some ``data`` is a :py:const:`DenseRows`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a dense of strings.
+    """
+    if dtype is None:
+        assert is_dense_rows(data), f"expected a row-major dense of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_dense_rows(data), f"expected a row-major dense of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: Any dense 2D data in column-major layout.
+DenseColumns = Union[ArrayColumns, FrameColumns]
+
+
+def is_dense_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[DenseColumns]:
+    """
+    Assert that some ``data`` is an :py:const:`DenseColumns`, optionally only of some ``dtype``, and return it as such
+    for ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a dense of strings.
+    """
+    return is_array_columns(data, dtype=dtype) or is_frame_columns(data, dtype=dtype)
+
+
+def be_dense_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> DenseColumns:
+    """
+    Assert that some ``data`` is a :py:const:`DenseColumns`, optionally only of some ``dtype``, and return it as such
+    for ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a dense of strings.
+    """
+    if dtype is None:
+        assert is_dense_columns(
+            data
+        ), f"expected a column-major dense of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_dense_columns(
+            data
+        ), f"expected a row-major dense of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: Any dense 2D data without names.
+Dense = Union[Array2D, Frame]
+
+
+def is_dense(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[Dense]:
+    """
+    Assert that some ``data`` is an :py:const:`Dense`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a dense of strings.
+    """
+    return is_array2d(data, dtype=dtype) or is_frame(data, dtype=dtype)
+
+
+def be_dense(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> Dense:
+    """
+    Assert that some ``data`` is a :py:const:`Dense`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a dense of strings.
+    """
+    if dtype is None:
+        assert is_dense(data), f"expected a any-major dense of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_dense(data), f"expected a any-major dense of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
 @overload
-def as_array2d(frame: FrameRows, *, force_copy: bool = False) -> ArrayRows:
+def as_array2d(data: "MatrixRows", *, force_copy: bool = False) -> ArrayRows:
     ...
 
 
 @overload
-def as_array2d(frame: FrameColumns, *, force_copy: bool = False) -> ArrayColumns:
+def as_array2d(data: "MatrixColumns", *, force_copy: bool = False) -> ArrayColumns:
     ...
 
 
-def as_array2d(frame: Frame, *, force_copy: bool = False) -> Array2D:
+def as_array2d(data: Any, *, force_copy: bool = False) -> Array2D:
     """
     Access the internal 2D ``numpy`` array, if possible; otherwise, or if ``force_copy``, return a copy of the 2D data
     as a ``numpy`` array.
 
-    This only works if all the data in the frame has the same type.
+    If the input is a ``pandas.DataFrame``, this will only work if all the data in the frame has the same type.
 
     This ensures that ``pandas`` strings (even if categorical) will be converted to proper ``numpy`` strings.
     """
+    if is_sparse(data):
+        return data.toarray()
+
+    if is_array2d(data):
+        if force_copy:
+            data = np.array(data)
+        return data
+
+    assert is_frame(data)
+
     array2d_dtype: Optional[str] = None
-    for column_dtype in frame.dtypes:
+    for column_dtype in data.dtypes:
         dtype = str(column_dtype)
         if dtype in ("string", "category", "object"):
             dtype = "str"
@@ -829,7 +968,7 @@ def as_array2d(frame: Frame, *, force_copy: bool = False) -> Array2D:
     if array2d_dtype == "str":
         array2d_dtype = "U"
 
-    array2d = frame.values
+    array2d = data.values
 
     if (
         force_copy
@@ -837,13 +976,13 @@ def as_array2d(frame: Frame, *, force_copy: bool = False) -> Array2D:
         or isinstance(array2d, np.matrix)
         or array2d_dtype != array2d.dtype
     ):
-        array2d = np.array(array2d, array2d_dtype)
+        array2d = np.array(array2d)
 
     return array2d
 
 
 #: Any 2D data in row-major layout.
-MatrixRows = Union[GridRows, FrameRows]
+MatrixRows = Union[ArrayRows, SparseRows, FrameRows]
 
 
 def is_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixRows]:
@@ -856,7 +995,7 @@ def is_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = 
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return is_grid_rows(data, dtype=dtype) or is_frame_rows(data, dtype=dtype)
+    return is_array_rows(data, dtype=dtype) or is_sparse_rows(data, dtype=dtype) or is_frame_rows(data, dtype=dtype)
 
 
 def be_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixRows:
@@ -883,7 +1022,7 @@ def be_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = 
 
 
 #: Any 2D data in column-major layout.
-MatrixColumns = Union[GridColumns, FrameColumns]
+MatrixColumns = Union[ArrayColumns, SparseColumns, FrameColumns]
 
 
 def is_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixColumns]:
@@ -896,7 +1035,11 @@ def is_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]]
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return is_grid_columns(data, dtype=dtype) or is_frame_columns(data, dtype=dtype)
+    return (
+        is_array_columns(data, dtype=dtype)
+        or is_sparse_columns(data, dtype=dtype)
+        or is_frame_columns(data, dtype=dtype)
+    )
 
 
 def be_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixColumns:
@@ -923,7 +1066,7 @@ def be_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]]
 
 
 #: Any 2D data.
-Matrix = Union[Grid, Frame]
+Matrix = Union[Array2D, Sparse, Frame]
 
 
 def is_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[Matrix]:
@@ -936,7 +1079,7 @@ def is_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None)
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return is_grid(data, dtype=dtype) or is_frame(data, dtype=dtype)
+    return is_array2d(data, dtype=dtype) or is_sparse(data, dtype=dtype) or is_frame(data, dtype=dtype)
 
 
 def be_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> Matrix:
@@ -958,14 +1101,72 @@ def be_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None)
     return data
 
 
+@overload
+def matrix_copy(data: ArrayRows) -> ArrayRows:
+    ...
+
+
+@overload
+def matrix_copy(data: ArrayColumns) -> ArrayColumns:
+    ...
+
+
+@overload
+def matrix_copy(data: SparseRows) -> SparseRows:
+    ...
+
+
+@overload
+def matrix_copy(data: SparseColumns) -> SparseColumns:
+    ...
+
+
+@overload
+def matrix_copy(data: FrameRows) -> FrameRows:
+    ...
+
+
+@overload
+def matrix_copy(data: FrameColumns) -> FrameColumns:
+    ...
+
+
+def matrix_copy(data: Matrix) -> Matrix:
+    """
+    Create a copy of a matrix.
+
+    All the matrix data types (``numpy.ndarray``, ``scipy.sparse``, ``pandas.Frame``) have a ``copy()`` method, so you
+    would think one can just write ``matrix.copy()`` and be done and that is *almost* true except that in their infinite
+    wisdom ``numpy`` will always create the copy in row-major layout, and ``pandas`` will always create the copy in
+    column-major layout, because "reasons".
+
+    The code here will give you a proper copy of the data in the same layout as the original. Sigh.
+    """
+    if isinstance(data, np.ndarray):
+        return np.array(data)  # type: ignore
+
+    if isinstance(data, pd.DataFrame) and isinstance(data.values, np.ndarray):
+        return pd.DataFrame(np.array(data.values), index=data.index, columns=data.columns)
+
+    return data.copy()
+
+
 class AnyMajor(ABC):
     """
     Allow for either row-major or column-major matrix layout.
     """
 
-    def __init__(self) -> None:
-        #: Name for messages.
-        self.name = "any-major"
+    #: Name for messages.
+    name = "any-major"
+
+    #: The ``numpy`` order for the layout.
+    numpy_order = "?"
+
+    #: The ``numpy`` flag for the layout.
+    numpy_flag = "?"
+
+    #: The axis which should be contiguous for the layout.
+    contiguous_axis = -1
 
     def __eq__(self, other: Any) -> bool:
         return id(self.__class__) == id(other.__class__)
@@ -979,10 +1180,10 @@ class RowMajor(AnyMajor):  # pylint: disable=too-few-public-methods
     Require row-major layout.
     """
 
-    def __init__(self) -> None:
-        #: Name for messages.
-        super().__init__()
-        self.name = "row-major"
+    name = "row-major"
+    numpy_order = "C"
+    numpy_flag = "C_CONTIGUOUS"
+    contiguous_axis = 1
 
 
 #: Require row-major layout.
@@ -994,10 +1195,10 @@ class ColumnMajor(AnyMajor):  # pylint: disable=too-few-public-methods
     Require column-major layout.
     """
 
-    def __init__(self) -> None:
-        #: Name for messages.
-        super().__init__()
-        self.name = "column-major"
+    name = "column-major"
+    numpy_order = "F"
+    numpy_flag = "F_CONTIGUOUS"
+    contiguous_axis = 0
 
 
 #: Require column-major layout.
@@ -1043,12 +1244,19 @@ def is_optimized(data: Any) -> bool:
         return (
             isinstance(data, (sp.csr_matrix, sp.csc_matrix)) and data.has_canonical_format and data.has_sorted_indices
         )
+
     if isinstance(data, (pd.DataFrame, pd.Series)):
         data = data.values
         if not isinstance(data, np.ndarray):
             return True
-    if isinstance(data, np.ndarray) and 1 <= data.ndim <= 2:
-        return data.flags["F_CONTIGUOUS"] or data.flags["C_CONTIGUOUS"]
+
+    if isinstance(data, np.ndarray):
+        if data.ndim == 1:
+            return data.strides[0] == data.dtype.itemsize
+        if data.ndim == 2:
+            return _is_array_layout(data, ROW_MAJOR) or _is_array_layout(data, COLUMN_MAJOR)
+        return False
+
     assert False, f"expected a matrix or a vector, got {_data_description(data)}"
 
 
@@ -1135,18 +1343,18 @@ def optimize(data: Any, *, force_copy: bool = False, preferred_layout: AnyMajor 
     ignored.
     """
     if isinstance(data, np.ndarray) and 1 <= data.ndim <= 2:
-        if force_copy or (not data.flags["F_CONTIGUOUS"] and not data.flags["C_CONTIGUOUS"]):
+        if force_copy or not is_optimized(data):
             return np.array(data)
         return data
 
     if isinstance(data, pd.Series):
         if force_copy or not is_optimized(data):
-            data = pd.Series(np.array(data.values), index=data.index)
+            data = pd.Series(as_array1d(data, force_copy=True), index=data.index)
         return data
 
     if isinstance(data, pd.DataFrame):
         if force_copy or not is_optimized(data):
-            data = pd.DataFrame(np.array(data.values), index=data.index, columns=data.columns)
+            data = pd.DataFrame(as_array2d(data.values, force_copy=True), index=data.index, columns=data.columns)
         return data
 
     if isinstance(data, sp.spmatrix):
@@ -1172,7 +1380,7 @@ def _is_numpy_dtypes(dtype: str, dtypes: Optional[Union[str, Collection[str]]]) 
     if isinstance(dtypes, str):
         dtypes = (dtypes,)
     if dtypes is not None:
-        return dtype in dtypes or ("str" in dtypes and "U" in dtype)
+        return dtype in dtypes or ("str" in dtypes and (dtype == "object" or "U" in dtype))
     return "U" in dtype or dtype in (
         "bool",
         "int8",
@@ -1186,15 +1394,12 @@ def _is_numpy_dtypes(dtype: str, dtypes: Optional[Union[str, Collection[str]]]) 
         "float16",
         "float32",
         "float64",
+        "object",
     )
 
 
-def _is_array_column_major(array: np.ndarray) -> bool:
-    return array.flags["F_CONTIGUOUS"]
-
-
-def _is_array_row_major(array: np.ndarray) -> bool:
-    return array.flags["C_CONTIGUOUS"]
+def _is_array_layout(array: np.ndarray, layout: AnyMajor) -> bool:
+    return array.flags[layout.numpy_flag] or array.strides[layout.contiguous_axis] == array.dtype.itemsize
 
 
 def _is_pandas_dtypes(dtype: str, dtypes: Optional[Union[str, Collection[str]]]) -> bool:
@@ -1226,8 +1431,8 @@ def _data_description(data: Any) -> str:  # pylint: disable=too-many-return-stat
             return f"a none-major 1D numpy.ndarray of {data.dtype}"
 
         if data.ndim == 2:
-            is_column_major = _is_array_column_major(data)
-            is_row_major = _is_array_row_major(data)
+            is_column_major = _is_array_layout(data, COLUMN_MAJOR)
+            is_row_major = _is_array_layout(data, ROW_MAJOR)
             if is_column_major and is_row_major:
                 return f"a both-major 2D numpy.ndarray of {data.dtype}"
             if is_column_major:
@@ -1254,8 +1459,8 @@ def _data_description(data: Any) -> str:  # pylint: disable=too-many-return-stat
                 f"{data.values.__class__.__module__}.{data.values.__class__.__qualname__}"
             )
         assert data.values.ndim == 2
-        is_column_major = _is_array_column_major(data.values)
-        is_row_major = _is_array_row_major(data.values)
+        is_column_major = _is_array_layout(data, COLUMN_MAJOR)
+        is_row_major = _is_array_layout(data, ROW_MAJOR)
         dtypes = np.unique(data.dtypes)
         if len(dtypes) == 1:
             dtype = str(dtypes[0])
@@ -1279,3 +1484,124 @@ def _data_description(data: Any) -> str:  # pylint: disable=too-many-return-stat
         return f"a {data.__class__.__module__}.{data.__class__.__qualname__} of {data.dtype}"
 
     return f"an instance of {data.__class__.__module__}.{data.__class__.__qualname__}"
+
+
+@overload
+def as_layout(matrix: Array2D, layout: RowMajor, force_copy: bool = False) -> ArrayRows:
+    ...
+
+
+@overload
+def as_layout(matrix: Array2D, layout: ColumnMajor, force_copy: bool = False) -> ArrayColumns:
+    ...
+
+
+@overload
+def as_layout(matrix: Sparse, layout: RowMajor, force_copy: bool = False) -> SparseRows:
+    ...
+
+
+@overload
+def as_layout(matrix: Sparse, layout: ColumnMajor, force_copy: bool = False) -> SparseColumns:
+    ...
+
+
+@overload
+def as_layout(matrix: Frame, layout: RowMajor, force_copy: bool = False) -> FrameRows:
+    ...
+
+
+@overload
+def as_layout(matrix: Frame, layout: ColumnMajor, force_copy: bool = False) -> FrameColumns:
+    ...
+
+
+def as_layout(
+    matrix: Matrix, layout: AnyMajor, force_copy: bool = False, max_workers: int = 1, block_size: int = 8 * 1024 * 1024
+) -> Matrix:
+    """
+    Access the data in a specific layout.
+
+    If ``force_copy``, return a copy even if the data is already in the required layout.
+
+    If we need to actually re-layout the data, and it is in a dense format, and it is "large", it may take a long time
+    to do so without parallelization. The code here is able to use multiple threads in such a case, up to
+    ``max_workers``. Since we might be invoked from within some parallel code, there's no way for the code here to
+    figure out what is the available number of workers we can use, so we default to the only safe value of just one.
+
+    It also turns out that for large dense data it is more efficient to work on the data in blocks that fit a
+    "reasonable" HW cache level. The code here uses a default ``block_size`` of 8 megabytes, which seems to work well in
+    CPUs circa 2022. This optimization should really have been in ``numpy`` itself.
+    """
+    if matrix_layout(matrix) == layout:
+        if force_copy:
+            return matrix_copy(matrix)
+        return matrix
+
+    if is_sparse(matrix):
+        if layout == ROW_MAJOR:
+            return sp.csr_matrix(matrix)
+        assert layout == COLUMN_MAJOR
+        return sp.csc_matrix(matrix)
+
+    assert is_dense(matrix)
+    array2d = _relayout_array2d(as_array2d(matrix), layout, max_workers, block_size)
+
+    if is_array2d(matrix):
+        return array2d
+
+    assert is_frame(matrix)
+    return pd.DataFrame(array2d, index=matrix.index, columns=matrix.columns)
+
+
+@overload
+def _relayout_array2d(array2d: Array2D, layout: RowMajor, max_workers: int, block_size: int) -> ArrayRows:
+    ...
+
+
+@overload
+def _relayout_array2d(array2d: Array2D, layout: ColumnMajor, max_workers: int, block_size: int) -> ArrayColumns:
+    ...
+
+
+@overload
+def _relayout_array2d(array2d: Array2D, layout: AnyMajor, max_workers: int, block_size: int) -> Array2D:
+    ...
+
+
+def _relayout_array2d(array2d: Array2D, layout: AnyMajor, max_workers: int, block_size: int) -> Array2D:
+    block_elements = int(sqrt(block_size / array2d.dtype.itemsize))
+
+    row_elements = array2d.shape[0]
+    column_elements = array2d.shape[1]
+
+    row_blocks = int(ceil(row_elements / block_elements))
+    column_blocks = int(ceil(column_elements / block_elements))
+
+    result = np.empty(array2d.shape, dtype=array2d.dtype, order=layout.numpy_order)  # type: ignore
+
+    def _relayout_block(block: int) -> None:
+        row_block = block // row_blocks
+        column_block = block % row_blocks
+
+        start_row = int(round(row_block * row_elements / row_blocks))
+        stop_row = int(round((row_block + 1) * row_elements / row_blocks))
+
+        start_column = int(round(column_block * column_elements / column_blocks))
+        stop_column = int(round((column_block + 1) * column_elements / column_blocks))
+
+        result[start_row:stop_row, start_column:stop_column] = array2d[start_row:stop_row, start_column:stop_column]
+
+    blocks_count = row_blocks * column_blocks
+    max_workers = min(max_workers, blocks_count)
+
+    if max_workers == 1:
+        for block in range(blocks_count):
+            _relayout_block(block)
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for _ in executor.map(_relayout_block, range(blocks_count)):
+                pass
+
+    assert _is_array_layout(result, layout)
+    return result  # type: ignore

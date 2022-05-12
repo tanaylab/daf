@@ -81,11 +81,22 @@ def test_array2d() -> None:
     be_array_columns(array2d_of_int.T)
     be_grid(array2d_of_int)
     be_grid_rows(array2d_of_int)
+    be_dense(array2d_of_int)
+    be_dense_rows(array2d_of_int)
     be_matrix(array2d_of_int)
     be_matrix_rows(array2d_of_int)
 
     be_array1d(array2d_of_int[:, 0])
     be_array1d(array2d_of_int[0, :])
+
+    assert id(array2d_of_int) == id(be_array_rows(as_layout(array2d_of_int, ROW_MAJOR)))
+    assert id(array2d_of_int) != id(be_array_rows(as_layout(array2d_of_int, ROW_MAJOR, force_copy=True)))
+    be_array_columns(as_layout(array2d_of_int, COLUMN_MAJOR))
+
+    transpose_of_int = array2d_of_int.T
+    assert id(transpose_of_int) == id(be_array_columns(as_layout(transpose_of_int, COLUMN_MAJOR)))
+    assert id(transpose_of_int) != id(be_array_columns(as_layout(transpose_of_int, COLUMN_MAJOR, force_copy=True)))
+    be_array_rows(as_layout(transpose_of_int, ROW_MAJOR))
 
     array2d_of_str: Array2D = be_array2d(np.zeros((2, 4), dtype="U"))
     be_array2d(array2d_of_str, dtype="str")
@@ -94,6 +105,8 @@ def test_array2d() -> None:
     be_array_columns(array2d_of_str.T, dtype="str")
     be_grid(array2d_of_str)
     be_grid_columns(array2d_of_str.T)
+    be_dense(array2d_of_str)
+    be_dense_columns(array2d_of_str.T)
     be_matrix(array2d_of_str)
     be_matrix_columns(array2d_of_str.T)
 
@@ -122,6 +135,15 @@ def test_array2d() -> None:
     column_of_str: Array2D = be_array2d(np.zeros((2, 1), dtype="U"))
     be_array1d(as_array1d(column_of_str))
 
+    assert id(array2d_of_str) == id(be_array_rows(as_layout(array2d_of_str, ROW_MAJOR)))
+    assert id(array2d_of_str) != id(be_array_rows(as_layout(array2d_of_str, ROW_MAJOR, force_copy=True)))
+    be_array_columns(as_layout(array2d_of_str, COLUMN_MAJOR))
+
+    transpose_of_str = array2d_of_str.T
+    assert id(transpose_of_str) == id(be_array_columns(as_layout(transpose_of_str, COLUMN_MAJOR)))
+    assert id(transpose_of_str) != id(be_array_columns(as_layout(transpose_of_str, COLUMN_MAJOR, force_copy=True)))
+    be_array_rows(as_layout(transpose_of_str, ROW_MAJOR))
+
 
 def test_frame() -> None:
     frame_of_int: Frame = be_frame(
@@ -131,6 +153,8 @@ def test_frame() -> None:
     assert not is_frame(frame_of_int, dtype="bool")
     assert not is_grid(frame_of_int)
     assert not is_grid_rows(frame_of_int)
+    be_dense(frame_of_int)
+    be_dense_rows(frame_of_int)
     be_matrix(frame_of_int)
     be_matrix_rows(frame_of_int)
 
@@ -155,6 +179,15 @@ def test_frame() -> None:
     be_series(frame_of_int.iloc[0, :])
     be_series(frame_of_int.iloc[:, 0])
 
+    assert id(frame_of_int) == id(be_frame_rows(as_layout(frame_of_int, ROW_MAJOR)))
+    assert id(frame_of_int) != id(be_frame_rows(as_layout(frame_of_int, ROW_MAJOR, force_copy=True)))
+    be_frame_columns(as_layout(frame_of_int, COLUMN_MAJOR))
+
+    transpose_of_int = frame_of_int.T
+    assert id(transpose_of_int) == id(be_frame_columns(as_layout(transpose_of_int, COLUMN_MAJOR)))
+    assert id(transpose_of_int) != id(be_frame_columns(as_layout(transpose_of_int, COLUMN_MAJOR, force_copy=True)))
+    be_frame_rows(as_layout(transpose_of_int, ROW_MAJOR))
+
     frame_of_str: Frame = be_frame(pd.DataFrame(np.zeros((2, 3), dtype="U"), index=["a", "b"], columns=["x", "y", "z"]))
     be_frame(frame_of_str, dtype="str")
 
@@ -167,6 +200,8 @@ def test_frame() -> None:
     be_array2d(array2d_of_str)
     assert not is_grid(frame_of_str)
     assert not is_grid_rows(frame_of_str)
+    be_dense(frame_of_str)
+    be_dense_columns(frame_of_str.T)
     be_matrix(frame_of_str)
     be_matrix_columns(frame_of_str.T)
 
@@ -199,6 +234,15 @@ def test_frame() -> None:
     be_series(frame_of_mix["b"], dtype="str")
     be_frame_columns(frame_of_mix)
 
+    assert id(frame_of_str) == id(be_frame_rows(as_layout(frame_of_str, ROW_MAJOR)))
+    assert id(frame_of_str) != id(be_frame_rows(as_layout(frame_of_str, ROW_MAJOR, force_copy=True)))
+    be_frame_columns(as_layout(frame_of_str, COLUMN_MAJOR))
+
+    transpose_of_str = frame_of_str.T
+    assert id(transpose_of_str) == id(be_frame_columns(as_layout(transpose_of_str, COLUMN_MAJOR)))
+    assert id(transpose_of_str) != id(be_frame_columns(as_layout(transpose_of_str, COLUMN_MAJOR, force_copy=True)))
+    be_frame_rows(as_layout(transpose_of_str, ROW_MAJOR))
+
 
 def test_sparse() -> None:
     sparse_of_float32: Sparse = be_sparse(sp.csr_matrix([[1, 0], [0, 1]], dtype="float32"))
@@ -206,6 +250,8 @@ def test_sparse() -> None:
     assert not is_sparse(sparse_of_float32, dtype="float16")
     be_grid(sparse_of_float32, dtype="float32")
     be_grid_rows(sparse_of_float32, dtype="float32")
+    assert not is_dense(sparse_of_float32, dtype="float32")
+    assert not is_dense_rows(sparse_of_float32, dtype="float32")
     be_matrix(sparse_of_float32, dtype="float32")
     be_matrix_rows(sparse_of_float32, dtype="float32")
     be_optimized(sparse_of_float32)
@@ -223,6 +269,8 @@ def test_sparse() -> None:
     be_sparse_columns(sparse_of_float32.T, dtype="float32")
     be_grid(sparse_of_float32.T)
     be_grid_columns(sparse_of_float32.T)
+    assert not is_dense(sparse_of_float32.T)
+    assert not is_dense_columns(sparse_of_float32.T)
     be_matrix(sparse_of_float32.T)
     be_matrix_columns(sparse_of_float32.T)
 
@@ -241,3 +289,14 @@ def test_sparse() -> None:
     assert matrix_layout(rows_of_float32) == ROW_MAJOR
     be_sparse_rows(rows_of_float32)
     be_sparse(rows_of_float32)
+
+    assert id(sparse_of_float32) == id(be_sparse_rows(as_layout(sparse_of_float32, ROW_MAJOR)))
+    assert id(sparse_of_float32) != id(be_sparse_rows(as_layout(sparse_of_float32, ROW_MAJOR, force_copy=True)))
+    be_sparse_columns(as_layout(sparse_of_float32, COLUMN_MAJOR))
+
+    transpose_of_float32 = sparse_of_float32.T
+    assert id(transpose_of_float32) == id(be_sparse_columns(as_layout(transpose_of_float32, COLUMN_MAJOR)))
+    assert id(transpose_of_float32) != id(
+        be_sparse_columns(as_layout(transpose_of_float32, COLUMN_MAJOR, force_copy=True))
+    )
+    be_sparse_rows(as_layout(transpose_of_float32, ROW_MAJOR))
