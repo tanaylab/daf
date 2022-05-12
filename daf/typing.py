@@ -26,6 +26,44 @@ We therefore provide here only the minimal ``mypy`` annotations allowing express
 code paths, and provide some utilities to at least assert the element data type is as expected. In particular, these
 type annotations only support the restricted subset we allow to store out of the full set of data types available in
 ``numpy``, ``pandas`` and ``scipy.sparse``.
+
+Specifically we establish the following taxonomy:
+
+* :py:const:`Vector` data is the most general one-dimensional data. It is a union of two different types which behave
+  differently:
+
+   * :py:const:`Array1D` is a one-dimensional ``numpy.ndarray``.
+   * :py:const:`Series` is a ``pandas.Series`` which combines an ``Array1D`` with an index of names.
+
+* :py:const:`Matrix` is the most general two dimensional data. It is a union of three types which behave differently:
+
+  * py:const:`Array2D` is a two-dimensional ``numpy.ndarray``.
+  * py:const:`Sparse` is a compressed sparse matrix (``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``).
+  * py:const:`Frame` is a ``pandas.DataFrame`` which combines an ``Array2D`` with indices of names for the rows columns.
+
+  In addition, we provide the following two dimensional union types:
+
+  * py:const:`Grid` is a union of ``Array2D`` and ``Sparse``, that is, plain data without names.
+  * Each of the above types can be suffixed with ``Rows`` or ``Columns`` to indicate that it is stored in row-major or
+    column-major layputt. This *matters* as performing computations on the wrong layout will be
+    *drastically* inefficient for non-trivial sizes.
+
+Each of these types comes with an ``is_...`` function that tests for it (and can be used as a ``mypy`` ``TypeGuard``), a
+``be_...`` function that asserts some data is of this type and returns it as such for ``mypy``. We also provide a few
+``as_...`` functions to extract the internal data from ``pandas`` - note it is *not* sufficient to simply access the
+``.values`` data member (it is only *almost* sufficient), and that when it comes to string data, ``numpy`` and
+``pandas`` have very different ``dtypes`` annotations, which the code below buries under a common ``str`` value, but
+this is a leaky abstraction as you'd need to provide the specific correct value for ``pandas`` and ``numpy`` constructor
+functions.
+
+All of this doesn't apply to return values from ``numpy``, ``pandas`` or ``scipy.sparse`` functions; effectively these
+return ``Any`` (or, in the case of ``numpy``, ``numpy.ndarray`` which is also too generic). This effectively disables
+``mypy`` type checking.
+
+The bottom line is that as always type annotations in Python are optional. You can ignore them (which makes sense for
+quick-and-dirty scripts), and if you want to benefit from them (for serious code), you need to put in the extra work
+(adding type annotations and a liberal amount of ``be_...`` calls). The goal of this module is merely to make it
+*possible* to do so with the least amount of pain.
 """
 
 
@@ -82,6 +120,16 @@ __all__ = [
     "MatrixColumns",
     "is_matrix_columns",
     "be_matrix_columns",
+    # 2D unnamed data:
+    "Grid",
+    "is_grid",
+    "be_grid",
+    "GridRows",
+    "is_grid_rows",
+    "be_grid_rows",
+    "GridColumns",
+    "is_grid_columns",
+    "be_grid_columns",
     # 2D numpy arrays:
     "Array2D",
     "is_array2d",
@@ -92,6 +140,16 @@ __all__ = [
     "ArrayColumns",
     "is_array_columns",
     "be_array_columns",
+    # 2D sparse matrices:
+    "Sparse",
+    "is_sparse",
+    "be_sparse",
+    "SparseRows",
+    "is_sparse_rows",
+    "be_sparse_rows",
+    "SparseColumns",
+    "is_sparse_columns",
+    "be_sparse_columns",
     # 2D pandas frames:
     "Frame",
     "is_frame",
@@ -103,16 +161,6 @@ __all__ = [
     "is_frame_columns",
     "be_frame_columns",
     "as_array2d",
-    # 2D sparse matrices:
-    "Sparse",
-    "is_sparse",
-    "be_sparse",
-    "SparseRows",
-    "is_sparse_rows",
-    "be_sparse_rows",
-    "SparseColumns",
-    "is_sparse_columns",
-    "be_sparse_columns",
 ]
 
 #: 1-dimensional ``numpy`` array of bool values.
@@ -397,6 +445,235 @@ def be_array2d(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None
     return data
 
 
+#: 2-dimensional ``scipy.sparse`` matrix in CSR layout.
+SparseRows = NewType("SparseRows", Annotated[SparseMatrix, "csr"])
+
+
+def is_sparse_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[SparseRows]:
+    """
+    Check whether some ``data`` is an :py:const:`SparseRows`, optionally only of some ``dtype``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    return isinstance(data, sp.csr_matrix) and _is_numpy_dtypes(str(data.data.dtype), dtype)
+
+
+def be_sparse_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> SparseRows:
+    """
+    Assert that some ``data`` is a :py:const:`SparseRows`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    if dtype is None:
+        assert is_sparse_rows(
+            data
+        ), f"expected a scipy.sparse.csr_matrix of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_sparse_rows(
+            data
+        ), f"expected a scipy.sparse.csr_matrix of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: 2-dimensional ``scipy.sparse`` matrix in CSC layout.
+SparseColumns = NewType("SparseColumns", Annotated[SparseMatrix, "csc"])
+
+
+def is_sparse_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[SparseColumns]:
+    """
+    Check whether some ``data`` is an :py:const:`SparseColumns`, optionally only of some ``dtype``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    return isinstance(data, sp.csc_matrix) and _is_numpy_dtypes(str(data.data.dtype), dtype)
+
+
+def be_sparse_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> SparseColumns:
+    """
+    Assert that some ``data`` is a :py:const:`SparseColumns`, optionally only of some ``dtype``, and return it as such
+    for ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    if dtype is None:
+        assert is_sparse_columns(
+            data
+        ), f"expected a scipy.sparse.csc_matrix of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_sparse_columns(
+            data
+        ), f"expected a scipy.sparse.csc_matrix of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: 2-dimensional ``scipy.sparse`` matrix in compressed layout.
+Sparse = Union[SparseRows, SparseColumns]
+
+
+def is_sparse(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[Sparse]:
+    """
+    Check whether some ``data`` is an :py:const:`Sparse`, optionally only of some ``dtype``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    return isinstance(data, (sp.csr_matrix, sp.csc_matrix)) and _is_numpy_dtypes(str(data.data.dtype), dtype)
+
+
+def be_sparse(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> Sparse:
+    """
+    Assert that some ``data`` is an :py:const:`Sparse` optionally only of some ``dtype``, and return it as
+    such for ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    if dtype is None:
+        assert is_sparse(
+            data
+        ), f"expected a scipy.sparse.csr/csc_matrix of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_sparse(
+            data
+        ), f"expected a scipy.sparse.csr/csc_matrix of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: Any 2D data in row-major layout.
+GridRows = Union[ArrayRows, SparseRows]
+
+
+def is_grid_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[GridRows]:
+    """
+    Assert that some ``data`` is an :py:const:`GridRows`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a grid of strings.
+    """
+    return is_array_rows(data, dtype=dtype) or is_sparse_rows(data, dtype=dtype)
+
+
+def be_grid_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> GridRows:
+    """
+    Assert that some ``data`` is a :py:const:`GridRows`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a grid of strings.
+    """
+    if dtype is None:
+        assert is_grid_rows(data), f"expected a row-major grid of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_grid_rows(data), f"expected a row-major grid of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: Any 2D data in column-major layout.
+GridColumns = Union[ArrayColumns, SparseColumns]
+
+
+def is_grid_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[GridColumns]:
+    """
+    Assert that some ``data`` is an :py:const:`GridColumns`, optionally only of some ``dtype``, and return it as such
+    for ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a grid of strings.
+    """
+    return is_array_columns(data, dtype=dtype) or is_sparse_columns(data, dtype=dtype)
+
+
+def be_grid_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> GridColumns:
+    """
+    Assert that some ``data`` is a :py:const:`GridColumns`, optionally only of some ``dtype``, and return it as such
+    for ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a grid of strings.
+    """
+    if dtype is None:
+        assert is_grid_columns(
+            data
+        ), f"expected a column-major grid of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_grid_columns(
+            data
+        ), f"expected a row-major grid of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: Any 2D data without names.
+Grid = Union[Array2D, Sparse]
+
+
+def is_grid(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[Grid]:
+    """
+    Assert that some ``data`` is an :py:const:`Grid`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a grid of strings.
+    """
+    return is_array2d(data, dtype=dtype) or is_sparse(data, dtype=dtype)
+
+
+def be_grid(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> Grid:
+    """
+    Assert that some ``data`` is a :py:const:`Grid`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a grid of strings.
+    """
+    if dtype is None:
+        assert is_grid(data), f"expected a any-major grid of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_grid(data), f"expected a any-major grid of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
 #: 2-dimensional ``pandas`` frame in row-major layout.
 FrameRows = NewType("FrameRows", Annotated[PandasFrame, "row_major"])
 
@@ -565,161 +842,8 @@ def as_array2d(frame: Frame, *, force_copy: bool = False) -> Array2D:
     return array2d
 
 
-#: 2-dimensional ``scipy.sparse`` matrix in CSR layout.
-SparseRows = NewType("SparseRows", Annotated[SparseMatrix, "csr"])
-
-
-def is_sparse_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[SparseRows]:
-    """
-    Check whether some ``data`` is an :py:const:`SparseRows`, optionally only of some ``dtype``.
-
-    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
-
-    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
-    a matrix of strings.
-    """
-    return isinstance(data, sp.csr_matrix) and _is_numpy_dtypes(str(data.data.dtype), dtype)
-
-
-def be_sparse_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> SparseRows:
-    """
-    Assert that some ``data`` is a :py:const:`SparseRows`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
-
-    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
-
-    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
-    a matrix of strings.
-    """
-    if dtype is None:
-        assert is_sparse_rows(
-            data
-        ), f"expected a scipy.sparse.csr_matrix of any reasonable type, got {_data_description(data)}"
-    else:
-        if isinstance(dtype, str):
-            dtype = (dtype,)
-        assert is_sparse_rows(
-            data
-        ), f"expected a scipy.sparse.csr_matrix of {' or '.join(dtype)}, got {_data_description(data)}"
-    return data
-
-
-#: 2-dimensional ``scipy.sparse`` matrix in CSC layout.
-SparseColumns = NewType("SparseColumns", Annotated[SparseMatrix, "csc"])
-
-
-def is_sparse_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[SparseColumns]:
-    """
-    Check whether some ``data`` is an :py:const:`SparseColumns`, optionally only of some ``dtype``.
-
-    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
-
-    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
-    a matrix of strings.
-    """
-    return isinstance(data, sp.csc_matrix) and _is_numpy_dtypes(str(data.data.dtype), dtype)
-
-
-def be_sparse_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> SparseColumns:
-    """
-    Assert that some ``data`` is a :py:const:`SparseColumns`, optionally only of some ``dtype``, and return it as such
-    for ``mypy``.
-
-    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
-
-    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
-    a matrix of strings.
-    """
-    if dtype is None:
-        assert is_sparse_columns(
-            data
-        ), f"expected a scipy.sparse.csc_matrix of any reasonable type, got {_data_description(data)}"
-    else:
-        if isinstance(dtype, str):
-            dtype = (dtype,)
-        assert is_sparse_columns(
-            data
-        ), f"expected a scipy.sparse.csc_matrix of {' or '.join(dtype)}, got {_data_description(data)}"
-    return data
-
-
-#: 2-dimensional ``scipy.sparse`` matrix in compressed layout.
-Sparse = Union[SparseRows, SparseColumns]
-
-
-def is_sparse(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[Sparse]:
-    """
-    Check whether some ``data`` is an :py:const:`Sparse`, optionally only of some ``dtype``.
-
-    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
-
-    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
-    a matrix of strings.
-    """
-    return isinstance(data, (sp.csr_matrix, sp.csc_matrix)) and _is_numpy_dtypes(str(data.data.dtype), dtype)
-
-
-def be_sparse(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> Sparse:
-    """
-    Assert that some ``data`` is an :py:const:`Sparse` optionally only of some ``dtype``, and return it as
-    such for ``mypy``.
-
-    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
-
-    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
-    a matrix of strings.
-    """
-    if dtype is None:
-        assert is_sparse(
-            data
-        ), f"expected a scipy.sparse.csr/csc_matrix of any reasonable type, got {_data_description(data)}"
-    else:
-        if isinstance(dtype, str):
-            dtype = (dtype,)
-        assert is_sparse(
-            data
-        ), f"expected a scipy.sparse.csr/csc_matrix of {' or '.join(dtype)}, got {_data_description(data)}"
-    return data
-
-
-#: Any 2D data.
-Matrix = Union[Array2D, Frame, Sparse]
-
-
-def is_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[Matrix]:
-    """
-    Assert that some ``data`` is an :py:const:`Matrix`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
-
-    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
-
-    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
-    a matrix of strings.
-    """
-    return is_array2d(data, dtype=dtype) or is_frame(data, dtype=dtype) or is_sparse(data, dtype=dtype)
-
-
-def be_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> Matrix:
-    """
-    Assert that some ``data`` is a :py:const:`Matrix`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
-
-    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
-
-    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
-    a matrix of strings.
-    """
-    if dtype is None:
-        assert is_matrix(data), f"expected a any-major matrix of any reasonable type, got {_data_description(data)}"
-    else:
-        if isinstance(dtype, str):
-            dtype = (dtype,)
-        assert is_matrix(data), f"expected a any-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
-    return data
-
-
 #: Any 2D data in row-major layout.
-MatrixRows = Union[ArrayRows, FrameRows, SparseRows]
+MatrixRows = Union[GridRows, FrameRows]
 
 
 def is_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixRows]:
@@ -732,7 +856,7 @@ def is_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = 
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return is_array_rows(data, dtype=dtype) or is_frame_rows(data, dtype=dtype) or is_sparse_rows(data, dtype=dtype)
+    return is_grid_rows(data, dtype=dtype) or is_frame_rows(data, dtype=dtype)
 
 
 def be_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixRows:
@@ -759,7 +883,7 @@ def be_matrix_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = 
 
 
 #: Any 2D data in column-major layout.
-MatrixColumns = Union[ArrayColumns, FrameColumns, SparseColumns]
+MatrixColumns = Union[GridColumns, FrameColumns]
 
 
 def is_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixColumns]:
@@ -772,11 +896,7 @@ def is_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]]
     Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
     a matrix of strings.
     """
-    return (
-        is_array_columns(data, dtype=dtype)
-        or is_frame_columns(data, dtype=dtype)
-        or is_sparse_columns(data, dtype=dtype)
-    )
+    return is_grid_columns(data, dtype=dtype) or is_frame_columns(data, dtype=dtype)
 
 
 def be_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixColumns:
@@ -799,6 +919,42 @@ def be_matrix_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]]
         assert is_matrix_columns(
             data
         ), f"expected a row-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
+    return data
+
+
+#: Any 2D data.
+Matrix = Union[Grid, Frame]
+
+
+def is_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[Matrix]:
+    """
+    Assert that some ``data`` is an :py:const:`Matrix`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    return is_grid(data, dtype=dtype) or is_frame(data, dtype=dtype)
+
+
+def be_matrix(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> Matrix:
+    """
+    Assert that some ``data`` is a :py:const:`Matrix`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
+
+    By default, checks that the data type is "reasonable" (bool, int, float, or a string).
+
+    Since ``numpy`` and ``pandas`` can't decide on what the ``dtype`` of a string is, use the value ``str`` to check for
+    a matrix of strings.
+    """
+    if dtype is None:
+        assert is_matrix(data), f"expected a any-major matrix of any reasonable type, got {_data_description(data)}"
+    else:
+        if isinstance(dtype, str):
+            dtype = (dtype,)
+        assert is_matrix(data), f"expected a any-major matrix of {' or '.join(dtype)}, got {_data_description(data)}"
     return data
 
 

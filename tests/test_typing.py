@@ -79,6 +79,8 @@ def test_array2d() -> None:
     assert matrix_layout(array2d_of_int.T) == COLUMN_MAJOR
     be_array_rows(array2d_of_int, dtype="int64")
     be_array_columns(array2d_of_int.T)
+    be_grid(array2d_of_int)
+    be_grid_rows(array2d_of_int)
     be_matrix(array2d_of_int)
     be_matrix_rows(array2d_of_int)
 
@@ -90,6 +92,8 @@ def test_array2d() -> None:
 
     be_array_rows(array2d_of_str)
     be_array_columns(array2d_of_str.T, dtype="str")
+    be_grid(array2d_of_str)
+    be_grid_columns(array2d_of_str.T)
     be_matrix(array2d_of_str)
     be_matrix_columns(array2d_of_str.T)
 
@@ -125,6 +129,8 @@ def test_frame() -> None:
     )
     be_frame(frame_of_int, dtype="int64")
     assert not is_frame(frame_of_int, dtype="bool")
+    assert not is_grid(frame_of_int)
+    assert not is_grid_rows(frame_of_int)
     be_matrix(frame_of_int)
     be_matrix_rows(frame_of_int)
 
@@ -159,6 +165,8 @@ def test_frame() -> None:
 
     array2d_of_str: Array2D = as_array2d(frame_of_str)
     be_array2d(array2d_of_str)
+    assert not is_grid(frame_of_str)
+    assert not is_grid_rows(frame_of_str)
     be_matrix(frame_of_str)
     be_matrix_columns(frame_of_str.T)
 
@@ -196,6 +204,8 @@ def test_sparse() -> None:
     sparse_of_float32: Sparse = be_sparse(sp.csr_matrix([[1, 0], [0, 1]], dtype="float32"))
     be_sparse(sparse_of_float32, dtype="float32")
     assert not is_sparse(sparse_of_float32, dtype="float16")
+    be_grid(sparse_of_float32, dtype="float32")
+    be_grid_rows(sparse_of_float32, dtype="float32")
     be_matrix(sparse_of_float32, dtype="float32")
     be_matrix_rows(sparse_of_float32, dtype="float32")
     be_optimized(sparse_of_float32)
@@ -211,6 +221,8 @@ def test_sparse() -> None:
     be_sparse_rows(sparse_of_float32)
     be_sparse_columns(sparse_of_float32.T)
     be_sparse_columns(sparse_of_float32.T, dtype="float32")
+    be_grid(sparse_of_float32.T)
+    be_grid_columns(sparse_of_float32.T)
     be_matrix(sparse_of_float32.T)
     be_matrix_columns(sparse_of_float32.T)
 

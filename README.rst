@@ -47,18 +47,18 @@ Usage
     metacell_colors = type_colors[metacell_types]
 
     # Get a 2D matrix by two axes and a name.
-    umis_matrix = data.get_matrix("cell,gene:UMIs", layout="row_major")
+    umis_grid = data.get_grid("cell,gene:UMIs")
 
-    if isinstance(umis_matrix, np.ndarray):
-        # Umis matrix is dense
+    if is_array2d(umis_matrix):
+        # Umis matrix is dense (np.ndarray).
         ...
     else:
-        assert isinstance(umis_matrix, sp.csr_matrix)
-        # Umis matrix is sparse
+        assert is_sparse(umis_matrix)
+        # Umis matrix is sparse (sp.csr_matrix or sp.csc_matrix).
         ...
 
     # Get a Pandas data frame by two axes and a name.
-    type_marker_genes = data.get_frame("gene,type:marker", layout="column_major")
+    type_marker_genes = data.get_frame("gene,type:marker")
 
     # Access the mask of marker genes for a specific type.
     type_marker_genes["T"]
