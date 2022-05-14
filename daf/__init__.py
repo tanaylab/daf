@@ -12,13 +12,5 @@ __version__ = "0.1.0-dev.1"
 # pylint: disable=wrong-import-position
 
 
+from .base import *
 from .typing import *
-
-
-class Daf:  # pylint: disable=too-few-public-methods
-    """
-    Provide access to data along some axes, possibly loaded from some files.
-    """
-
-    def __init__(self) -> None:
-        pass

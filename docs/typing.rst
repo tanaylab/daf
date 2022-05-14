@@ -1,0 +1,2 @@
+.. automodule:: daf.typing
+    :members:
