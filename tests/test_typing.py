@@ -13,6 +13,7 @@ from daf import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 def test_array1d() -> None:
     array1d_of_bool: Array1D = be_array1d(np.zeros(10, dtype="bool"))
+    assert data_description(array1d_of_bool) == "a none-major 1D numpy.ndarray of 10 of bool"
     be_array1d(array1d_of_bool, dtype="bool")
     be_vector(array1d_of_bool)
     assert not is_array1d(array1d_of_bool, dtype="int")
@@ -21,11 +22,14 @@ def test_array1d() -> None:
     assert id(array1d_of_bool) != id(be_optimized(optimize(array1d_of_bool, force_copy=True)))
     strided_of_bool: Array1D = array1d_of_bool[0:10:2]
     assert not is_optimized(strided_of_bool)
+    assert data_description(strided_of_bool) == "a none-major 1D numpy.ndarray of 5 of bool"
     strided_of_bool = be_optimized(optimize(strided_of_bool))
+    assert data_description(strided_of_bool) == "a none-major 1D numpy.ndarray of 5 of bool"
 
 
 def test_series() -> None:
     series_of_bool: Series = be_series(pd.Series(np.zeros(10, dtype="bool")))
+    assert data_description(series_of_bool) == "a pandas.Series of 10 of bool"
     be_series(series_of_bool, dtype="bool")
     assert not is_series(series_of_bool, dtype="int")
     be_array1d(as_array1d(series_of_bool))
@@ -34,10 +38,16 @@ def test_series() -> None:
     assert id(series_of_bool) == id(be_optimized(optimize(series_of_bool)))
     assert id(series_of_bool) != id(be_optimized(optimize(series_of_bool, force_copy=True)))
     strided_of_bool: Array1D = series_of_bool[0:10:2]
+    assert data_description(strided_of_bool) == "a pandas.Series of 5 of bool"
     assert not is_optimized(strided_of_bool)
     strided_of_bool = be_optimized(optimize(strided_of_bool))
+    assert data_description(strided_of_bool) == "a pandas.Series of 5 of bool"
 
     series_of_str: Series = be_series(pd.Series(["", "", "", ""], dtype="string"))
+    assert (
+        data_description(series_of_str)
+        == "a pandas.Series containing an instance of pandas.core.arrays.string_.StringArray of 4 of string"
+    )
     be_series(series_of_str, dtype="str")
     be_array1d(as_array1d(series_of_str), dtype="str")
     be_vector(series_of_str)
@@ -45,6 +55,10 @@ def test_series() -> None:
     assert id(series_of_str) == id(be_optimized(optimize(series_of_str)))
     assert id(series_of_str) != id(be_optimized(optimize(series_of_str, force_copy=True)))
     strided_of_str = series_of_str[0:4:2]
+    assert (
+        data_description(strided_of_str)
+        == "a pandas.Series containing an instance of pandas.core.arrays.string_.StringArray of 2 of string"
+    )
     be_optimized(strided_of_str)
     assert id(strided_of_str) == id(be_optimized(optimize(strided_of_str)))
     assert id(strided_of_str) != id(be_optimized(optimize(strided_of_str, force_copy=True)))
@@ -64,6 +78,7 @@ def test_series() -> None:
 
 def test_array2d() -> None:
     array2d_of_int: Array2D = be_array2d(np.zeros((2, 4), dtype="int64"))
+    assert data_description(array2d_of_int) == "a row-major 2D numpy.ndarray of 2x4 of int64"
     be_array2d(array2d_of_int, dtype="int64")
     assert not is_array2d(array2d_of_int, dtype="bool")
 
@@ -72,11 +87,11 @@ def test_array2d() -> None:
     assert id(array2d_of_int) != id(be_optimized(optimize(array2d_of_int, force_copy=True)))
 
     strided_of_int = array2d_of_int[:, 0:4:2]
+    assert data_description(strided_of_int) == "a none-major 2D numpy.ndarray of 2x2 of int64"
     assert not is_optimized(strided_of_int)
     strided_of_int = be_optimized(optimize(strided_of_int))
+    assert data_description(strided_of_int) == "a row-major 2D numpy.ndarray of 2x2 of int64"
 
-    assert matrix_layout(array2d_of_int) == ROW_MAJOR
-    assert matrix_layout(array2d_of_int.T) == COLUMN_MAJOR
     be_array_rows(array2d_of_int, dtype="int64")
     be_array_columns(array2d_of_int.T)
     be_grid(array2d_of_int)
@@ -99,6 +114,7 @@ def test_array2d() -> None:
     be_array_rows(as_layout(transpose_of_int, ROW_MAJOR))
 
     array2d_of_str: Array2D = be_array2d(np.zeros((2, 4), dtype="U"))
+    assert data_description(array2d_of_str) == "a row-major 2D numpy.ndarray of 2x4 of <U1"
     be_array2d(array2d_of_str, dtype="str")
 
     be_array_rows(array2d_of_str)
@@ -114,8 +130,10 @@ def test_array2d() -> None:
     assert id(array2d_of_str) == id(be_optimized(optimize(array2d_of_str)))
     assert id(array2d_of_str) != id(be_optimized(optimize(array2d_of_str, force_copy=True)))
     strided_of_str = array2d_of_str[:, 0:4:2]
+    assert data_description(strided_of_str) == "a none-major 2D numpy.ndarray of 2x2 of <U1"
     assert not is_optimized(strided_of_str)
     strided_of_str = be_optimized(optimize(strided_of_str))
+    assert data_description(strided_of_str) == "a row-major 2D numpy.ndarray of 2x2 of <U1"
 
     be_array1d(array2d_of_str[:, 0])
     assert not is_optimized(array2d_of_str[:, 0])
@@ -126,6 +144,7 @@ def test_array2d() -> None:
     assert id(row_of_str) != id(be_optimized(optimize(row_of_str, force_copy=True)))
 
     row_of_int: Array2D = be_array2d(np.zeros((1, 4), dtype="int64"))
+    assert data_description(row_of_int) == "a both-major 2D numpy.ndarray of 1x4 of int64"
     be_array1d(as_array1d(row_of_int))
     be_optimized(row_of_int)
     assert id(row_of_int) == id(be_optimized(row_of_int))
@@ -133,6 +152,7 @@ def test_array2d() -> None:
     assert id(row_of_int) != id(be_optimized(optimize(row_of_int, force_copy=True)))
 
     column_of_str: Array2D = be_array2d(np.zeros((2, 1), dtype="U"))
+    assert data_description(column_of_str) == "a both-major 2D numpy.ndarray of 2x1 of <U1"
     be_array1d(as_array1d(column_of_str))
 
     assert id(array2d_of_str) == id(be_array_rows(as_layout(array2d_of_str, ROW_MAJOR)))
@@ -149,6 +169,7 @@ def test_frame() -> None:
     frame_of_int: Frame = be_frame(
         pd.DataFrame(np.zeros((2, 4), dtype="int64"), index=["a", "b"], columns=["x", "y", "z", "u"])
     )
+    assert data_description(frame_of_int) == "a row-major pandas.DataFrame of 2x4 of int64"
     be_frame(frame_of_int, dtype="int64")
     assert not is_frame(frame_of_int, dtype="bool")
     assert not is_grid(frame_of_int)
@@ -163,14 +184,14 @@ def test_frame() -> None:
     assert id(frame_of_int) != id(be_optimized(optimize(frame_of_int, force_copy=True)))
     strided_of_int = frame_of_int.iloc[:, 0:4:2]
     assert not is_optimized(strided_of_int)
+    assert data_description(strided_of_int) == "a none-major pandas.DataFrame of 2x2 of int64"
     strided_of_int = be_optimized(optimize(strided_of_int))
+    assert data_description(strided_of_int) == "a row-major pandas.DataFrame of 2x2 of int64"
     assert id(strided_of_int) == id(be_optimized(optimize(strided_of_int)))
 
     array2d_of_int: Array2D = as_array2d(frame_of_int)
     be_array2d(array2d_of_int)
 
-    assert matrix_layout(frame_of_int) == ROW_MAJOR
-    assert matrix_layout(frame_of_int.T) == COLUMN_MAJOR
     be_frame_rows(frame_of_int, dtype="int64")
     be_frame_columns(frame_of_int.T)
 
@@ -189,10 +210,9 @@ def test_frame() -> None:
     be_frame_rows(as_layout(transpose_of_int, ROW_MAJOR))
 
     frame_of_str: Frame = be_frame(pd.DataFrame(np.zeros((2, 3), dtype="U"), index=["a", "b"], columns=["x", "y", "z"]))
+    assert data_description(frame_of_str) == "a row-major pandas.DataFrame of 2x3 of object"
     be_frame(frame_of_str, dtype="str")
 
-    assert matrix_layout(frame_of_str) == ROW_MAJOR
-    assert matrix_layout(frame_of_str.T) == COLUMN_MAJOR
     be_frame_rows(frame_of_str)
     be_frame_columns(frame_of_str.T, dtype="str")
 
@@ -211,9 +231,14 @@ def test_frame() -> None:
     be_series(frame_of_str.iloc[:, 0])
 
     strided_of_str = frame_of_str.iloc[:, 0:4:2]
+    assert data_description(strided_of_str) == "a none-major pandas.DataFrame of 2x2 of object"
     assert not is_optimized(strided_of_str)
-    assert id(strided_of_str) != id(be_optimized(optimize(strided_of_str)))
-
+    strided_of_str = be_optimized(optimize(strided_of_str))
+    # This isn't consistent between different python/pandas versions.
+    assert (
+        data_description(strided_of_str) == "a row-major pandas.DataFrame of 2x2 of object"
+        or data_description(strided_of_str) == "a column-major pandas.DataFrame of 2x2 of object"
+    )
     row_of_int: Frame = be_frame(pd.DataFrame(np.zeros((1, 3), dtype="int64"), index=["a"], columns=["x", "y", "z"]))
     be_array1d(as_array1d(row_of_int))
 
@@ -221,31 +246,34 @@ def test_frame() -> None:
     be_array1d(as_array1d(column_of_str))
 
     frame_of_mix: Frame = be_frame(pd.DataFrame(dict(a=[1, 2, 3], b=["X", "Y", "Z"]), index=["x", "y", "z"]))
+    assert data_description(frame_of_mix) == "a column-major pandas.DataFrame of 3x2 of mixed types"
 
-    assert matrix_layout(frame_of_mix) == COLUMN_MAJOR
-    assert matrix_layout(frame_of_mix.T) == ROW_MAJOR
     be_frame_columns(frame_of_mix)
-    be_frame_rows(frame_of_mix.T)
     strided_of_mix = frame_of_str.iloc[0:3:2, :]
     be_optimized(strided_of_mix)
     assert id(strided_of_mix) == id(be_optimized(optimize(strided_of_mix)))
+    # This isn't consistent between different python/pandas versions.
+    # be_frame_rows(frame_of_mix.T)
 
     be_series(frame_of_mix["a"], dtype="int64")
     be_series(frame_of_mix["b"], dtype="str")
     be_frame_columns(frame_of_mix)
 
     assert id(frame_of_str) == id(be_frame_rows(as_layout(frame_of_str, ROW_MAJOR)))
-    assert id(frame_of_str) != id(be_frame_rows(as_layout(frame_of_str, ROW_MAJOR, force_copy=True)))
+    # This isn't consistent between different python/pandas versions (copying a row-major frame returns column major!)
+    # assert id(frame_of_str) != id(be_frame_rows(as_layout(frame_of_str, ROW_MAJOR, force_copy=True)))
     be_frame_columns(as_layout(frame_of_str, COLUMN_MAJOR))
 
     transpose_of_str = frame_of_str.T
     assert id(transpose_of_str) == id(be_frame_columns(as_layout(transpose_of_str, COLUMN_MAJOR)))
     assert id(transpose_of_str) != id(be_frame_columns(as_layout(transpose_of_str, COLUMN_MAJOR, force_copy=True)))
-    be_frame_rows(as_layout(transpose_of_str, ROW_MAJOR))
+    # This isn't consistent between different python/pandas versions (copying a row-major frame returns column major!)
+    # be_frame_rows(as_layout(transpose_of_str, ROW_MAJOR))
 
 
 def test_sparse() -> None:
     sparse_of_float32: Sparse = be_sparse(sp.csr_matrix([[1, 0], [0, 1]], dtype="float32"))
+    assert data_description(sparse_of_float32) == "a scipy.sparse.csr_matrix of 2x2 of float32 with 50.00% nnz"
     be_sparse(sparse_of_float32, dtype="float32")
     assert not is_sparse(sparse_of_float32, dtype="float16")
     be_grid(sparse_of_float32, dtype="float32")
@@ -261,8 +289,6 @@ def test_sparse() -> None:
     be_array1d(as_array1d(sparse_of_float32[0, :]))
     be_array1d(as_array1d(sparse_of_float32[:, 0]))
 
-    assert matrix_layout(sparse_of_float32) == ROW_MAJOR
-    assert matrix_layout(sparse_of_float32.T) == COLUMN_MAJOR
     be_sparse_rows(sparse_of_float32, dtype="float32")
     be_sparse_rows(sparse_of_float32)
     be_sparse_columns(sparse_of_float32.T)
@@ -275,18 +301,23 @@ def test_sparse() -> None:
     be_matrix_columns(sparse_of_float32.T)
 
     coo_of_float32 = sp.coo_matrix(sparse_of_float32)
+    # This isn't consistent between different scipy versions.
+    assert (
+        data_description(coo_of_float32) == "a scipy.sparse._coo.coo_matrix of 2x2 of float32 with 50.00% nnz"
+        or data_description(coo_of_float32) == "a scipy.sparse.coo.coo_matrix of 2x2 of float32 with 50.00% nnz"
+    )
     assert not is_sparse_columns(coo_of_float32)
     assert not is_sparse_rows(coo_of_float32)
     assert not is_sparse(coo_of_float32)
     assert not is_optimized(coo_of_float32)
 
     columns_of_float32 = be_optimized(optimize(coo_of_float32, preferred_layout=COLUMN_MAJOR))
-    assert matrix_layout(columns_of_float32) == COLUMN_MAJOR
+    assert data_description(columns_of_float32) == "a scipy.sparse.csc_matrix of 2x2 of float32 with 50.00% nnz"
     be_sparse_columns(columns_of_float32)
     be_sparse(columns_of_float32)
 
     rows_of_float32 = be_optimized(optimize(coo_of_float32, preferred_layout=ROW_MAJOR))
-    assert matrix_layout(rows_of_float32) == ROW_MAJOR
+    assert data_description(rows_of_float32) == "a scipy.sparse.csr_matrix of 2x2 of float32 with 50.00% nnz"
     be_sparse_rows(rows_of_float32)
     be_sparse(rows_of_float32)
 

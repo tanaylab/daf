@@ -198,13 +198,21 @@ smells: mypy pylint  ## check for code smells
 pylint: .make.pylint  ## check code with pylint
 
 .make.pylint: $(PY_SOURCE_FILES)
-	pylint --max-line-length $(MAX_LINE_LENGTH) $(NAME) tests
+	@if [ `python -c "import sys; print(sys.version_info.major >= 3 and sys.version_info.minor >= 10)"` == "True" ]; \
+	then \
+	echo pylint --max-line-length $(MAX_LINE_LENGTH) $(NAME) tests; \
+	pylint --max-line-length $(MAX_LINE_LENGTH) $(NAME) tests; \
+	else echo "Skip pylint as this python version is too old."; \
+	fi
 	touch $@
 
 mypy: .make.mypy  ## check code with mypy
 
 .make.mypy: $(PY_SOURCE_FILES)
-	mypy $(NAME) tests
+	@if [ `python -c "import sys; print(sys.version_info.major >= 3 and sys.version_info.minor >= 10)"` == "True" ]; \
+	then echo mypy $(NAME) tests; mypy $(NAME) tests; \
+	else echo "Skip mypy as this python version is too old."; \
+	fi
 	touch $@
 
 pytest: .make.pytest  ## run tests on the active Python with pytest
@@ -216,7 +224,7 @@ pytest: .make.pytest  ## run tests on the active Python with pytest
 tox: .make.tox  ## run tests on a clean Python version with tox
 
 .make.tox: $(PY_PACKAGE_FILES) tox.ini
-	tox
+	tox -e py`python -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"`
 	touch $@
 
 .PHONY: docs
