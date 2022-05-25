@@ -1,7 +1,4 @@
 """
-Fake Sparse Matrices
---------------------
-
 ``scypy.sparse`` doesn't provide type annotations. We don't try to overcome this here, but we do want to allow for
 saying "this is a sparse matrix in CSR format", at least as an option. To do this we need to use ``typing.Annotate``
 which requires the base class to be known. As a workaround we define fake sparse matrix and use it instead. To shut
@@ -12,18 +9,17 @@ deleted. Or, of course, maybe one day ``scipy.sparse`` will provide some form of
 less likely.
 """
 
-
-# pylint: disable=unused-argument,missing-function-docstring,no-self-use,invalid-name
-# pylint: disable=too-many-public-methods,too-many-lines
+from __future__ import annotations
 
 from abc import ABC
 from typing import Any
 from typing import Tuple
 
-try:  # For ``mypy``.
-    from .typing import Array1D  # pylint: disable=unused-import,cyclic-import
-except ImportError:
-    pass
+from . import array1d as _array1d
+
+# pylint: disable=unused-argument,missing-function-docstring,no-self-use,invalid-name
+# pylint: disable=too-many-public-methods,too-many-lines
+
 
 __all__ = ["SparseMatrix"]
 
@@ -38,13 +34,13 @@ class SparseMatrix(ABC):
         ``SparseMatrix``.
     """
 
-    data: "Array1D"
+    data: _array1d.Array1D
     dtype: Any
     format: str
     has_canonical_format: bool
     has_sorted_indices: bool
-    indices: "Array1D"
-    indptr: "Array1D"
+    indices: _array1d.Array1D
+    indptr: _array1d.Array1D
     maxprint: Any
     ndim: int
     nnz: int

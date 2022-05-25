@@ -157,7 +157,7 @@ isort: .make.isort  ## check imports with isort
 
 $(TODO): .make.$(TODO)  ## check there are no leftover TODO-X
 
-.make.$(TODO): $(REAL_SOURCE_FILES)
+.make.$(TODO): $(ALL_SOURCE_FILES)
 	@echo 'grep -n -i $(TODO) `git ls-files | grep -v pybind11`'
 	@if grep -n -i $(TODO) `git ls-files | grep -v pybind11`; \
 	then \

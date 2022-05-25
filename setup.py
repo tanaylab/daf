@@ -32,7 +32,7 @@ setup(
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
     ],
-    description="Data in Axes in Files",
+    description="Data in Axes in Formats",
     install_requires=requirements,
     license="MIT license",
     long_description=readme + "\n\n" + history,

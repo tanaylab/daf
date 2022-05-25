@@ -1,26 +1,106 @@
-DAF 0.1.0-dev.1 - Data in Axes in Files
-=======================================
+DAF 0.1.0-dev.1 - Data in Axes in Formats
+=========================================
 
 .. image:: https://readthedocs.org/projects/daf?version=latest
     :target: https://daf.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
 The daf package provides a uniform generic interface for accessing 1D and 2D data arranged along some set of axes. This
-is a much-needed generalization of the `annotated data <https://pypi.org/project/anndata>`_ functionality. The key
+is a much-needed generalization of the `AnnData <https://pypi.org/project/anndata>`_ functionality. The key
 features are:
 
-* Support both in-memory and persistent (file based) data storage.
+* Support both in-memory and persistent data storage of "any" format (given an adapter implementation).
 
-* Allows storing the data in a collection of simple memory-mapped files, as well as in arbitrary complex formats using
-  format adapters (in particular, allow using daf to access ``AnnData``, e.g. to access ``h5ad`` files).
+* Out of the box, allow storing the data in memory, in ``AnnData`` objects, or as a collection of simple memory-mapped
+  files.
 
-* The data model is based on (1) some axes, (2) 1-D vectors of data indexed by a single axis, (3) 2-D matrices indexed
-  by a pair of axis, and (4) 0-D data (arbitrary blobs).
+* The data model is based on (1) some axes with named entries, (2) 1-D vectors of data indexed by a single axis, (3) 2-D
+  matrices indexed by a pair of axis, and also (4) 0-D data (arbitrary blobs).
 
 * There is explicit control over matrix layout (row or column major), and support for both dense and sparse matrices,
   both of which are crucial for performance.
 
 * Allows accessing the data as either plain numpy arrays, scipy csr/csc sparse matrices, or as pandas series/frames.
+
+* Is a pure Python package so should run "anywhere" (as long as its dependencies, most notably ``pandas``, ``numpy``,
+  ``scipy`` and ``anndata`` are available).
+
+Motivation
+----------
+
+The ``daf`` package was created to overcome the limitations of the ``AnnData`` package. Like ``AnnData``, ``daf`` was
+created to support code analyzing single-cell RNA sequencing data ("scRNA-seq"), but should be useful for other problem
+domains.
+
+The main issue we had with ``AnnData`` is that it restricts all the stored data to be described by two axes
+("observations" and "variables"). E.g., in single-cell data, every cell would be an "observation" and every gene would
+be a "variable". As a secondary annoyance, ``AnnData`` gives one special "default" per-observation-per-variable data
+layer the uninformative name ``X``, and only allows naming additional data layers.
+
+This works pretty well until one starts to perform higher level operations:
+
+* (Almost) everyone groups cells into "type" clusters. This requires storing per-cluster data (e.g. its name and its
+  color).
+
+* Since "type" clusters correspond to some biological state, which maps to gene expression levels (or at least, to some
+  ranges of gene expression levels), this requires also storing per-cluster-per-gene data.
+
+* Often such clusters form at least a two-level hierarchy, so we need per-sub-cluster data and per-sub-cluster-per-gene
+  data as well.
+
+* We'd like to keep both the UMIs count and the normalized gene fractions (and possibly their log2 values for quick
+  fold factor computations).
+
+Sure, it is possible to use a set of ``AnnData`` objects, each with its own distinct set of "observations" (for cell,
+clusters, and sub-clusters). We can reduce confusion about what ``X`` is in each data set by always using it for UMIs,
+though that may not make much sense for some of the data sets. We'll also need to replicate simple per-gene data across
+the data sets, and keep it in sync, or just store each such data in one of the data sets, and remember in which.
+
+In short, we'd end up writing some problem-specific code to manage the multiple ``AnnData`` objects for us, which kind
+of defeats the purpose of using ``AnnData`` in the first place. Instead, we have chosen to create ``daf`` which is a
+general-purpose solution that embraces the existence of arbitrary multiple axes in the same data set, and enforces no
+opaque default names, to make it easy for us store explicitly named data per-whatever-we-damn-please all in a single
+place.
+
+When it comes to storage, ``daf`` makes it as easy as possible to write adapters to allow storing the data in your
+favorite format; in particular, ``daf`` supports ``AnnData`` (or a set of ``AnnData``) as a storage format, which in
+turn allows the data to be stored in various disk file formats such as ``H5AD``.
+
+That said, we find the use of complex single-file formats such as ``H4AD`` to be sub-optimal. In effect they try to
+replicate a file system, and often do it badly. For example, it is difficult to list the content of the file, copy or
+delete just parts of it, find out which parts have been changed when, and most implementations do not support
+memory-mapping the data, which causes a huge performance hit for large data sets.
+
+Therefore, as an option, ``daf`` also supports a simple "files" storage format where every "annotation" is a separate
+file (in a trivial format) inside a single directory. This allows for efficient memory-mapping of files, using standard
+file system tools to list, copy and/or delete data, and using tools like ``make`` to automate incremental computations.
+The main downside is that to send a data set across the network, one has to first collect it into a ``tar`` or ``zip``
+archive. This may actually be more efficient as this allows compressing the data for more efficient transmission or
+archiving. Besides, due to the limitations of ``AnnData`` one has to send multiple files for a complete data set anyway.
+
+In addition ``daf`` also provides a simple in-memory storage format, which means we can avoid using ``AnnData``
+altogether when we so choose. It is also possible to create views of ``daf`` data (slicing, renaming and hiding axes
+and/or specific annotations), and to copy ``daf`` data from one data set to another (e.g., from a view of an in-memory
+data set into an ``AnnData`` data set for writing it into an ``H5AD`` file).
+
+Finally, the ``daf`` package also provides some convenience functionality out of the box, such as caching derived data
+(different layouts of the same data, sums along axes, conversion of UMIs to fractions, etc.). It is possible to disable
+such caching (always recomputing the data), or direct the cache to an arbitrary storage format (e.g., keep the derived
+data cache in-memory on top of a disk-based data set, which is a common usage pattern).
+
+It is assumed that ``daf`` data will be processed in a single machine, that is, ``daf`` does not try to address the
+issues of a distributed cluster of servers working on a shared data set. Today's servers (as of 2022) can get very big
+(~100 cores and ~1TB of RAM is practical), which means that all/most data sets would fit comfortably in one machine (and
+memory mapped files are a great help here). In addition, if using the "files" storage, it is possible to have different
+servers access the same ``daf`` directory, each computing a different independent additional annotation (e.g., one
+server searching for doublets while another is searching for gene modules), and as long as only one server writes each
+new "annotation", this should work fine (one can do even better by writing more complex code). This is another example
+of how simple files make it easy to provide functionality which is impossible (or very difficult) to achieve using a
+complex single-file format such as ``H5AD``.
+
+The bottom line is that ``daf`` provides a convenient abstraction layer above any "reasonable" storage format, allowing
+efficient computation and/or visualization code to naturally access and/or write the data it needs, even for
+higher-level analysis pipeline, for small to "very large" (but not for "ludicrously large") data sets.
 
 Usage
 -----
@@ -31,53 +111,59 @@ Usage
     import numpy as np
     import scipy.sparse as sp
 
-    # Open an existing DAF storage
-    data = daf.open("daf.yaml")
+    # Open an existing DAF storage in the "files" format.
+    data = daf.FilesStorage("...")
 
-    # Access an arbitrary blob.
-    name = daf.get_datum("name")
+    # Access an arbitrary 0D "blob".
+    description = daf.get_datum("description")
 
-    # Get a numpy 1D vector by axis and name.
-    metacell_types = data.get_vector("metacell:type")
+    # Get a 1D numpy array by axis and name.
+    metacell_types = data.get_array1d("metacells:type")
 
-    # Get a Pandas series by axis and name.
-    type_colors = data.get_series("type:color")
+    # Get a Pandas series by axis and name (index is the type names).
+    type_colors = data.get_series("types:color")
 
-    # Combine these to get a Pandas series of the color of each metacell.
+    # Combine these to get a Pandas series of the color of each metacell (index is the metacell type names).
     metacell_colors = type_colors[metacell_types]
 
     # Get a 2D matrix by two axes and a name.
-    umis_grid = data.get_grid("cell,gene:UMIs")
+    umis_grid = data.get_grid("cells,genes:UMIs")
 
-    if is_array2d(umis_matrix):
-        # Umis matrix is dense (np.ndarray).
+    if daf.is_array2d(umis_matrix):
+        # Umis matrix is dense (2D numpy array).
         ...
     else:
-        assert is_sparse(umis_matrix)
+        assert daf.is_sparse(umis_matrix)
         # Umis matrix is sparse (sp.csr_matrix or sp.csc_matrix).
         ...
 
-    # Get a Pandas data frame by two axes and a name.
-    type_marker_genes = data.get_frame("gene,type:marker")
+    # Get a Pandas data frame with homogeneous data elements by two axes and a name.
+    type_marker_genes = data.get_table("genes,types:marker")
 
     # Access the mask of marker genes for a specific type.
-    type_marker_genes["T"]
+    t_marker_genes = type_marker_genes["T"]
 
-    # Get a Pandas data frame containing multiple named vectors (columns) of the same axis (always column-major).
-    genes_masks = data.get_table("gene", ["forbidden", "significant"])
+    # Get a Pandas data frame with multiple named vectors (columns) of possibly different types, all of the same axis.
+    genes_masks = data.get_frame(["genes:forbidden", "genes:significant"])
 
-    # Access the mask of significant genes.
-    genes_masks["significant"]
+    # Access the mask of significant genes in the frame.
+    significant_genes_mask = genes_masks["significant"]
+
+    # Get (and cache) the total sum of UMIs per cell, so repeated requests will not re-compute it.
+    cells_umis_sum = data.get_array1d("cells,gene:UMIs|sum")
+
+    #: Slice the data to look only at cells with a high number of UMIs and significant.
+    strong_data = daf.View(data, cells=cells_umis_sum > 1000, genes=significant_genes_mask)
 
 See the `documentation <https://daf.readthedocs.io/en/latest/?badge=latest>`_ for the full API details.
 
 Installation
 ------------
 
-In short: ``pip install daf``. Note that ``metacells`` requires many "heavy" dependencies, most notably ``numpy``,
-``pandas``, ``scipy``, ``scanpy``, which ``pip`` should automatically install for you. If you are running inside a
-``conda`` environment, you might prefer to use it to first install these dependencies, instead of having ``pip`` install
-them from ``PyPI``.
+In short: ``pip install daf``. Note that ``daf`` requires many "heavy" dependencies, most notably ``numpy``, ``pandas``,
+``scipy`` and ``anndata``, which ``pip`` should automatically install for you. If you are running inside a ``conda``
+environment, you might prefer to use it to first install these dependencies, instead of having ``pip`` install them from
+``PyPI``.
 
 License (MIT)
 -------------

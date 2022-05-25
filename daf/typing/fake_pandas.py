@@ -1,7 +1,4 @@
 """
-Fake Pandas
------------
-
 Pandas doesn't provide type annotations. We don't try to overcome this here, but we do want to allow for saying "this is
 a pandas frame in column-major layout", at least as an option. To do this we need to use ``typing.Annotate`` which
 requires the annotated class to be known. As a workaround we define fake pandas series and frame classes and use them
@@ -13,13 +10,15 @@ to be deleted. Or, of course, maybe one day ``pandas`` will provide some form of
 even less likely.
 """
 
-
-# pylint: disable=unused-argument,missing-function-docstring,no-self-use,invalid-name
-# pylint: disable=too-many-public-methods,too-many-lines
+from __future__ import annotations
 
 from abc import ABC
 from typing import Any
 from typing import Tuple
+
+# pylint: disable=unused-argument,missing-function-docstring,no-self-use,invalid-name
+# pylint: disable=too-many-public-methods,too-many-lines
+
 
 __all__ = ["PandasSeries", "PandasFrame"]
 

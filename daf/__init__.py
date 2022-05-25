@@ -1,5 +1,5 @@
 """
-Data in Axes in Files
+Data in Axes in Formats
 """
 
 import sys
@@ -12,5 +12,4 @@ __version__ = "0.1.0-dev.1"
 # pylint: disable=wrong-import-position
 
 
-from .base import *
 from .typing import *

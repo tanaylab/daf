@@ -4,9 +4,6 @@ API
 .. automodule:: daf
 
 .. toctree::
-  :maxdepth: 1
+  :maxdepth: 2
 
   typing
-  base
-  fake_pandas
-  fake_sparse

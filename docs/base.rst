@@ -1,2 +1,0 @@
-.. automodule:: daf.base
-    :members:
