@@ -19,11 +19,11 @@ each representation requires different code paths which places a high burden on 
 To minimize this burden, ``daf`` restricts the data types it stores to very few variants, specifically either using
 row-major or column-major layout for dense matrices and either CSR or CSC format for sparse matrices, as these are the
 most commonly used layouts, and require only a small number of code paths to ensure efficient computation. See the
-:py:mod:`daf.typing.layouts` for details on how ``daf`` deals with the layouts of 2D data.
+:py:obj:`~daf.typing.layouts` for details on how ``daf`` deals with the layouts of 2D data.
 
 Ideally we'd also like to track the data type of the elements of the data, which again is only almost compatible between
 ``numpy`` and ``pandas``. We don't do it directly using ``mypy`` annotations as it is not capable enough to express this
-without a combinatorical explosion of data types. See :py:mod:`daf.typing.dtypes` for details on how ``daf`` deals with
+without a combinatorical explosion of data types. See :py:obj:`~daf.typing.dtypes` for details on how ``daf`` deals with
 element data types.
 
 We therefore provide here only the minimal ``mypy`` annotations allowing expressing the code's intent when it comes to
@@ -35,13 +35,13 @@ In general we provide ``is_...`` functions that test whether some data is of som
 ``TypeGuard``), ``be_...`` functions that assert that some data is of some format (and return it as such, to make
 ``mypy`` effective and happy), and ``as_...`` functions that convert data in specific formats (optionally forcing the
 creation of a copy). Additional support functions are provided as needed in the separate sub-modules; the most useful
-are :py:func:`daf.typing.layouts.as_layout` and :py:func:`daf.typing.optimization.optimize` which are needed to ensure
-code is efficient and :py:func:`daf.typing.freezing.freeze` which helps protect data against accidental in-place
+are :py:obj:`~daf.typing.layouts.as_layout` and :py:obj:`~daf.typing.optimization.optimize` which are needed to ensure
+code is efficient and :py:obj:`~daf.typing.freezing.freeze` which helps protect data against accidental in-place
 modification.
 
 Since ``pandas`` and ``scipy.sparse`` provide no ``mypy`` type annotations (at least as of Python 3.10), we are forced
-to introduce "fake" type annotation for their types in :py:mod:`daf.typing.fake_pandas` and
-:py:mod:`daf.typing.fake_sparse`. Even though ``numpy`` does provide ``mypy`` type annotations these days, its use of a
+to introduce "fake" type annotation for their types in :py:obj:`~daf.typing.fake_pandas` and
+:py:obj:`~daf.typing.fake_sparse`. Even though ``numpy`` does provide ``mypy`` type annotations these days, its use of a
 catch-all ``numpy.ndarray`` type is not sufficient for capturing the code intent. Therefore, in all cases, the results
 of any computation on the data types provided here is effectively ``Any``, which negates the usefulness of using
 ``mypy``.

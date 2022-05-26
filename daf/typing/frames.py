@@ -1,13 +1,14 @@
-"""
-The types here describe 2D data where different columns may have different data types, inside a ``pandas.DataFrame``.
+""""
+The types here describe 2D data where different columns may have different data types, inside a ``pandas.DataFrame``,
+which can be obtained from ``daf`` storage.
 
 Logically and operationally this is a distinct data type from a homogeneous data frame where all the data elements have
-the same type (that is, :py:const:`daf.typing.tables.Table`). We call the heterogeneous type :py:const:`Frame` as this
+the same type (that is, :py:obj:`~daf.typing.tables.Table`). We call the heterogeneous type :py:obj:`~Frame` as this
 is the terminology established by ``pandas``, which doesn't recognize the existence of the homogeneous case, so even
 if/when it provides ``mypy`` annotations, we'd still need to set up the types here (similar to the problem with
 ``numpy.ndarray``).
 
-In ``daf``, all heterogeneous frames are always in :py:const:`daf.typing.layout.COLUMN_MAJOR` layout. In general it
+In ``daf``, all heterogeneous frames are always in :py:obj:`~daf.typing.layout.COLUMN_MAJOR` layout. In general it
 makes little sense to shoehorn heterogeneous column data into a single 2D array (which ``pandas`` does, at the cost of
 forcing the data type of the array to become ``object`` and therefore a massive loss of efficiency), but that's just the
 way it is.
@@ -48,7 +49,7 @@ Frame = NewType("Frame", "Annotated[_fake_pandas.PandasFrame, 'mixed']")
 
 def is_frame(data: Any) -> TypeGuard[Frame]:
     """
-    Check whether some ``data`` is a :py:const:`Frame`.
+    Check whether some ``data`` is a :py:obj:`~Frame`.
 
     There's no point specifying a ``dtype`` here as each column may have a different one,
     or a ``layout`` as frames are (or should) always be in column-major layout.
@@ -58,7 +59,7 @@ def is_frame(data: Any) -> TypeGuard[Frame]:
 
 def be_frame(data: Any) -> Frame:
     """
-    Assert that some ``data`` is a :py:const:`Frame`, and return it as such for ``mypy``.
+    Assert that some ``data`` is a :py:obj:`~Frame`, and return it as such for ``mypy``.
 
     There's no point specifying a ``dtype`` here as each column may have a different one,
     or a ``layout`` as frames are (or should) always be in column-major layout.

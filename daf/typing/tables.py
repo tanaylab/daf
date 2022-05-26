@@ -1,14 +1,15 @@
 """
-The types here describe 2D data where all the elements have the same data type, inside a ``pandas.DataFrame``.
+The types here describe 2D data where all the elements have the same data type, inside a ``pandas.DataFrame``, which can
+be obtained from ``daf`` storage.
 
 Logically and operationally this is a distinct data type from a generic data frame where each column has a different
-data type (that is, a :py:const:`daf.typing.frames.Frame`), hence we call this type :py:const:`Table` (which admittedly
+data type (that is, a :py:obj:`~daf.typing.frames.Frame`), hence we call this type :py:obj:`~Table` (which admittedly
 isn't a great name). Of course, ``pandas`` does not make this distinction, so even if/when it provides ``mypy``
 annotations, we'd still need to set up the types here (similar to the problem with ``numpy.ndarray``).
 
 In theory it should have been possible to store sparse data inside a ``pandas.DataFrame``, but in practice this fails in
 svarious ways, so ``daf`` only stores such frames if they contain dense (that is,
-:py:const:`daf.typing.array2d.Array2D`) data.
+:py:obj:`~daf.typing.array2d.Array2D`) data.
 """
 
 # pylint: disable=duplicate-code
@@ -55,19 +56,19 @@ TableInRows = NewType("TableInRows", "Annotated[_fake_pandas.PandasFrame, 'row_m
 
 def is_table_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[TableInRows]:
     """
-    Check whether some ``data`` is a :py:const:`TableInRows`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a :py:obj:`~TableInRows`, optionally only of some ``dtype``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return is_table(data, dtype=dtype, layout=_layouts.ROW_MAJOR)
 
 
 def be_table_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TableInRows:
     """
-    Assert that some ``data`` is a :py:const:`TableInRows`, optionally only of some ``dtype``, and return it as such for
+    Assert that some ``data`` is a :py:obj:`~TableInRows`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_table_in_rows(data, dtype=dtype), "row-major pandas Table", data, dtype)
     return data
@@ -79,19 +80,19 @@ TableInColumns = NewType("TableInColumns", "Annotated[_fake_pandas.PandasFrame, 
 
 def is_table_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[TableInColumns]:
     """
-    Check whether some ``data`` is a :py:const:`TableInColumns`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a :py:obj:`~TableInColumns`, optionally only of some ``dtype``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return is_table(data, dtype=dtype, layout=_layouts.COLUMN_MAJOR)
 
 
 def be_table_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TableInColumns:
     """
-    Assert that some ``data`` is a :py:const:`TableInColumns`, optionally only of some ``dtype``, and return it as such
+    Assert that some ``data`` is a :py:obj:`~TableInColumns`, optionally only of some ``dtype``, and return it as such
     for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_table_in_columns(data, dtype=dtype), "column-major pandas Table", data, dtype)
     return data
@@ -105,10 +106,10 @@ def is_table(
     data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> TypeGuard[Table]:
     """
-    Check whether some ``data`` is a :py:const:`Table`, optionally only of some ``dtype``, optionally only of some
+    Check whether some ``data`` is a :py:obj:`~Table`, optionally only of some ``dtype``, optionally only of some
     ``layout``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return (
         isinstance(data, pd.DataFrame)
@@ -121,10 +122,10 @@ def be_table(
     data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> Table:
     """
-    Assert that some ``data`` is a :py:const:`Table` optionally only of some ``dtype``, optionally only of some
+    Assert that some ``data`` is a :py:obj:`~Table` optionally only of some ``dtype``, optionally only of some
     ``layout``, and return it as such for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
     _descriptions.assert_data(is_table(data, dtype=dtype, layout=layout), f"{layout.name} pandas Table", data, dtype)

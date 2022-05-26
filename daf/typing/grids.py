@@ -1,18 +1,19 @@
 """
-The types here describe 2D data without names (that is, not in a ``pandas.DataFrame``). Currently there are
-only two:
+The types here describe 2D data without names (that is, not in a ``pandas.DataFrame``), which is how 2D data is stored
+in ``daf``. Currently there are only two such types:
 
-* :py:const:`Array2D` is a two-dimensional ``numpy.ndarray``.
-* :py:const:`Sparse` is a compressed sparse matrix (``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``).
+* :py:obj:`~daf.typing.array2d.Array2D` is a two-dimensional ``numpy.ndarray``.
+* :py:obj:`~daf.typing.sparse.Sparse` is a compressed sparse matrix (``scipy.sparse.csr_matrix`` or
+  ``scipy.sparse.csc_matrix``).
 
-The :py:const:`Grid` type annotations is their union, that is, allows for "any" 2D data without names. While this isn't
+The :py:obj:`~Grid` type annotations is their union, that is, allows for "any" 2D data without names. While this isn't
 very useful to directly perform operation on, it is very useful as the return type of accessing 2D data stored in
 ``daf``, as the caller has no control over whether the data was stored as sparse, and forcing it to be dense would not
 be practical for large data sets.
 
 .. note::
 
-    The :py:const:`Grid` type should be only be directly used in computations with **great care**, as some operations
+    The :py:obj:`~Grid` type should be only be directly used in computations with **great care**, as some operations
     are subtly different for ``numpy`` 2D arrays and ``scipy.sparse`` compressed matrices. It is typically better to use
     one of the concrete types instead.
 """
@@ -62,20 +63,20 @@ GridInRows = Union[_array2d.ArrayInRows, _sparse.SparseInRows]
 
 def is_grid_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[GridInRows]:
     """
-    Assert that some ``data`` is an :py:const:`GridInRows`, optionally only of some ``dtype``, and return it as such for
+    Assert that some ``data`` is an :py:obj:`~GridInRows`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return _array2d.is_array_in_rows(data, dtype=dtype) or _sparse.is_sparse_in_rows(data, dtype=dtype)
 
 
 def be_grid_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> GridInRows:
     """
-    Assert that some ``data`` is a :py:const:`GridInRows`, optionally only of some ``dtype``, and return it as such for
+    Assert that some ``data`` is a :py:obj:`~GridInRows`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_grid_in_rows(data, dtype=dtype), "row-major grid", data, dtype)
     return data
@@ -87,20 +88,20 @@ GridInColumns = Union[_array2d.ArrayInColumns, _sparse.SparseInColumns]
 
 def is_grid_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[GridInColumns]:
     """
-    Assert that some ``data`` is an :py:const:`GridInColumns`, optionally only of some ``dtype``, and return it as such
+    Assert that some ``data`` is an :py:obj:`~GridInColumns`, optionally only of some ``dtype``, and return it as such
     for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return _array2d.is_array_in_columns(data, dtype=dtype) or _sparse.is_sparse_in_columns(data, dtype=dtype)
 
 
 def be_grid_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> GridInColumns:
     """
-    Assert that some ``data`` is a :py:const:`GridInColumns`, optionally only of some ``dtype``, and return it as such
+    Assert that some ``data`` is a :py:obj:`~GridInColumns`, optionally only of some ``dtype``, and return it as such
     for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_grid_in_columns(data, dtype=dtype), "column-major grid", data, dtype)
     return data
@@ -114,10 +115,10 @@ def is_grid(
     data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> TypeGuard[Grid]:
     """
-    Assert that some ``data`` is an :py:const:`Grid`, optionally only of some ``dtype``, optionally only of some
+    Assert that some ``data`` is an :py:obj:`~Grid`, optionally only of some ``dtype``, optionally only of some
     ``layout``, and return it as such for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return _array2d.is_array2d(data, dtype=dtype, layout=layout) or _sparse.is_sparse(data, dtype=dtype, layout=layout)
 
@@ -126,10 +127,10 @@ def be_grid(
     data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> Grid:
     """
-    Assert that some ``data`` is a :py:const:`Grid`, optionally only of some ``dtype``, optionally only of some
+    Assert that some ``data`` is a :py:obj:`~Grid`, optionally only of some ``dtype``, optionally only of some
     ``layout``, and return it as such for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
     _descriptions.assert_data(is_grid(data, dtype=dtype, layout=layout), f"{layout.name} grid", data, dtype)
@@ -157,7 +158,7 @@ def as_grid(data: Any, *, force_copy: bool = False, preferred_layout: _layouts.A
     ``numpy`` array.
 
     If the input is a ``pandas.DataFrame``, this will only work if all the data in the frame has the same type (that is,
-    for a :py:const:`Table`).
+    for a :py:obj:`~Table`).
     """
     # In case someone sneaks a sparse matrix into a frame, which doesn't really work, but be nice...
     if isinstance(data, pd.DataFrame):

@@ -3,28 +3,28 @@ In contrast to 1D data, 2D data can be represented in too many data types and fo
 a restricted set of types. These were chosen to cover "most" needs while minimizing the burden on the code (to pick
 different code paths for the different types).
 
-* :py:const:`Array2D` is a two-dimensional ``numpy.ndarray``.
-* :py:const:`Sparse` is a compressed sparse matrix (``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``).
-* :py:const:`Table` is a ``pandas.DataFrame`` which contains an ``Array2D`` of a single element type, with indices of
+* :py:obj:`~Array2D` is a two-dimensional ``numpy.ndarray``.
+* :py:obj:`~Sparse` is a compressed sparse matrix (``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``).
+* :py:obj:`~Table` is a ``pandas.DataFrame`` which contains an ``Array2D`` of a single element type, with indices of
   names for the rows and the columns.
 
 .. note::
 
-    We also provide :py:const:`Frame` to represent a ``pandas.DataFrame`` which is a collection of 1D data columns of
+    We also provide :py:obj:`~Frame` to represent a ``pandas.DataFrame`` which is a collection of 1D data columns of
     different data types, which is conceptually (and operationally) very different from a 2D data matrix that has a
-    homogeneous element data type. That is, :py:const:`Frame` is **not** a :py:const:`Matrix`.
+    homogeneous element data type. That is, :py:obj:`~Frame` is **not** a :py:obj:`~Matrix`.
 
 In addition, we provide the following 2D data union types:
 
-* :py:const:`Grid` is a union of ``Array2D`` and ``Sparse``, that is, plain data without names.
-* :py:const:`Dense` is a union of ``Array2D`` and ``Table``, that is, dense data without compression.
-* :py:const:`Matrix`, defined here, is the most general 2D data, a union of all the above.
+* :py:obj:`~Grid` is a union of ``Array2D`` and ``Sparse``, that is, plain data without names.
+* :py:obj:`~Dense` is a union of ``Array2D`` and ``Table``, that is, dense data without compression.
+* :py:obj:`~Matrix`, defined here, is the most general 2D data, a union of all the above.
 
 Since layout of 2D data is crucial for performance and impacts code paths, each of the above types can be suffixed with
-``InRows`` or ``InColumns`` to indicate that it is stored in :py:const:`daf.typing.layouts.ROW_MAJOR` or
-:py:const:`daf.typing.layouts.COLUMN_MAJOR` layout. This *matters* as performing computations on the wrong layout will
-be *drastically* inefficient for non-trivial sizes; see the :py:mod:`daf.typing.layouts` module for details, and
-:py:func:`matrix_copy` for a safe way to copy 2D data while preserving its layout.
+``InRows`` or ``InColumns`` to indicate that it is stored in :py:obj:`~daf.typing.layouts.ROW_MAJOR` or
+:py:obj:`~daf.typing.layouts.COLUMN_MAJOR` layout. This *matters* as performing computations on the wrong layout will
+be *drastically* inefficient for non-trivial sizes; see the :py:obj:`~daf.typing.layouts` module for details, and
+:py:obj:`~matrix_copy` for a safe way to copy 2D data while preserving its layout.
 
 .. note::
 
@@ -84,10 +84,10 @@ MatrixInRows = Union["_array2d.ArrayInRows", _sparse.SparseInRows, _tables.Table
 
 def is_matrix_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixInRows]:
     """
-    Assert that some ``data`` is an :py:const:`MatrixInRows`, optionally only of some ``dtype``, and return it as such
+    Assert that some ``data`` is an :py:obj:`~MatrixInRows`, optionally only of some ``dtype``, and return it as such
     for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return (
         _array2d.is_array_in_rows(data, dtype=dtype)
@@ -98,10 +98,10 @@ def is_matrix_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]]
 
 def be_matrix_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixInRows:
     """
-    Assert that some ``data`` is a :py:const:`MatrixInRows`, optionally only of some ``dtype``, and return it as such
+    Assert that some ``data`` is a :py:obj:`~MatrixInRows`, optionally only of some ``dtype``, and return it as such
     for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_matrix_in_rows(data, dtype=dtype), "row-major matrix", data, dtype)
     return data
@@ -115,10 +115,10 @@ def is_matrix_in_columns(
     data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None
 ) -> TypeGuard[MatrixInColumns]:
     """
-    Assert that some ``data`` is an :py:const:`MatrixInColumns`, optionally only of some ``dtype``, and return it as
+    Assert that some ``data`` is an :py:obj:`~MatrixInColumns`, optionally only of some ``dtype``, and return it as
     such for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return (
         _array2d.is_array_in_columns(data, dtype=dtype)
@@ -129,10 +129,10 @@ def is_matrix_in_columns(
 
 def be_matrix_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixInColumns:
     """
-    Assert that some ``data`` is a :py:const:`MatrixInColumns`, optionally only of some ``dtype``, and return it as such
+    Assert that some ``data`` is a :py:obj:`~MatrixInColumns`, optionally only of some ``dtype``, and return it as such
     for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_matrix_in_columns(data, dtype=dtype), "column-major matrix", data, dtype)
     return data
@@ -146,10 +146,10 @@ def is_matrix(
     data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> TypeGuard[Matrix]:
     """
-    Assert that some ``data`` is an :py:const:`Matrix`, optionally only of some ``dtype``, optionally of some
+    Assert that some ``data`` is an :py:obj:`~Matrix`, optionally only of some ``dtype``, optionally of some
     ``layout``, and return it as such for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return (
         _array2d.is_array2d(data, dtype=dtype, layout=layout)
@@ -162,10 +162,10 @@ def be_matrix(
     data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> Matrix:
     """
-    Assert that some ``data`` is a :py:const:`Matrix`, optionally only of some ``dtype``, optionally of some ``layout``,
+    Assert that some ``data`` is a :py:obj:`~Matrix`, optionally only of some ``dtype``, optionally of some ``layout``,
     and return it as such for ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
     _descriptions.assert_data(is_matrix(data, dtype=dtype, layout=layout), f"{layout.name} matrix", data, dtype)

@@ -3,12 +3,12 @@
 access any element using its row and column index. In practice, the choice of layout is crucial to get reasonable
 performance, as accessing data "against the grain" results in orders of magnitude loss of performance.
 
-We restrict 2D data stored in ``daf`` to two laytouts: :py:const:`ROW_MAJOR` and :py:const:`COLUMN_MAJOR`. This applies
+We restrict 2D data stored in ``daf`` to two laytouts: :py:obj:`~ROW_MAJOR` and :py:obj:`~COLUMN_MAJOR`. This applies
 both to dense data and also to sparse data (where "row-major" data means "CSR" and "column-major" means "CSC").
 
 We provide explicit data type annotations expressing the distinction between these layouts by suffixing the base type
-with ``InRows`` or ``InColumns`` (e.g., :py:const:`daf.typing.matrices.TableInRows` vs.
-:py:const:`daf.typing.matrices.TableInColumns`). This makes it easier to ensure that operations get data in the correct
+with ``InRows`` or ``InColumns`` (e.g., :py:obj:`~daf.typing.matrices.TableInRows` vs.
+:py:obj:`~daf.typing.matrices.TableInColumns`). This makes it easier to ensure that operations get data in the correct
 layout, e.g. summing each row of row-major data would be much, much faster than summing the rows of column-major data.
 Arguably clever implementation of the algorithms could mitigate this to some degree, but libraries almost never do these
 difficult optimizations.

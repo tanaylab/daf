@@ -14,8 +14,8 @@ The functions here allow to test whether data is in an optimal format and allow 
 in-place if possible, optionally forcing a copy.
 
 Most of the time, you can ignore these functions, until you see ``daf`` complaining about seeing non-optimal data, in
-which case you'll need to inject an :py:func:`optimize` call into your code. If you aren't sure how the non-optimal data
-was created, use :py:func:`is_optimal` and/or :py:func:`be_optimal` to isolate the offending operations.
+which case you'll need to inject an :py:obj:`~optimize` call into your code. If you aren't sure how the non-optimal data
+was created, use :py:obj:`~is_optimal` and/or :py:obj:`~be_optimal` to isolate the offending operations.
 """
 
 from __future__ import annotations

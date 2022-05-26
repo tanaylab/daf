@@ -1,5 +1,5 @@
 """
-The types here describe a 1D ``pandas.Series``, which is one supported way to store 1D data in ``daf``.
+The types here describe a 1D ``pandas.Series``, which can be obtained from ``daf`` storage.
 """
 
 # pylint: disable=duplicate-code
@@ -39,9 +39,9 @@ Series = NewType("Series", _fake_pandas.PandasSeries)
 
 def is_series(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> TypeGuard[Series]:
     """
-    Check whether some ``data`` is a :py:const:`Series`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a :py:obj:`~Series`, optionally only of some ``dtype``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     return (
         isinstance(data, pd.Series)
@@ -54,10 +54,10 @@ def is_series(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> 
 
 def be_series(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> Series:
     """
-    Assert that some ``data`` is a :py:const:`Series`, optionally only of some ``dtype``, and return it as such for
+    Assert that some ``data`` is a :py:obj:`~Series`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
-    By default, checks that the data type is one of :py:const:`daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_series(data, dtype=dtype), "pandas.Series", data, dtype)
     return data

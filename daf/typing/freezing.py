@@ -10,9 +10,9 @@ However, ``numpy`` does have a concept of read-only data, so we make use of it h
 In general, ``daf`` always freezes data when it is stored, and accesses return frozen data, to protect against
 accidental in-place modification of the stored data.
 
-The code in this module allows to manually :py:func:`freeze`, :py:func:`unfreeze`, or test whether data
-:py:func:`is_frozen`, using the ``numpy`` capabilities. In addition, in cases you *really* know what you are doing, it
-allows you to temporary modify :py:func:`unfrozen` data.
+The code in this module allows to manually :py:obj:`~freeze`, :py:obj:`~unfreeze`, or test whether data
+:py:obj:`~is_frozen`, using the ``numpy`` capabilities. In addition, in cases you *really* know what you are doing, it
+allows you to temporary modify :py:obj:`~unfrozen` data.
 """
 
 from __future__ import annotations
