@@ -16,7 +16,7 @@ provided for completeness.
     types instead.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -32,10 +32,10 @@ except ImportError:
 
 from . import array2d as _array2d
 from . import descriptions as _descriptions
-from . import layouts as _layouts  # pylint: disable=cyclic-import
+from . import layouts as _layouts
 from . import tables as _tables
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "Dense",

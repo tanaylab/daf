@@ -37,12 +37,16 @@ data type (e.g., :py:obj:`~daf.typing.vectors.is_array1d`), then the code will d
 actually contains strings.
 """
 
+# pylint: disable=duplicate-code,cyclic-import
+
 from __future__ import annotations
 
 from typing import Collection
 from typing import Union
 
 import numpy as np
+
+# pylint: disable=duplicate-code,cyclic-import
 
 __all__ = [
     "STR_DTYPE",

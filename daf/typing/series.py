@@ -2,7 +2,7 @@
 The types here describe a 1D ``pandas.Series``, which can be obtained from ``daf`` storage.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -19,11 +19,11 @@ except ImportError:
 import numpy as np
 import pandas as pd  # type: ignore
 
-from . import descriptions as _descriptions
+from . import descriptions as _descriptions  # pylint: disable=cyclic-import
 from . import dtypes as _dtypes
 from . import fake_pandas as _fake_pandas
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 
 __all__ = [

@@ -9,6 +9,8 @@ deleted. Or, of course, maybe one day ``scipy.sparse`` will provide some form of
 less likely.
 """
 
+# pylint: disable=duplicate-code,cyclic-import
+
 from __future__ import annotations
 
 from abc import ABC
@@ -16,6 +18,8 @@ from typing import Any
 from typing import Tuple
 
 from . import array1d as _array1d
+
+# pylint: enable=duplicate-code,cyclic-import
 
 # pylint: disable=unused-argument,missing-function-docstring,no-self-use,invalid-name
 # pylint: disable=too-many-public-methods,too-many-lines

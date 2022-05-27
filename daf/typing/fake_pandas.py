@@ -10,11 +10,15 @@ to be deleted. Or, of course, maybe one day ``pandas`` will provide some form of
 even less likely.
 """
 
+# pylint: disable=duplicate-code,cyclic-import
+
 from __future__ import annotations
 
 from abc import ABC
 from typing import Any
 from typing import Tuple
+
+# pylint: enable=duplicate-code,cyclic-import
 
 # pylint: disable=unused-argument,missing-function-docstring,no-self-use,invalid-name
 # pylint: disable=too-many-public-methods,too-many-lines

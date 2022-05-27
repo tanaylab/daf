@@ -14,3 +14,5 @@ would only report containing one of ``foo,bar:baz`` and ``bar,foo:baz``.
 
 from .chain import *
 from .interface import *
+from .memory import *
+from .none import *

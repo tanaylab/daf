@@ -8,7 +8,7 @@ The types here describe a 2D ``numpy.ndarray``, which is one way to store 2D dat
     to cause subtle and difficult problems.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -32,10 +32,10 @@ import scipy.sparse as sp  # type: ignore
 
 from . import descriptions as _descriptions
 from . import dtypes as _dtypes
-from . import layouts as _layouts  # pylint: disable=cyclic-import
-from . import matrices as _matrices  # pylint: disable=cyclic-import
+from . import layouts as _layouts
+from . import matrices as _matrices
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 
 __all__ = [

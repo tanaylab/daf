@@ -7,7 +7,9 @@ wrapped storage objects against accidental modification, even if they implement
 objects enhances or even overrides the data in later objects.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
+
+from __future__ import annotations
 
 from typing import Any
 from typing import Collection
@@ -22,9 +24,10 @@ import numpy as np
 
 from ..typing import Array1D
 from ..typing import Grid
-from . import interface as _interface  # pylint: disable=cyclic-import
+from . import interface as _interface
+from . import none as _none
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "StorageChain",
@@ -39,7 +42,7 @@ class StorageChain(_interface.StorageReader):
     Low-level read-only access to a ``chain`` of storage objects (first one wins).
     """
 
-    def __init__(self, chain: Sequence[_interface.StorageReader], *, name: Optional[str]) -> None:
+    def __init__(self, chain: Sequence[_interface.StorageReader], *, name: Optional[str] = None) -> None:
         super().__init__(name=name)
 
         unique_readers: List[_interface.StorageReader] = []
@@ -56,6 +59,9 @@ class StorageChain(_interface.StorageReader):
     def _add_reader(
         unique_readers: List[_interface.StorageReader], unique_ids: Set[int], reader: _interface.StorageReader
     ) -> None:
+        if isinstance(reader, _none.NoStorage):
+            return
+
         if isinstance(reader, StorageChain):
             for chained_reader in reader.chain:
                 StorageChain._add_reader(unique_readers, unique_ids, chained_reader)

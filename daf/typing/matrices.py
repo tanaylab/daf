@@ -37,7 +37,7 @@ be *drastically* inefficient for non-trivial sizes; see the :py:obj:`~daf.typing
     versions, though.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ from . import layouts as _layouts  # pylint: disable=cyclic-import
 from . import sparse as _sparse
 from . import tables as _tables
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "Matrix",

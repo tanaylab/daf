@@ -15,6 +15,8 @@ The code in this module allows to manually :py:obj:`~freeze`, :py:obj:`~unfreeze
 allows you to temporary modify :py:obj:`~unfrozen` data.
 """
 
+# pylint: disable=duplicate-code,cyclic-import
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -30,6 +32,8 @@ from . import descriptions as _descriptions
 from . import frames as _frames
 from . import matrices as _matrices
 from . import vectors as _vectors
+
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "freeze",

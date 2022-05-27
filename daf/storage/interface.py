@@ -7,7 +7,9 @@ actually **use**. For a more usable interface, see the :py:obj:`~daf.access.DafR
 :py:obj:`~daf.access.DafWriter` classes.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
+
+from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
@@ -21,6 +23,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd  # type: ignore
 
+from ..typing import STR_DTYPE
 from ..typing import Array1D
 from ..typing import Array2D
 from ..typing import Grid
@@ -34,14 +37,15 @@ from ..typing import as_grid
 from ..typing import assert_data
 from ..typing import be_array_in_rows
 from ..typing import freeze
+from ..typing import is_array1d
 from ..typing import is_matrix_in_rows
 from ..typing import is_optimal
 from ..typing import is_series
 from ..typing import is_table
 from ..typing import is_vector
-from . import chain as _chain  # pylint: disable=cyclic-import
+from . import chain as _chain
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "StorageReader",
@@ -101,7 +105,7 @@ class StorageReader(ABC):
         """
         Access a 0D ("blob") datum from the storage (which must exist) by its ``name``.
         """
-        assert self.has_datum(name), f"missing datum: {name} in the storage chain: {self.name}"
+        assert self.has_datum(name), f"missing datum: {name} in the storage: {self.name}"
         return self._get_datum(name)
 
     @abstractmethod
@@ -162,9 +166,7 @@ class StorageReader(ABC):
         The name must be in the format ``axis:name`` which uniquely identifies the 1D data.
         """
         axis = parse_1d_axis(name)
-        if not self.has_axis(axis):
-            return False
-        return self._has_vector(axis, name)
+        return self.has_axis(axis) and self._has_vector(axis, name)
 
     @abstractmethod
     def _has_vector(self, axis: str, name: str) -> bool:
@@ -178,6 +180,7 @@ class StorageReader(ABC):
         """
         axis = parse_1d_axis(name)
         assert self.has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
+        assert self.has_vector(name), f"missing vector: {name} in the storage: {self.name}"
         return self._get_array1d(axis, name)
 
     @abstractmethod
@@ -193,9 +196,11 @@ class StorageReader(ABC):
         The ``index`` of the series will be the names of the entries of the axis.
         """
         axis = parse_1d_axis(name)
+        assert self.has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
+        assert self.has_vector(name), f"missing vector: {name} in the storage: {self.name}"
         index = self.axis_entries(axis)
         array1d = self._get_array1d(axis, name)
-        return pd.Series(array1d, index=index)
+        return freeze(pd.Series(array1d, index=index))
 
     def matrix_names(self, axes: Tuple[str, str]) -> Collection[str]:
         """
@@ -220,9 +225,7 @@ class StorageReader(ABC):
         The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data.
         """
         axes = parse_2d_axes(name)
-        assert self.has_axis(axes[0]), f"missing rows axis: {axes[0]} in the storage: {self.name}"
-        assert self.has_axis(axes[1]), f"missing columns axis: {axes[1]} in the storage: {self.name}"
-        return self._has_matrix(axes, name)
+        return self.has_axis(axes[0]) and self.has_axis(axes[1]) and self._has_matrix(axes, name)
 
     @abstractmethod
     def _has_matrix(self, axes: Tuple[str, str], name: str) -> bool:
@@ -237,6 +240,7 @@ class StorageReader(ABC):
         axes = parse_2d_axes(name)
         assert self.has_axis(axes[0]), f"missing rows axis: {axes[0]} in the storage: {self.name}"
         assert self.has_axis(axes[1]), f"missing columns axis: {axes[1]} in the storage: {self.name}"
+        assert self.has_matrix(name), f"missing matrix: {name} in the storage: {self.name}"
         return self._get_grid(axes, name)
 
     @abstractmethod
@@ -253,6 +257,9 @@ class StorageReader(ABC):
         The ``index`` and ``columns`` of the table will be the names of the entries of the rows and column axes.
         """
         axes = parse_2d_axes(name)
+        assert self.has_axis(axes[0]), f"missing rows axis: {axes[0]} in the storage: {self.name}"
+        assert self.has_axis(axes[1]), f"missing columns axis: {axes[1]} in the storage: {self.name}"
+        assert self.has_matrix(name), f"missing matrix: {name} in the storage: {self.name}"
         index = self.axis_entries(axes[0])
         columns = self.axis_entries(axes[1])
         array2d = as_array2d(self._get_grid(axes, name))
@@ -344,8 +351,11 @@ class StorageWriter(StorageReader):
 
         It is always an error to overwrite an existing axis.
         """
+        assert_data(is_array1d(entries, dtype=STR_DTYPE), "1D np.ndarray", entries, STR_DTYPE)
+
         assert not self.has_axis(axis), f"refuse to recreate the axis: {axis} in the storage: {self.name}"
-        self._create_axis(axis, entries)
+
+        self._create_axis(axis, freeze(entries))
 
     @abstractmethod
     def _create_axis(self, axis: str, entries: Array1D) -> None:
@@ -359,11 +369,11 @@ class StorageWriter(StorageReader):
 
         If ``overwrite``, will silently overwrite an existing vector of the same name, otherwise overwriting will fail.
         """
+        assert_data(is_vector(vector), "vector", vector, None)
+
         assert overwrite or not self.has_vector(
             name
         ), f"refuse to overwrite the vector: {name} in the storage: {self.name}"
-
-        assert_data(is_vector(vector), "vector", vector, None)
 
         axis = parse_1d_axis(name)
 
@@ -378,8 +388,7 @@ class StorageWriter(StorageReader):
             ), f"series index entries for vector: {name} are different from axis in the storage: {self.name}"
 
         array1d = as_array1d(vector)
-        freeze(array1d)
-        self._set_array1d(axis, name, array1d)
+        self._set_array1d(axis, name, freeze(array1d))
 
     @abstractmethod
     def _set_array1d(self, axis: str, name: str, array1d: Array1D) -> None:
@@ -394,12 +403,12 @@ class StorageWriter(StorageReader):
 
         If ``overwrite``, will silently overwrite an existing matrix of the same name, otherwise overwriting will fail.
         """
+        assert_data(is_matrix_in_rows(matrix), "row-major matrix", matrix, None)
+        assert_data(is_optimal(matrix), "optimal matrix", matrix, None)
+
         assert overwrite or not self.has_matrix(
             name
         ), f"refuse to overwrite the matrix: {name} in the storage: {self.name}"
-
-        assert_data(is_matrix_in_rows(matrix), "row-major matrix", matrix, None)
-        assert_data(is_optimal(matrix), "optimal matrix", matrix, None)
 
         axes = parse_2d_axes(name)
 
@@ -452,18 +461,21 @@ class StorageWriter(StorageReader):
         in-memory copy. By default (for other adapters), this just creates and returns an uninitialized in-memory 2D
         dense array, then calls :py:obj:`~StorageWriter.set_matrix` with the initialized result.
         """
+        assert overwrite or not self.has_matrix(
+            name
+        ), f"refuse to overwrite the matrix: {name} in the storage: {self.name}"
+
         axes = parse_2d_axes(name)
+
         shape = (self.axis_size(axes[0]), self.axis_size(axes[1]))
-        with self._create_array2d(shape, name, dtype, overwrite) as array2d:
+        with self._create_array2d(shape, name, dtype) as array2d:
             yield array2d
 
     @contextmanager
-    def _create_array2d(
-        self, shape: Tuple[int, int], name: str, dtype: str, overwrite: bool
-    ) -> Generator[Array2D, None, None]:
+    def _create_array2d(self, shape: Tuple[int, int], name: str, dtype: str) -> Generator[Array2D, None, None]:
         array2d = be_array_in_rows(np.empty(shape, dtype=dtype), dtype=dtype)
         yield array2d
-        self.set_matrix(name, array2d, overwrite=overwrite)
+        self.set_matrix(name, array2d, overwrite=True)
 
 
 def parse_1d_axis(name: str) -> str:

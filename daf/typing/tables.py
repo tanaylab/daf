@@ -12,7 +12,7 @@ svarious ways, so ``daf`` only stores such frames if they contain dense (that is
 :py:obj:`~daf.typing.array2d.Array2D`) data.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -32,11 +32,11 @@ import numpy as np
 import pandas as pd  # type: ignore
 
 from . import array2d as _array2d
-from . import descriptions as _descriptions
+from . import descriptions as _descriptions  # pylint: disable=cyclic-import
 from . import fake_pandas as _fake_pandas  # pylint: disable=unused-import
 from . import layouts as _layouts  # pylint: disable=cyclic-import
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "Table",

@@ -17,7 +17,7 @@ In ``daf`` we never directly store heterogeneous frames, but they can be returne
 vector data which share the same axis.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ import pandas as pd  # type: ignore
 from . import descriptions as _descriptions
 from . import fake_pandas as _fake_pandas  # pylint: disable=unused-import
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "Frame",

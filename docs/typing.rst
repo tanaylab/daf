@@ -90,6 +90,12 @@ Freezing Data
 .. automodule:: daf.typing.freezing
     :members:
 
+Comparing Data
+..............
+
+.. automodule:: daf.typing.comparisons
+    :members:
+
 Data Descriptions
 .................
 

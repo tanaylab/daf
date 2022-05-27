@@ -2,6 +2,8 @@
 Support functions for describing data in messages.
 """
 
+# pylint: disable=duplicate-code,cyclic-import
+
 from __future__ import annotations
 
 from typing import Any
@@ -12,7 +14,10 @@ import numpy as np
 import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
-from . import layouts as _layouts  # pylint: disable=cyclic-import
+from . import layouts as _layouts
+from . import optimization as _optimization
+
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "data_description",
@@ -34,12 +39,17 @@ def data_description(data: Any) -> str:  # pylint: disable=too-many-return-state
         if data.ndim == 2:
             is_column_major = _layouts.COLUMN_MAJOR.is_layout_of(data)  # type: ignore
             is_row_major = _layouts.ROW_MAJOR.is_layout_of(data)  # type: ignore
+
+            optimal = ""
+            if (is_column_major or is_row_major) and not _optimization.is_optimal(data):
+                optimal = "non-optimal "
+
             if is_column_major and is_row_major:
-                return f"both-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+                return f"{optimal}both-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
             if is_column_major:
-                return f"column-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+                return f"{optimal}column-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
             if is_row_major:
-                return f"row-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+                return f"{optimal}row-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
             return f"none-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
 
         return f"{data.ndim}D numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
@@ -64,25 +74,39 @@ def data_description(data: Any) -> str:  # pylint: disable=too-many-return-state
         assert data.values.ndim == 2
         is_column_major = _layouts.COLUMN_MAJOR.is_layout_of(data.values)  # type: ignore
         is_row_major = _layouts.ROW_MAJOR.is_layout_of(data.values)  # type: ignore
+
+        optimal = ""
+        if (is_column_major or is_row_major) and not _optimization.is_optimal(data):
+            optimal = "non-optimal "
+
         dtypes = np.unique(data.dtypes)
         if len(dtypes) > 1:
             return f"pandas.DataFrame of {data.shape[0]}x{data.shape[1]} of mixed types"
         dtype = str(dtypes[0])
+
         if is_column_major and is_row_major:
-            return f"both-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
+            return f"{optimal}both-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
         if is_column_major:
-            return f"column-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
+            return f"{optimal}column-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
         if is_row_major:
-            return f"row-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
+            return f"{optimal}row-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
         return f"none-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
 
     if isinstance(data, sp.csr_matrix):
         percent = data.nnz * 100 / (data.shape[0] * data.shape[1])
-        return f"scipy.sparse.csr_matrix of {data.shape[0]}x{data.shape[1]} of {data.dtype} with {percent:.2f}% nnz"
+        optimal = "" if _optimization.is_optimal(data) else "non-optimal "
+        return (
+            f"{optimal}scipy.sparse.csr_matrix "
+            f"of {data.shape[0]}x{data.shape[1]} of {data.dtype} with {percent:.2f}% nnz"
+        )
 
     if isinstance(data, sp.csc_matrix):
         percent = data.nnz * 100 / (data.shape[0] * data.shape[1])
-        return f"scipy.sparse.csc_matrix of {data.shape[0]}x{data.shape[1]} of {data.dtype} with {percent:.2f}% nnz"
+        optimal = "" if _optimization.is_optimal(data) else "non-optimal "
+        return (
+            f"{optimal}scipy.sparse.csc_matrix "
+            f"of {data.shape[0]}x{data.shape[1]} of {data.dtype} with {percent:.2f}% nnz"
+        )
 
     if isinstance(data, sp.spmatrix):
         percent = data.nnz * 100 / (data.shape[0] * data.shape[1])

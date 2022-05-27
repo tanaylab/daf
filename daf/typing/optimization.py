@@ -18,6 +18,8 @@ which case you'll need to inject an :py:obj:`~optimize` call into your code. If 
 was created, use :py:obj:`~is_optimal` and/or :py:obj:`~be_optimal` to isolate the offending operations.
 """
 
+# pylint: disable=duplicate-code,cyclic-import
+
 from __future__ import annotations
 
 from typing import Any
@@ -30,13 +32,15 @@ import scipy.sparse as sp  # type: ignore
 
 from . import array1d as _array1d
 from . import array2d as _array2d
-from . import descriptions as _descriptions
+from . import descriptions as _descriptions  # pylint: disable=cyclic-import
 from . import fake_pandas as _fake_pandas
 from . import fake_sparse as _fake_sparse
 from . import layouts as _layouts  # pylint: disable=cyclic-import
 from . import series as _series
 from . import sparse as _sparse
 from . import tables as _tables
+
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "is_optimal",

@@ -20,6 +20,8 @@ Of course you are free to just ignore the layout (or the type annotations altoge
 small data sets, but for "serious" code working on non-trivial data, controlling the 2D data layout is vital.
 """
 
+# pylint: disable=duplicate-code,cyclic-import
+
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
@@ -39,6 +41,8 @@ from . import frames as _frames
 from . import matrices as _matrices  # pylint: disable=cyclic-import
 from . import sparse as _sparse  # pylint: disable=cyclic-import
 from . import tables as _tables  # pylint: disable=cyclic-import
+
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "AnyMajor",

@@ -60,11 +60,13 @@ type annotations at all, the support functions provided here are important for w
 
 from .array1d import *
 from .array2d import *
+from .comparisons import *
 from .dense import *
 from .descriptions import *
 from .dtypes import *
 from .fake_pandas import *
 from .fake_sparse import *
+from .frames import *
 from .freezing import *
 from .grids import *
 from .layouts import *

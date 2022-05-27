@@ -18,7 +18,7 @@ storing it in ``daf``.
     instead.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ from . import array1d as _array1d
 from . import descriptions as _descriptions
 from . import series as _series
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "Vector",

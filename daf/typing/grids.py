@@ -18,7 +18,7 @@ be practical for large data sets.
     one of the concrete types instead.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ from . import layouts as _layouts  # pylint: disable=cyclic-import
 from . import matrices as _matrices
 from . import sparse as _sparse
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "Grid",

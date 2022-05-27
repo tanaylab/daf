@@ -20,3 +20,9 @@ Memory
 
 .. automodule:: daf.storage.memory
     :members:
+
+NoStorage
+.........
+
+.. automodule:: daf.storage.none
+    :members:

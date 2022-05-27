@@ -6,7 +6,9 @@ object that just keeps references to the data it is given. Unlike ``AnnData`` it
 multiple axes.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
+
+from __future__ import annotations
 
 from typing import Any
 from typing import Collection
@@ -17,10 +19,9 @@ from typing import Tuple
 from ..typing import Array1D
 from ..typing import Grid
 from ..typing import as_grid
-from .interface import StorageReader
-from .interface import StorageWriter
+from . import interface as _interface
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 
 __all__ = [
@@ -28,7 +29,7 @@ __all__ = [
 ]
 
 
-class MemoryReader(StorageReader):
+class MemoryReader(_interface.StorageReader):
     """
     Implement the :py:obj:`~daf.storage.interface.StorageReader` interface for in-memory storage.
 
@@ -109,7 +110,7 @@ class MemoryReader(StorageReader):
         return as_grid(self.grids[axes][name])
 
 
-class MemoryStorage(MemoryReader, StorageWriter):
+class MemoryStorage(MemoryReader, _interface.StorageWriter):
     """
     Adapter for simple read-write in-memory storage.
 

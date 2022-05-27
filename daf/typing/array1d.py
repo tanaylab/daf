@@ -2,7 +2,7 @@
 The types here describe a 1D ``numpy.ndarray``, which is how 1D data is stored in ``daf``.
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ import scipy.sparse as sp  # type: ignore
 from . import descriptions as _descriptions
 from . import dtypes as _dtypes
 
-# pylint: enable=duplicate-code
+# pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "Array1D",
