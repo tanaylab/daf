@@ -3,11 +3,11 @@
 access any element using its row and column index. In practice, the choice of layout is crucial to get reasonable
 performance, as accessing data "against the grain" results in orders of magnitude loss of performance.
 
-We restrict 2D data stored in ``daf`` to two laytouts: `.ROW_MAJOR` and `.COLUMN_MAJOR`. This applies both to dense data
+We restrict 2D data stored in ``daf`` to two layouts: `.ROW_MAJOR` and `.COLUMN_MAJOR`. This applies both to dense data
 and also to sparse data (where "row-major" data means "CSR" and "column-major" means "CSC").
 
 We provide explicit data type annotations expressing the distinction between these layouts by suffixing the base type
-with ``InRows`` or ``InColumns`` (e.g., `.TableInRows` vs. `.TableInColumns`). This makes it easier to ensure that
+with ``InRows`` or ``InColumns`` (e.g., `.FrameInRows` vs. `.FrameInColumns`). This makes it easier to ensure that
 operations get data in the correct layout, e.g. summing each row of row-major data would be much, much faster than
 summing the rows of column-major data. Arguably clever implementation of the algorithms could mitigate this to some
 degree, but libraries almost never do these difficult optimizations.
@@ -34,12 +34,12 @@ import numpy as np
 import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
-from . import array2d as _array2d  # pylint: disable=cyclic-import
-from . import dense as _dense  # pylint: disable=cyclic-import
+from . import array2d as _array2d
+from . import dense as _dense
+from . import descriptions as _descriptions
 from . import frames as _frames
-from . import matrices as _matrices  # pylint: disable=cyclic-import
-from . import sparse as _sparse  # pylint: disable=cyclic-import
-from . import tables as _tables  # pylint: disable=cyclic-import
+from . import matrices as _matrices
+from . import sparse as _sparse
 
 # pylint: enable=duplicate-code,cyclic-import
 
@@ -53,7 +53,7 @@ __all__ = [
 
 class AnyMajor:
     """
-    Allow for either row-major or column-major matrix layout.
+    Allow for either `.ROW_MAJOR` or `.COLUMN_MAJOR` matrix layout (which are the only valid instances of this class).
 
     This does **not** allow for other (e.g., strided or COO) layouts.
     """
@@ -116,7 +116,7 @@ class AnyMajor:
         )
 
 
-#: Require either row-major or column-major layout.
+#: Require either `.ROW_MAJOR` or `.COLUMN_MAJOR` layout.
 _ANY_MAJOR: AnyMajor = AnyMajor()
 
 
@@ -207,23 +207,23 @@ def as_layout(
 
 @overload
 def as_layout(
-    matrix: _tables.Table,
+    matrix: _frames.Frame,
     layout: RowMajor,
     force_copy: bool = False,
     max_workers: int = 1,
     block_size: int = 8 * 1024 * 1024,
-) -> _tables.TableInRows:
+) -> _frames.FrameInRows:
     ...
 
 
 @overload
 def as_layout(
-    matrix: _tables.Table,
+    matrix: _frames.Frame,
     layout: ColumnMajor,
     force_copy: bool = False,
     max_workers: int = 1,
     block_size: int = 8 * 1024 * 1024,
-) -> _tables.TableInColumns:
+) -> _frames.FrameInColumns:
     ...
 
 
@@ -254,10 +254,8 @@ def as_layout(
         return matrix
 
     if isinstance(matrix, sp.spmatrix):
-        if layout == ROW_MAJOR:
-            return sp.csr_matrix(matrix)
-        assert layout == COLUMN_MAJOR
-        return sp.csc_matrix(matrix)
+        assert layout in (ROW_MAJOR, COLUMN_MAJOR)
+        return layout.sparse_class(matrix)  # type: ignore
 
     assert _dense.is_dense(matrix)
     array2d = _relayout_array2d(_array2d.as_array2d(matrix), layout, max_workers, block_size)
@@ -265,8 +263,11 @@ def as_layout(
     if _array2d.is_array2d(matrix):
         return array2d
 
-    assert _frames.is_frame(matrix)
-    return pd.DataFrame(array2d, index=matrix.index, columns=matrix.columns)
+    if isinstance(matrix, pd.DataFrame):
+        return pd.DataFrame(array2d, index=matrix.index, columns=matrix.columns)
+
+    _descriptions.assert_data(False, "matrix", matrix, None)
+    assert False, "never happens"
 
 
 @overload

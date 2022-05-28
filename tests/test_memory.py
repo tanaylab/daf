@@ -3,7 +3,6 @@ Test ``daf.storage.memory``.
 """
 
 import numpy as np
-import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
 from daf.storage.memory import *  # pylint: disable=wildcard-import,unused-wildcard-import
@@ -59,103 +58,68 @@ def test_memory_axis() -> None:
     assert np.all(memory.axis_entries("cells") == cell_names)
 
 
-def test_memory_vector() -> None:
+def test_memory_array1d() -> None:
     memory = MemoryStorage(name="test")
 
-    assert not memory.has_vector("cells:type")
+    assert not memory.has_array1d("cells:type")
     with expect_raise("missing axis: cells in the storage: test"):
-        memory.vector_names("cells")
+        memory.array1d_names("cells")
     with expect_raise("missing axis: cells in the storage: test"):
         memory.get_array1d("cells:type")
-    with expect_raise("missing axis: cells in the storage: test"):
-        memory.get_series("cells:type")
 
     cell_names = as_array1d(["cell0", "cell1"])
     memory.create_axis("cells", cell_names)
 
-    assert not memory.has_vector("cells:type")
-    assert len(memory.vector_names("cells")) == 0
-    with expect_raise("missing vector: cells:type in the storage: test"):
+    assert not memory.has_array1d("cells:type")
+    assert len(memory.array1d_names("cells")) == 0
+    with expect_raise("missing 1D data: cells:type in the storage: test"):
         memory.get_array1d("cells:type")
-    with expect_raise("missing vector: cells:type in the storage: test"):
-        memory.get_series("cells:type")
 
-    cell_types = as_array1d(["T", "B"])
-    memory.set_vector("cells:type", cell_types)
+    cell_types = freeze(as_array1d(["T", "B"]))
+    memory.set_array1d("cells:type", cell_types)
 
-    assert memory.has_vector("cells:type")
-    assert set(memory.vector_names("cells")) == set(["cells:type"])
+    assert memory.has_array1d("cells:type")
+    assert set(memory.array1d_names("cells")) == set(["cells:type"])
     assert is_array1d(memory.get_array1d("cells:type"))
     assert is_frozen(memory.get_array1d("cells:type"))
     assert np.all(memory.get_array1d("cells:type") == cell_types)
-    assert is_series(memory.get_series("cells:type"))
-    assert is_frozen(memory.get_series("cells:type"))
-    assert np.all(memory.get_series("cells:type").index == cell_names)
-    assert np.all(memory.get_series("cells:type").values == cell_types)
-
-    new_cell_types = pd.Series(["B", "T"], index=cell_names)
-    with expect_raise("refuse to overwrite the vector: cells:type in the storage: test"):
-        memory.set_vector("cells:type", new_cell_types)
-    assert np.all(memory.get_array1d("cells:type") == cell_types)
-    memory.set_vector("cells:type", new_cell_types, overwrite=True)
-    assert np.all(memory.get_array1d("cells:type") == new_cell_types)
 
 
-def test_memory_matrix() -> None:
+def test_memory_data2d() -> None:
     memory = MemoryStorage(name="test")
 
-    assert not memory.has_matrix("cells,genes:UMIs")
+    assert not memory.has_data2d("cells,genes:UMIs")
     with expect_raise("missing rows axis: cells in the storage: test"):
-        memory.matrix_names("cells,genes")
+        memory.data2d_names("cells,genes")
     with expect_raise("missing rows axis: cells in the storage: test"):
-        memory.get_grid("cells,genes:UMIs")
-    with expect_raise("missing rows axis: cells in the storage: test"):
-        memory.get_table("cells,genes:UMIs")
+        memory.get_data2d("cells,genes:UMIs")
 
     cell_names = as_array1d(["cell0", "cell1"])
     memory.create_axis("cells", cell_names)
 
-    assert not memory.has_matrix("cells,genes:UMIs")
+    assert not memory.has_data2d("cells,genes:UMIs")
     with expect_raise("missing columns axis: genes in the storage: test"):
-        memory.matrix_names("cells,genes")
+        memory.data2d_names("cells,genes")
     with expect_raise("missing columns axis: genes in the storage: test"):
-        memory.get_grid("cells,genes:UMIs")
-    with expect_raise("missing columns axis: genes in the storage: test"):
-        memory.get_table("cells,genes:UMIs")
+        memory.get_data2d("cells,genes:UMIs")
 
     gene_names = as_array1d(["gene0", "gene1", "gene2"])
     memory.create_axis("genes", gene_names)
 
-    assert not memory.has_matrix("cells,genes:UMIs")
-    assert len(memory.matrix_names("cells,genes")) == 0
-    with expect_raise("missing matrix: cells,genes:UMIs in the storage: test"):
-        memory.get_grid("cells,genes:UMIs")
-    with expect_raise("missing matrix: cells,genes:UMIs in the storage: test"):
-        memory.get_table("cells,genes:UMIs")
+    assert not memory.has_data2d("cells,genes:UMIs")
+    assert len(memory.data2d_names("cells,genes")) == 0
+    with expect_raise("missing 2D data: cells,genes:UMIs in the storage: test"):
+        memory.get_data2d("cells,genes:UMIs")
 
-    umis = as_array2d([[0, 10, 90], [190, 10, 0]])
-    memory.set_matrix("cells,genes:UMIs", umis)
+    umis = freeze(be_array_in_rows(as_array2d([[0, 10, 90], [190, 10, 0]])))
+    memory.set_grid("cells,genes:UMIs", umis)
 
-    assert memory.has_matrix("cells,genes:UMIs")
-    assert set(memory.matrix_names("cells,genes")) == set(["cells,genes:UMIs"])
-    assert is_array_in_rows(memory.get_grid("cells,genes:UMIs"))
-    assert is_frozen(memory.get_grid("cells,genes:UMIs"))
-    assert fast_all_close(memory.get_grid("cells,genes:UMIs"), umis)
-    assert is_table_in_rows(memory.get_table("cells,genes:UMIs"))
-    assert is_frozen(memory.get_table("cells,genes:UMIs"))
-    assert np.all(memory.get_table("cells,genes:UMIs").index == cell_names)
-    assert np.all(memory.get_table("cells,genes:UMIs").columns == gene_names)
-    assert fast_all_close(memory.get_table("cells,genes:UMIs").values, umis)
+    assert memory.has_data2d("cells,genes:UMIs")
+    assert set(memory.data2d_names("cells,genes")) == set(["cells,genes:UMIs"])
+    assert is_array_in_rows(memory.get_data2d("cells,genes:UMIs"))
+    assert is_frozen(be_grid(memory.get_data2d("cells,genes:UMIs")))
+    assert fast_all_close(memory.get_data2d("cells,genes:UMIs"), umis)
 
-    new_umis = pd.DataFrame(as_array2d([[90, 10, 0], [0, 10, 190]]), index=cell_names, columns=gene_names)
-
-    with expect_raise("refuse to overwrite the matrix: cells,genes:UMIs in the storage: test"):
-        memory.set_matrix("cells,genes:UMIs", new_umis)
-    assert fast_all_close(memory.get_grid("cells,genes:UMIs"), umis)
-    assert is_array_in_rows(memory.get_grid("cells,genes:UMIs"))
-    memory.set_matrix("cells,genes:UMIs", new_umis, overwrite=True)
-    assert fast_all_close(memory.get_grid("cells,genes:UMIs"), new_umis)
-
-    newer_umis = sp.csr_matrix([[90, 0, 10], [10, 0, 190]])
-    memory.set_matrix("cells,genes:UMIs", newer_umis, overwrite=True)
-    assert fast_all_close(memory.get_grid("cells,genes:UMIs"), newer_umis)
+    new_umis = freeze(sp.csr_matrix([[90, 0, 10], [10, 0, 190]]))
+    memory.set_grid("cells,genes:UMIs", new_umis, overwrite=True)
+    assert fast_all_close(memory.get_data2d("cells,genes:UMIs"), new_umis)

@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
+from . import freezing as _freezing
 from . import layouts as _layouts
 from . import optimization as _optimization
 
@@ -30,11 +31,12 @@ def data_description(data: Any) -> str:  # pylint: disable=too-many-return-state
     Return a short description of some hopefully 1D/2D data for error messages and logging.
     """
     if isinstance(data, np.ndarray):
+        frozen = "frozen " if _freezing.is_frozen(data) else ""
         if data.ndim == 1:
-            return f"1D numpy.ndarray of {data.shape[0]} of {data.dtype}"
+            return f"{frozen}1D numpy.ndarray of {data.shape[0]} of {data.dtype}"
 
         if isinstance(data, np.matrix):
-            return f"numpy.matrix of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+            return f"{frozen}numpy.matrix of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
 
         if data.ndim == 2:
             is_column_major = _layouts.COLUMN_MAJOR.is_layout_of(data)  # type: ignore
@@ -45,14 +47,14 @@ def data_description(data: Any) -> str:  # pylint: disable=too-many-return-state
                 optimal = "non-optimal "
 
             if is_column_major and is_row_major:
-                return f"{optimal}both-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+                return f"{frozen}{optimal}both-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
             if is_column_major:
-                return f"{optimal}column-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+                return f"{frozen}{optimal}column-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
             if is_row_major:
-                return f"{optimal}row-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
-            return f"none-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+                return f"{frozen}{optimal}row-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+            return f"{frozen}none-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
 
-        return f"{data.ndim}D numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
+        return f"{frozen}{data.ndim}D numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
 
     if isinstance(data, pd.Series):
         if not isinstance(data.values, np.ndarray):
@@ -62,7 +64,8 @@ def data_description(data: Any) -> str:  # pylint: disable=too-many-return-state
                 f"of {data.shape[0]} of {data.dtype}"
             )
         assert data.values.ndim == 1
-        return f"pandas.Series of {len(data)} of {data.dtype}"
+        frozen = "frozen " if _freezing.is_frozen(data) else ""
+        return f"{frozen}pandas.Series of {len(data)} of {data.dtype}"
 
     if isinstance(data, pd.DataFrame):
         if not isinstance(data.values, np.ndarray):
@@ -72,6 +75,7 @@ def data_description(data: Any) -> str:  # pylint: disable=too-many-return-state
                 f"of {data.shape[0]}x{data.shape[1]} of {data.dtype}"
             )
         assert data.values.ndim == 2
+        frozen = "frozen " if _freezing.is_frozen(data) else ""
         is_column_major = _layouts.COLUMN_MAJOR.is_layout_of(data.values)  # type: ignore
         is_row_major = _layouts.ROW_MAJOR.is_layout_of(data.values)  # type: ignore
 
@@ -85,26 +89,28 @@ def data_description(data: Any) -> str:  # pylint: disable=too-many-return-state
         dtype = str(dtypes[0])
 
         if is_column_major and is_row_major:
-            return f"{optimal}both-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
+            return f"{frozen}{optimal}both-major pandas.DataFrame of {data.shape[0]}x{data.shape[1]} of {dtype}"
         if is_column_major:
-            return f"{optimal}column-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
+            return f"{frozen}{optimal}column-major pandas.DataFrame of {data.shape[0]}x{data.shape[1]} of {dtype}"
         if is_row_major:
-            return f"{optimal}row-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
-        return f"none-major pandas Table of {data.shape[0]}x{data.shape[1]} of {dtype}"
+            return f"{frozen}{optimal}row-major pandas.DataFrame of {data.shape[0]}x{data.shape[1]} of {dtype}"
+        return f"none-major pandas.DataFrame of {data.shape[0]}x{data.shape[1]} of {dtype}"
 
     if isinstance(data, sp.csr_matrix):
         percent = data.nnz * 100 / (data.shape[0] * data.shape[1])
+        frozen = "frozen " if _freezing.is_frozen(data) else ""
         optimal = "" if _optimization.is_optimal(data) else "non-optimal "
         return (
-            f"{optimal}scipy.sparse.csr_matrix "
+            f"{frozen}{optimal}scipy.sparse.csr_matrix "
             f"of {data.shape[0]}x{data.shape[1]} of {data.dtype} with {percent:.2f}% nnz"
         )
 
     if isinstance(data, sp.csc_matrix):
         percent = data.nnz * 100 / (data.shape[0] * data.shape[1])
+        frozen = "frozen " if _freezing.is_frozen(data) else ""
         optimal = "" if _optimization.is_optimal(data) else "non-optimal "
         return (
-            f"{optimal}scipy.sparse.csc_matrix "
+            f"{frozen}{optimal}scipy.sparse.csc_matrix "
             f"of {data.shape[0]}x{data.shape[1]} of {data.dtype} with {percent:.2f}% nnz"
         )
 

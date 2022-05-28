@@ -4,9 +4,9 @@ saying "this is a sparse matrix in CSR format", at least as an option. To do thi
 which requires the base class to be known. As a workaround we define fake sparse matrix and use it instead. To shut
 ``mypy`` up we need to populate them with all the public interface of the real classes.
 
-Hopefully `<https://github.com/python/mypy/issues/12757>`_ will be implemented and all of this mess would be able to be
-deleted. Or, of course, maybe one day ``scipy.sparse`` will provide some form of type annotations, but that seems even
-less likely.
+.. todo::
+
+    If/when ``scipy.sparse`` will provide some form of type annotations, get rid of the `.fake_sparse` module.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -31,11 +31,6 @@ __all__ = ["SparseMatrix"]
 class SparseMatrix(ABC):
     """
     Fake class for ``mypy``.
-
-    .. todo::
-
-        If ``mypy`` implements `<https://github.com/python/mypy/issues/12757>`_ then we'd be able to get rid of
-        ``SparseMatrix``.
     """
 
     data: _array1d.Array1D

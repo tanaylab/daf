@@ -201,7 +201,7 @@ def test_be_sparse() -> None:
         kind="grid",
     )
     assert_not_be_sparse(
-        "expected scipy.sparse.csr/csc_matrix of any reasonable type, got both-major pandas Table of 1x1 of int64",
+        "expected scipy.sparse.csr/csc_matrix of any reasonable type, got both-major pandas.DataFrame of 1x1 of int64",
         pd.DataFrame([[0]]),
         kind="matrix",
     )

@@ -37,7 +37,7 @@ import scipy.sparse as sp  # type: ignore
 
 from . import array2d as _array2d
 from . import descriptions as _descriptions
-from . import layouts as _layouts  # pylint: disable=cyclic-import
+from . import layouts as _layouts
 from . import matrices as _matrices
 from . import sparse as _sparse
 
@@ -56,7 +56,7 @@ __all__ = [
     "be_grid_in_columns",
 ]
 
-#: Any 2D data in row-major layout.
+#: Any 2D data in `.ROW_MAJOR` layout, without names.
 GridInRows = Union[_array2d.ArrayInRows, _sparse.SparseInRows]
 
 
@@ -79,7 +79,7 @@ def be_grid_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] =
     return data
 
 
-#: Any 2D data in column-major layout.
+#: Any 2D data in `.COLUMN_MAJOR` layout, without names.
 GridInColumns = Union[_array2d.ArrayInColumns, _sparse.SparseInColumns]
 
 
@@ -104,7 +104,7 @@ def be_grid_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]
     return data
 
 
-#: Any 2D data without names.
+#: Any 2D data, in either `.ROW_MAJOR` or `.COLUMN_MAJOR` layout, without names.
 Grid = Union[_array2d.Array2D, _sparse.Sparse]
 
 
@@ -149,13 +149,12 @@ def as_grid(data: _array2d.Data2D, *, force_copy: bool = False) -> Grid:
     ...
 
 
-def as_grid(data: Any, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR) -> Grid:
+def as_grid(data: Any, *, force_copy: bool = False) -> Grid:
     """
     Access the internal 2D grid, if possible; otherwise, or if ``force_copy``, return a copy of the 2D data as a
     ``numpy`` array.
 
-    If the input is a ``pandas.DataFrame``, this will only work if all the data in the frame has the same type (that is,
-    for a `.Table`).
+    If the input is a ``pandas.DataFrame``, this will only work if all the data in the frame has the same type.
     """
     # In case someone sneaks a sparse matrix into a frame, which doesn't really work, but be nice...
     if isinstance(data, pd.DataFrame):
@@ -163,7 +162,7 @@ def as_grid(data: Any, *, force_copy: bool = False, preferred_layout: _layouts.A
 
     if isinstance(data, sp.spmatrix):
         if not isinstance(data, _layouts._ANY_MAJOR.sparse_class):  # pylint: disable=protected-access
-            return preferred_layout.sparse_class(data)  # type: ignore
+            return _layouts.ROW_MAJOR.sparse_class(data)
         if force_copy:
             return data.copy()
         return data

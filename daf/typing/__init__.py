@@ -72,5 +72,4 @@ from .matrices import *
 from .optimization import *
 from .series import *
 from .sparse import *
-from .tables import *
 from .vectors import *

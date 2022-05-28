@@ -17,8 +17,8 @@ from typing import Optional
 from typing import Tuple
 
 from ..typing import Array1D
-from ..typing import Grid
-from ..typing import as_grid
+from ..typing import Data2D
+from ..typing import GridInRows
 from . import interface as _interface
 
 # pylint: enable=duplicate-code,cyclic-import
@@ -32,46 +32,43 @@ __all__ = [
 class MemoryReader(_interface.StorageReader):
     """
     Implement the `.StorageReader` interface for in-memory storage.
-
-    We restrict the stored data to be in plain format (that is, `.Array1D` and `.Grid` data), storing the axes indices
-    separately as `.Array1D` of strings and only constructing ``pandas.Series`` and/or ``pandas.DataFrame`` on demand,
-    which is acceptable as these are just lightweight objects referring to the actual data arrays.
     """
 
     def __init__(self, *, name: Optional[str] = None) -> None:
         super().__init__(name=name)
-        #: The 0D ("blob") data.
-        self.data: Dict[str, Any] = {}
 
-        #: The entries for each known axis.
-        self.axes: Dict[str, Array1D] = {}
+        # The 0D ("blob") data.
+        self._data: Dict[str, Any] = {}
 
-        #: For each axis, the 1D data indexed by this axis.
-        self.arrays: Dict[str, Dict[str, Array1D]] = {}
+        # The entries for each known axis.
+        self._axes: Dict[str, Array1D] = {}
 
-        #: For each pair of axis, the 2D row-major data indexed by that pair.
-        self.grids: Dict[Tuple[str, str], Dict[str, Grid]] = {}
+        # For each axis, the 1D data indexed by this axis.
+        self._arrays: Dict[str, Dict[str, Array1D]] = {}
+
+        # For each pair of axis, the 2D `.is_optimal` `.ROW_MAJOR` `.GridInRows` indexed by that pair.
+        self._grids: Dict[Tuple[str, str], Dict[str, GridInRows]] = {}
 
     def datum_names(self) -> Collection[str]:
         """
         See :`.StorageReader.datum_names`.
         """
-        return self.data.keys()
+        return self._data.keys()
 
     def has_datum(self, name: str) -> bool:
         """
         See `.StorageReader.has_datum`.
         """
-        return name in self.data
+        return name in self._data
 
     def _get_datum(self, name: str) -> Any:
-        return self.data[name]
+        return self._data[name]
 
     def axis_names(self) -> Collection[str]:
         """
         See `.StorageReader.axis_names`.
         """
-        return self.axes.keys()
+        return self._axes.keys()
 
     # pylint: disable=duplicate-code
 
@@ -79,33 +76,33 @@ class MemoryReader(_interface.StorageReader):
         """
         See `.StorageReader.has_axis`.
         """
-        return axis in self.axes
+        return axis in self._axes
 
     def _axis_size(self, axis: str) -> int:
-        return len(self.axes[axis])
+        return len(self._axes[axis])
 
     def _axis_entries(self, axis: str) -> Array1D:
-        return self.axes[axis]
+        return self._axes[axis]
 
     # pylint: enable=duplicate-code
 
-    def _vector_names(self, axis: str) -> Collection[str]:
-        return self.arrays[axis].keys()
+    def _array1d_names(self, axis: str) -> Collection[str]:
+        return self._arrays[axis].keys()
 
-    def _has_vector(self, axis: str, name: str) -> bool:
-        return name in self.arrays[axis]
+    def _has_array1d(self, axis: str, name: str) -> bool:
+        return name in self._arrays[axis]
 
     def _get_array1d(self, axis: str, name: str) -> Array1D:
-        return self.arrays[axis][name]
+        return self._arrays[axis][name]
 
-    def _matrix_names(self, axes: Tuple[str, str]) -> Collection[str]:
-        return self.grids[axes].keys()
+    def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:
+        return self._grids[axes].keys()
 
-    def _has_matrix(self, axes: Tuple[str, str], name: str) -> bool:
-        return name in self.grids[axes]
+    def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
+        return name in self._grids[axes]
 
-    def _get_grid(self, axes: Tuple[str, str], name: str) -> Grid:
-        return as_grid(self.grids[axes][name])
+    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Data2D:
+        return self._grids[axes][name]
 
 
 class MemoryStorage(MemoryReader, _interface.StorageWriter):
@@ -119,18 +116,18 @@ class MemoryStorage(MemoryReader, _interface.StorageWriter):
     """
 
     def _set_datum(self, name: str, datum: Any) -> None:
-        self.data[name] = datum
+        self._data[name] = datum
 
     def _create_axis(self, axis: str, entries: Array1D) -> None:
-        self.arrays[axis] = {}
-        for other_axis in self.axes:
-            self.grids[(axis, other_axis)] = {}
-            self.grids[(other_axis, axis)] = {}
-        self.grids[(axis, axis)] = {}
-        self.axes[axis] = entries
+        self._arrays[axis] = {}
+        for other_axis in self._axes:
+            self._grids[(axis, other_axis)] = {}
+            self._grids[(other_axis, axis)] = {}
+        self._grids[(axis, axis)] = {}
+        self._axes[axis] = entries
 
     def _set_array1d(self, axis: str, name: str, array1d: Array1D) -> None:
-        self.arrays[axis][name] = array1d
+        self._arrays[axis][name] = array1d
 
-    def _set_grid(self, axes: Tuple[str, str], name: str, grid: Grid) -> None:
-        self.grids[axes][name] = grid
+    def _set_grid(self, axes: Tuple[str, str], name: str, grid: GridInRows) -> None:
+        self._grids[axes][name] = grid

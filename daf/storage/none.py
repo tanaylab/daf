@@ -1,5 +1,5 @@
 """
-The `.NO_STORAGE` is used to disable caching (e.g., caching sliced data in a ``TODO-L StorageView``).
+The `.NO_STORAGE` is used to disable caching (e.g., caching sliced data in a ``TODOL-StorageView``).
 
 Creating or setting data inside `.NO_STORAGE` has no effect. Unlike a real storage, it allows querying for names of axes
 that don't exist (since in it, no axes exist). It also
@@ -17,12 +17,9 @@ from typing import Tuple
 from typing import Union
 
 from ..typing import Array1D
-from ..typing import Array2D
-from ..typing import Grid
-from ..typing import Matrix
-from ..typing import Series
-from ..typing import Table
-from ..typing import Vector
+from ..typing import ArrayInRows
+from ..typing import Data2D
+from ..typing import GridInRows
 from . import interface as _interface
 
 # pylint: enable=duplicate-code,cyclic-import
@@ -73,16 +70,16 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def _axis_entries(self, axis: str) -> Array1D:
         assert False, "never happens"
 
-    def vector_names(self, axis: str) -> Collection[str]:
+    def array1d_names(self, axis: str) -> Collection[str]:
         return []
 
-    def _vector_names(self, axis: str) -> Collection[str]:
+    def _array1d_names(self, axis: str) -> Collection[str]:
         assert False, "never happens"
 
-    def has_vector(self, name: str) -> bool:
+    def has_array1d(self, name: str) -> bool:
         return False
 
-    def _has_vector(self, axis: str, name: str) -> bool:
+    def _has_array1d(self, axis: str, name: str) -> bool:
         assert False, "never happens"
 
     def get_array1d(self, name: str) -> Array1D:
@@ -91,28 +88,22 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def _get_array1d(self, axis: str, name: str) -> Array1D:
         assert False, "never happens"
 
-    def get_series(self, name: str) -> Series:
-        assert False, "never happens"
-
-    def matrix_names(self, axes: Union[str, Tuple[str, str]]) -> Collection[str]:
+    def data2d_names(self, axes: Union[str, Tuple[str, str]]) -> Collection[str]:
         return []
 
-    def _matrix_names(self, axes: Tuple[str, str]) -> Collection[str]:
+    def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:
         assert False, "never happens"
 
-    def has_matrix(self, name: str) -> bool:
+    def has_data2d(self, name: str) -> bool:
         return False
 
-    def _has_matrix(self, axes: Tuple[str, str], name: str) -> bool:
+    def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
         assert False, "never happens"
 
-    def get_grid(self, name: str) -> Grid:
+    def get_data2d(self, name: str) -> Data2D:
         assert False, "never happens"
 
-    def _get_grid(self, axes: Tuple[str, str], name: str) -> Grid:
-        assert False, "never happens"
-
-    def get_table(self, name: str) -> Table:
+    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Data2D:
         assert False, "never happens"
 
     def update(self, storage: _interface.StorageReader, *, overwrite: bool = False) -> None:
@@ -130,24 +121,28 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def _create_axis(self, axis: str, entries: Array1D) -> None:
         assert False, "never happens"
 
-    def set_vector(self, name: str, vector: Vector, *, overwrite: bool = False) -> None:
+    def set_array1d(self, name: str, array1d: Array1D, *, overwrite: bool = False) -> None:
         pass
 
     def _set_array1d(self, axis: str, name: str, array1d: Array1D) -> None:
         assert False, "never happens"
 
-    def set_matrix(self, name: str, matrix: Matrix, *, overwrite: bool = False) -> None:
+    def set_grid(self, name: str, grid: GridInRows, *, overwrite: bool = False) -> None:
         pass
 
-    def _set_grid(self, axes: Tuple[str, str], name: str, grid: Grid) -> None:
+    def _set_grid(self, axes: Tuple[str, str], name: str, grid: GridInRows) -> None:
         assert False, "never happens"
 
     @contextmanager
-    def create_array2d(self, name: str, *, dtype: str, overwrite: bool = False) -> Generator[Array2D, None, None]:
+    def create_array_in_rows(
+        self, name: str, *, dtype: str, overwrite: bool = False
+    ) -> Generator[ArrayInRows, None, None]:
         assert False, "never happens"
 
     @contextmanager
-    def _create_array2d(self, shape: Tuple[int, int], name: str, dtype: str) -> Generator[Array2D, None, None]:
+    def _create_array_in_rows(
+        self, shape: Tuple[int, int], name: str, dtype: str
+    ) -> Generator[ArrayInRows, None, None]:
         assert False, "never happens"
 
 

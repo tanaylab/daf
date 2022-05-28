@@ -7,20 +7,14 @@ different code paths for the different types).
 
 * `.Sparse` is a compressed sparse matrix (``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``).
 
-* `.Table` is a ``pandas.DataFrame`` which contains an ``daf.typing.array2d.Array2D`` of a single element type, with
+* `.Frame` is a ``pandas.DataFrame`` which contains an ``daf.typing.array2d.Array2D`` of a single element type, with
   indices of names for the rows and the columns.
-
-.. note::
-
-    We also provide `.Frame` to represent a ``pandas.DataFrame`` which is a collection of 1D data columns of
-    *different* data types, which is conceptually (and operationally) very different from a 2D data matrix that has a
-    *homogeneous* element data type. That is, `.Frame` is **not** a `.Matrix`.
 
 In addition, we provide the following 2D data union types:
 
 * `.Grid` is a union of `.Array2D` and `.Sparse`, that is, plain data without names.
 
-* `.Dense` is a union of ``daf.typing.array2d.Array2D`` and ``Table``, that is, dense data without compression.
+* `.Dense` is a union of `.Array2D` and `.Frame`, that is, dense data without compression.
 
 * `.Matrix`, defined here, is the most general 2D data, a union of all the above.
 
@@ -31,13 +25,11 @@ module for details, and `.matrix_copy` for a safe way to copy 2D data while pres
 
 .. note::
 
-    It seems that ``pandas`` isn't reliable when it comes to the 2D layout of tables of strings. In general it doesn't
-    even have a concept of a string data type, so it falls back to viewing them as objects, which means it thinks the
-    table is actually a frame (e.g., it forces it to be in column-major layout). At least this happens in some
-    ``pandas`` versions - this doesn't seem to be documented well (or at all). You are therefore advised not to try to
-    use row-major tables of strings, unless you are willing to deal with the subtle undocumented incompatibilities
-    between different ``pandas`` versions. The layout of tables of numbers seems to work as expected across all
-    versions, though.
+    It seems that ``pandas`` isn't reliable when it comes to the 2D layout of frames of strings; it tends to force them
+    to be in `.COLUMN_MAJOR` layout. At least this happens in some ``pandas`` versions - this doesn't seem to be
+    documented well (or at all). You are therefore advised not to try to use `.ROW_MAJOR` frames of strings, unless you
+    are willing to deal with the subtle undocumented incompatibilities between different ``pandas`` versions. The layout
+    of frames of numbers seems to work as expected across all versions, though.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -62,9 +54,9 @@ import scipy.sparse as sp  # type: ignore
 from . import array2d as _array2d
 from . import descriptions as _descriptions
 from . import dtypes as _dtypes
-from . import layouts as _layouts  # pylint: disable=cyclic-import
+from . import frames as _frames
+from . import layouts as _layouts
 from . import sparse as _sparse
-from . import tables as _tables
 
 # pylint: enable=duplicate-code,cyclic-import
 
@@ -81,8 +73,8 @@ __all__ = [
     "matrix_copy",
 ]
 
-#: Any 2D data in row-major layout.
-MatrixInRows = Union["_array2d.ArrayInRows", _sparse.SparseInRows, _tables.TableInRows]
+#: Any 2D data in `.ROW_MAJOR` layout.
+MatrixInRows = Union["_array2d.ArrayInRows", _sparse.SparseInRows, _frames.FrameInRows]
 
 
 def is_matrix_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixInRows]:
@@ -95,7 +87,7 @@ def is_matrix_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]]
     return (
         _array2d.is_array_in_rows(data, dtype=dtype)
         or _sparse.is_sparse_in_rows(data, dtype=dtype)
-        or _tables.is_table_in_rows(data, dtype=dtype)
+        or _frames.is_frame_in_rows(data, dtype=dtype)
     )
 
 
@@ -110,8 +102,8 @@ def be_matrix_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]]
     return data
 
 
-#: Any 2D data in column-major layout.
-MatrixInColumns = Union["_array2d.ArrayInColumns", _sparse.SparseInColumns, _tables.TableInColumns]
+#: Any 2D data in `.COLUMN_MAJOR` layout.
+MatrixInColumns = Union["_array2d.ArrayInColumns", _sparse.SparseInColumns, _frames.FrameInColumns]
 
 
 def is_matrix_in_columns(
@@ -126,7 +118,7 @@ def is_matrix_in_columns(
     return (
         _array2d.is_array_in_columns(data, dtype=dtype)
         or _sparse.is_sparse_in_columns(data, dtype=dtype)
-        or _tables.is_table_in_columns(data, dtype=dtype)
+        or _frames.is_frame_in_columns(data, dtype=dtype)
     )
 
 
@@ -142,7 +134,7 @@ def be_matrix_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str
 
 
 #: Any 2D data.
-Matrix = Union["_array2d.Array2D", _sparse.Sparse, _tables.Table]
+Matrix = Union["_array2d.Array2D", _sparse.Sparse, _frames.Frame]
 
 
 def is_matrix(
@@ -157,7 +149,7 @@ def is_matrix(
     return (
         _array2d.is_array2d(data, dtype=dtype, layout=layout)
         or _sparse.is_sparse(data, dtype=dtype, layout=layout)
-        or _tables.is_table(data, dtype=dtype, layout=layout)
+        or _frames.is_frame(data, dtype=dtype, layout=layout)
     )
 
 
@@ -196,12 +188,12 @@ def matrix_copy(data: _sparse.SparseInColumns) -> _sparse.SparseInColumns:
 
 
 @overload
-def matrix_copy(data: _tables.TableInRows) -> _tables.TableInRows:
+def matrix_copy(data: _frames.FrameInRows) -> _frames.FrameInRows:
     ...
 
 
 @overload
-def matrix_copy(data: _tables.TableInColumns) -> _tables.TableInColumns:
+def matrix_copy(data: _frames.FrameInColumns) -> _frames.FrameInColumns:
     ...
 
 
@@ -209,11 +201,11 @@ def matrix_copy(data: Matrix) -> Matrix:
     """
     Create a copy of a matrix.
 
-    All the matrix data types (``numpy.ndarray``, ``scipy.sparse``, ``pandas.Frame``) have a ``copy()`` method, so you
-    would think one can just write ``matrix.copy()`` and be done and that is *almost* true except that in their infinite
-    wisdom ``numpy`` will always create the copy in row-major layout, and ``pandas`` will always create the copy in
-    column-major layout, because "reasons". In fact in some (older) versions of ``pandas``/``numpy``, it seems this
-    isn't even possible to achieve a row-major frame of strings.
+    All the matrix data types (``numpy.ndarray``, ``scipy.sparse``, ``pandas.DataFrame``) have a ``copy()`` method, so
+    you would think one can just write ``matrix.copy()`` and be done and that is *almost* true except that in their
+    infinite wisdom ``numpy`` will always create the copy in `.ROW_MAJOR` layout, and ``pandas`` will always create the
+    copy in `.COLUMN_MAJOR` layout, because "reasons". In fact in some (older) versions of ``pandas``/``numpy``, it
+    seems this isn't even possible to achieve a `.ROW_MAJOR` frame of strings.
 
     The code here will give you a proper copy of the data in the same layout as the original. Sigh.
     """

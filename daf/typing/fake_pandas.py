@@ -1,13 +1,13 @@
 """
 Pandas doesn't provide type annotations. We don't try to overcome this here, but we do want to allow for saying "this is
-a pandas frame in column-major layout", at least as an option. To do this we need to use ``typing.Annotate`` which
+a pandas frame in column-major layout", at least as an option. To do this we need to use ``typing.NewType`` which
 requires the annotated class to be known. As a workaround we define fake pandas series and frame classes and use them
 for the annotation instead. To shut ``mypy`` up we need to populate them with all the public interface of the real
 classes.
 
-Hopefully `<https://github.com/python/mypy/issues/12757>`_ will be implemented and all of this mess would be able to be
-deleted. Or, of course, maybe one day ``pandas`` will provide some form of type annotations, but that seems even less
-likely.
+.. todo::
+
+    If/when ``pandas`` will provide some form of type annotations, get rid of the `.fake_pandas` module.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -30,11 +30,6 @@ __all__ = ["PandasSeries", "PandasFrame"]
 class PandasSeries(ABC):
     """
     Fake class for ``mypy``.
-
-    .. todo::
-
-        If ``mypy`` implements `<https://github.com/python/mypy/issues/12757>`_ then we'd be able to get rid of
-        ``PandasSeries``.
     """
 
     array: Any
@@ -804,11 +799,6 @@ class PandasSeries(ABC):
 class PandasFrame(ABC):  # pylint: disable=too-many-public-methods
     """
     Fake class for ``mypy``.
-
-    .. todo::
-
-        If ``mypy`` implements `<https://github.com/python/mypy/issues/12757>`_ then we'd be able to get rid of
-        ``PandasFrame``.
     """
 
     ndim: int

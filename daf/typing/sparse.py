@@ -29,10 +29,10 @@ except ImportError:
 
 import scipy.sparse as sp  # type: ignore
 
-from . import descriptions as _descriptions  # pylint: disable=cyclic-import
+from . import descriptions as _descriptions
 from . import dtypes as _dtypes
 from . import fake_sparse as _fake_sparse  # pylint: disable=unused-import
-from . import layouts as _layouts  # pylint: disable=cyclic-import
+from . import layouts as _layouts
 
 # pylint: enable=duplicate-code,cyclic-import
 

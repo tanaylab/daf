@@ -23,6 +23,7 @@ created, use `.is_optimal` and/or `.be_optimal` to isolate the offending operati
 from __future__ import annotations
 
 from typing import Any
+from typing import Sequence
 from typing import TypeVar
 from typing import overload
 
@@ -32,13 +33,13 @@ import scipy.sparse as sp  # type: ignore
 
 from . import array1d as _array1d
 from . import array2d as _array2d
-from . import descriptions as _descriptions  # pylint: disable=cyclic-import
+from . import descriptions as _descriptions
 from . import fake_pandas as _fake_pandas
-from . import fake_sparse as _fake_sparse
-from . import layouts as _layouts  # pylint: disable=cyclic-import
+from . import frames as _frames
+from . import freezing as _freezing
+from . import layouts as _layouts
 from . import series as _series
 from . import sparse as _sparse
-from . import tables as _tables
 
 # pylint: enable=duplicate-code,cyclic-import
 
@@ -103,6 +104,16 @@ def be_optimal(data: T) -> T:
 
 @overload
 def optimize(
+    data: Sequence[Any],
+    *,
+    force_copy: bool = False,
+    preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR,
+) -> Any:
+    ...
+
+
+@overload
+def optimize(
     data: _array1d.Array1D, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
 ) -> _array1d.Array1D:
     ...
@@ -138,15 +149,15 @@ def optimize(
 
 @overload
 def optimize(
-    data: _tables.TableInRows, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> _tables.TableInRows:
+    data: _frames.FrameInRows, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
+) -> _frames.FrameInRows:
     ...
 
 
 @overload
 def optimize(
-    data: _tables.TableInColumns, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> _tables.TableInColumns:
+    data: _frames.FrameInColumns, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
+) -> _frames.FrameInColumns:
     ...
 
 
@@ -175,23 +186,13 @@ def optimize(
 
 
 @overload
-def optimize(
-    data: _fake_sparse.SparseMatrix,
-    *,
-    force_copy: bool = False,
-    preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR,
-) -> _fake_sparse.SparseMatrix:
-    ...
-
-
-@overload
-def optimize(
-    data: sp.spmatrix, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> sp.spmatrix:
-    ...
-
-
 def optimize(data: Any, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR) -> Any:
+    ...
+
+
+def optimize(  # pylint: disable=too-many-branches
+    data: Any, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
+) -> Any:
     """
     Given some ``data`` in any (reasonable) format, return it in a supported, "optimal" format.
 
@@ -201,45 +202,75 @@ def optimize(data: Any, *, force_copy: bool = False, preferred_layout: _layouts.
     If the data is a matrix, and it has no clear layout, a copy will be created using the ``preferred_layout``. E.g.
     this will determine whether a COO matrix will be converted to a CSR or CSC matrix. For vector data, this argument is
     ignored.
+
+    If the data was copied and ``force_copy`` was not specified, and the data was `.is_frozen`, then so is the
+    result; this ensures the code consuming the result will work regardless of whether a copy was done. If
+    ``force_copy`` was specified, the result is never `.is_frozen`.
+
+    .. note::
+
+        This used `.unfrozen` to modify a ``scipy.sparse.csr_matrix`` or a ``scipy.sparse.csc_matrix`` **in-place**,
+        even if it is `.is_frozen` (unless ``force_copy`` is specified). This seems acceptable for in-memory sparse
+        matrices, but will fail for read-only memory-mapped sparse matrices; this works because memory-mapped sparse
+        matrices are only created by the ``TODOL-Files`` format, which always writes them in the optimal format so no
+        in-place modification is done.
     """
     if isinstance(data, np.ndarray) and 1 <= data.ndim <= 2:
         if force_copy or not is_optimal(data):
-            return np.array(data, order=preferred_layout.numpy_order)  # type: ignore
-        return data
+            freeze = not force_copy and _freezing.is_frozen(data)
+            data = np.array(data, order=preferred_layout.numpy_order)  # type: ignore
+        else:
+            freeze = False
 
-    if isinstance(data, pd.Series):
+    elif isinstance(data, pd.Series):
         if force_copy or not is_optimal(data):
+            freeze = not force_copy and isinstance(data.values, np.ndarray) and _freezing.is_frozen(data)
             data = pd.Series(_array1d.as_array1d(data, force_copy=True), index=data.index)
-        return data
+        else:
+            freeze = False
 
-    if isinstance(data, pd.DataFrame):
+    elif isinstance(data, pd.DataFrame):
         if force_copy or not is_optimal(data):
+            freeze = not force_copy and isinstance(data.values, np.ndarray) and _freezing.is_frozen(data)
             data = pd.DataFrame(
                 np.array(data.values, order=preferred_layout.numpy_order),  # type: ignore
                 index=data.index,
                 columns=data.columns,
             )
-        return data
+        else:
+            freeze = False
 
-    if isinstance(data, sp.spmatrix):
+    elif isinstance(data, sp.spmatrix):
         if isinstance(data, (sp.csr_matrix, sp.csc_matrix)):
             klass = data.__class__
+            freeze = not force_copy and _freezing.is_frozen(data)
             force_copy = (
                 force_copy or not is_optimal(data.data) or not is_optimal(data.indices) or not is_optimal(data.indptr)
             )
+
         elif preferred_layout == _layouts.ROW_MAJOR:
-            force_copy = True
             klass = sp.csr_matrix
+            freeze = not force_copy
+            force_copy = True
+
         else:
             assert preferred_layout == _layouts.COLUMN_MAJOR
-            force_copy = True
             klass = sp.csc_matrix
+            freeze = not force_copy
+            force_copy = True
 
         if force_copy:
             data = klass(data)
+        else:
+            freeze = False
 
-        data.sum_duplicates()
-        data.sort_indices()
-        return data
+        with _freezing.unfrozen(data) as melted:
+            melted.sum_duplicates()
+            melted.sort_indices()
 
-    assert False, f"expected a matrix or a vector, got {_descriptions.data_description(data)}"
+    else:
+        assert False, f"expected a matrix or a vector, got {_descriptions.data_description(data)}"
+
+    if freeze:
+        data = _freezing.freeze(data)
+    return data

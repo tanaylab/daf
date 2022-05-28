@@ -10,9 +10,9 @@ import scipy.sparse as sp  # type: ignore
 
 from daf.typing.array1d import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.array2d import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from daf.typing.frames import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.freezing import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.grids import *  # pylint: disable=wildcard-import,unused-wildcard-import
-from daf.typing.tables import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.vectors import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 from . import expect_raise
@@ -96,31 +96,31 @@ def test_grid() -> None:
     check_grid(sp.csc_matrix(data))
 
 
-def test_table() -> None:
-    table = pd.DataFrame(np.zeros((10, 10)))
+def test_frame() -> None:
+    frame = pd.DataFrame(np.zeros((10, 10)))
 
-    assert not is_frozen(table)
-    table.iloc[1, 1] = 1
-    assert table.iloc[1, 1] == 1
+    assert not is_frozen(frame)
+    frame.iloc[1, 1] = 1
+    assert frame.iloc[1, 1] == 1
 
-    table = freeze(table)
-    assert is_frozen(table)
+    frame = freeze(frame)
+    assert is_frozen(frame)
     with expect_raise("assignment destination is read-only"):
-        table.iloc[1, 1] = 2
-    assert table.iloc[1, 1] == 1
+        frame.iloc[1, 1] = 2
+    assert frame.iloc[1, 1] == 1
 
-    with unfrozen(table) as melted:
+    with unfrozen(frame) as melted:
         assert not is_frozen(melted)
         melted.iloc[1, 1] = 2
 
-    assert is_frozen(table)
-    assert table.iloc[1, 1] == 2
+    assert is_frozen(frame)
+    assert frame.iloc[1, 1] == 2
     with expect_raise("assignment destination is read-only"):
-        table.iloc[1, 1] = 3
-    assert table.iloc[1, 1] == 2
+        frame.iloc[1, 1] = 3
+    assert frame.iloc[1, 1] == 2
 
-    table = unfreeze(table)
+    frame = unfreeze(frame)
 
-    assert not is_frozen(table)
-    table.iloc[1, 1] = 3
-    assert table.iloc[1, 1] == 3
+    assert not is_frozen(frame)
+    frame.iloc[1, 1] = 3
+    assert frame.iloc[1, 1] == 3

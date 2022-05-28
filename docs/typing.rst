@@ -39,10 +39,10 @@ Scipy Sparse Matrices
 .. automodule:: daf.typing.sparse
     :members:
 
-Pandas Homogeneous Frames (Tables)
-..................................
+Pandas (Homogeneous) Frames
+...........................
 
-.. automodule:: daf.typing.tables
+.. automodule:: daf.typing.frames
     :members:
 
 Grids (Matrices w/o Axis Names)
@@ -55,12 +55,6 @@ Dense Matrices
 ..............
 
 .. automodule:: daf.typing.dense
-    :members:
-
-Pandas Heterogeneous Frames
-...........................
-
-.. automodule:: daf.typing.frames
     :members:
 
 Typing Support

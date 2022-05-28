@@ -14,7 +14,7 @@ matrix, you will need to convert it to a dense format (e.g. by calling `.as_arra
 .. note::
 
     The `.Vector` type should be used in computations with **great care**, as some operations are subtly different for
-    ``numpy`` 1D arrays and ``pandas`` series. It is typically better to use one of the concrete types instead.
+    1D ``numpy.ndarray`` arrays and ``pandas.Series``. It is typically better to use one of the concrete types instead.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -44,7 +44,7 @@ __all__ = [
 
 
 #: Any 1D data.
-Vector = Union[_array1d.Array1D, _series.Series]
+Vector = Union["_array1d.Array1D", _series.Series]
 
 
 def is_vector(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> TypeGuard[Vector]:

@@ -77,7 +77,7 @@ def test_be_series() -> None:
         dtype="int16",
     )
     assert_not_be_series(
-        "expected pandas.Series of any reasonable type, got both-major pandas Table of 2x1 of int64",
+        "expected pandas.Series of any reasonable type, got both-major pandas.DataFrame of 2x1 of int64",
         pd.DataFrame([[0], [1]]),
     )
     assert_not_be_series(

@@ -271,7 +271,7 @@ def test_be_array2d() -> None:
         dtype="int16",
     )
     assert_not_be_array2d(
-        "expected any-major numpy.ndarray of any reasonable type, got both-major pandas Table of 1x1 of int64",
+        "expected any-major numpy.ndarray of any reasonable type, got both-major pandas.DataFrame of 1x1 of int64",
         data=pd.DataFrame([[0]]),
         kind="dense",
     )

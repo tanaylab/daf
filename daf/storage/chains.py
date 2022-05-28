@@ -22,15 +22,13 @@ from typing import Tuple
 import numpy as np
 
 from ..typing import Array1D
-from ..typing import Grid
+from ..typing import Data2D
 from . import interface as _interface
 from . import none as _none
 
 # pylint: enable=duplicate-code,cyclic-import
 
-__all__ = [
-    "StorageChain",
-]
+__all__ = ["StorageChain"]
 
 
 # pylint: disable=protected-access
@@ -50,6 +48,7 @@ class StorageChain(_interface.StorageReader):
         for reader in chain:
             StorageChain._add_reader(unique_readers, unique_ids, reader)
 
+        #: The unique chained `.StorageReader` objects (first one wins).
         self.chain: Tuple[_interface.StorageReader, ...] = tuple(unique_readers)
 
         self._verify()
@@ -133,40 +132,40 @@ class StorageChain(_interface.StorageReader):
                 return storage._axis_entries(axis)
         assert False, "never happens"
 
-    def _vector_names(self, axis: str) -> Collection[str]:
+    def _array1d_names(self, axis: str) -> Collection[str]:
         names: Set[str] = set()
         for storage in self.chain:
             if storage.has_axis(axis):
-                names.update(storage._vector_names(axis))
+                names.update(storage._array1d_names(axis))
         return names
 
-    def _has_vector(self, axis: str, name: str) -> bool:
+    def _has_array1d(self, axis: str, name: str) -> bool:
         for storage in self.chain:
-            if storage.has_axis(axis) and storage._has_vector(axis, name):
+            if storage.has_axis(axis) and storage._has_array1d(axis, name):
                 return True
         return False
 
     def _get_array1d(self, axis: str, name: str) -> Array1D:
         for storage in self.chain:
-            if storage.has_axis(axis) and storage.has_vector(name):
+            if storage.has_axis(axis) and storage.has_array1d(name):
                 return storage._get_array1d(axis, name)
         assert False, "never happens"
 
-    def _matrix_names(self, axes: Tuple[str, str]) -> Collection[str]:
+    def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:
         names: Set[str] = set()
         for storage in self.chain:
             if storage.has_axis(axes[0]) and storage.has_axis(axes[1]):
-                names.update(storage._matrix_names(axes))
+                names.update(storage._data2d_names(axes))
         return names
 
-    def _has_matrix(self, axes: Tuple[str, str], name: str) -> bool:
+    def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
         for storage in self.chain:
-            if storage.has_axis(axes[0]) and storage.has_axis(axes[1]) and storage._has_matrix(axes, name):
+            if storage.has_axis(axes[0]) and storage.has_axis(axes[1]) and storage._has_data2d(axes, name):
                 return True
         return False
 
-    def _get_grid(self, axes: Tuple[str, str], name: str) -> Grid:
+    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Data2D:
         for storage in self.chain:
-            if storage.has_axis(axes[0]) and storage.has_axis(axes[1]) and storage._has_matrix(axes, name):
-                return storage._get_grid(axes, name)
+            if storage.has_axis(axes[0]) and storage.has_axis(axes[1]) and storage._has_data2d(axes, name):
+                return storage._get_data2d(axes, name)
         assert False, "never happens"

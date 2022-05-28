@@ -6,10 +6,11 @@ A storage object contains some 0D ("blob") data, a set of axes (each with a uniq
 data based on these axes.
 
 Data is identified by its unique ``name`` for 0D data, by the ``axis:name`` unique combination for 1D data, and by the
-``rows_axis,columns_axis:name`` unique combination for 2D data. 2D data is always stored in row-major order. Thus for a
-storage object to report containing both ``foo,bar:baz`` and ``bar,foo:baz``, it must be that it contains both the data
-and its transpose, each in row-major order. Often a storage object would only contain a single copy of the data, so it
-would only report containing one of ``foo,bar:baz`` and ``bar,foo:baz``.
+``rows_axis,columns_axis:name`` unique combination for 2D data. 2D data is always stored in `.ROW_MAJOR` layout (or, at
+least, never in `.COLUMN_MAJOR` layout). Thus for a storage object to report containing both ``foo,bar:baz`` and
+``bar,foo:baz``, it must be that it contains both the data and its transpose, each in `.ROW_MAJOR` layout. Often a
+storage object would only contain a single copy of the data, so it would only report containing one of ``foo,bar:baz``
+and ``bar,foo:baz``.
 """
 
 from .chains import *

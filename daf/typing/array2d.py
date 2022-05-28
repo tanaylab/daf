@@ -75,7 +75,7 @@ def be_array_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] 
     return data
 
 
-#: 2-dimensional ``numpy`` array in column-major layout.
+#: 2-dimensional ``numpy`` array in `.COLUMN_MAJOR` layout.
 ArrayInColumns = NewType("ArrayInColumns", np.ndarray)
 
 
@@ -99,7 +99,7 @@ def be_array_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]
     return data
 
 
-#: 2-dimensional ``numpy`` in any-major layout.
+#: 2-dimensional ``numpy`` in either `.ROW_MAJOR` or `.COLUMN_MAJOR` layout.
 Array2D = Union[ArrayInRows, ArrayInColumns]
 
 
@@ -153,9 +153,7 @@ def as_array2d(data: _matrices.MatrixInColumns, *, force_copy: bool = False) -> 
 
 
 @overload
-def as_array2d(
-    data: Union[Sequence[Sequence[Any]], sp.spmatrix, pd.DataFrame, np.ndarray], *, force_copy: bool = False
-) -> Array2D:
+def as_array2d(data: Data2D, *, force_copy: bool = False) -> Array2D:
     ...
 
 

@@ -29,9 +29,7 @@ import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
 from . import descriptions as _descriptions
-from . import frames as _frames
-from . import matrices as _matrices
-from . import vectors as _vectors
+from . import fake_pandas as _fake_pandas  # pylint: disable=unused-import
 
 # pylint: enable=duplicate-code,cyclic-import
 
@@ -43,7 +41,10 @@ __all__ = [
 ]
 
 
-T = TypeVar("T", bound=Union[_vectors.Vector, _matrices.Matrix, _frames.Frame])
+#: Any data type that ``daf`` basically understands.
+ProperData = Union[np.ndarray, sp.csr_matrix, sp.csc_matrix, _fake_pandas.PandasSeries, _fake_pandas.PandasFrame]
+
+T = TypeVar("T", bound=ProperData)
 
 
 def freeze(data: T) -> T:
@@ -65,7 +66,8 @@ def freeze(data: T) -> T:
         assert data.indices.flags.writeable == data.indptr.flags.writeable == data.data.flags.writeable
         data.indices.flags.writeable = data.indptr.flags.writeable = data.data.flags.writeable = False
         return data
-    assert False, f"expected a matrix or a vector, got {_descriptions.data_description(data)}"
+    _descriptions.assert_data(False, "matrix of vector", data, None)
+    assert False, "never happens"
 
 
 def unfreeze(data: T) -> T:
@@ -87,10 +89,11 @@ def unfreeze(data: T) -> T:
         assert data.indices.flags.writeable == data.indptr.flags.writeable == data.data.flags.writeable
         data.indices.flags.writeable = data.indptr.flags.writeable = data.data.flags.writeable = True
         return data
-    assert False, f"expected a matrix or a vector, got {_descriptions.data_description(data)}"
+    _descriptions.assert_data(False, "matrix of vector", data, None)
+    assert False, "never happens"
 
 
-def is_frozen(data: Union[_vectors.Vector, _matrices.Matrix, _frames.Frame]) -> bool:
+def is_frozen(data: ProperData) -> bool:
     """
     Test whether some 1/2D data is protected against modification.
     """
@@ -101,7 +104,8 @@ def is_frozen(data: Union[_vectors.Vector, _matrices.Matrix, _frames.Frame]) -> 
     if isinstance(data, (sp.csr_matrix, sp.csc_matrix)):
         assert data.indices.flags.writeable == data.indptr.flags.writeable == data.data.flags.writeable
         return not data.data.flags.writeable
-    assert False, f"expected a matrix or a vector, got {_descriptions.data_description(data)}"
+    _descriptions.assert_data(False, "matrix of vector", data, None)
+    assert False, "never happens"
 
 
 @contextmanager

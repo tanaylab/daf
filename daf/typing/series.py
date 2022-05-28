@@ -19,7 +19,7 @@ except ImportError:
 import numpy as np
 import pandas as pd  # type: ignore
 
-from . import descriptions as _descriptions  # pylint: disable=cyclic-import
+from . import descriptions as _descriptions
 from . import dtypes as _dtypes
 from . import fake_pandas as _fake_pandas
 
@@ -33,7 +33,7 @@ __all__ = [
 ]
 
 
-#: 1-dimensional ``pandas`` series of bool values.
+#: 1-dimensional ``pandas.Series``.
 Series = NewType("Series", _fake_pandas.PandasSeries)
 
 
