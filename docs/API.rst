@@ -7,3 +7,4 @@ API
   :maxdepth: 2
 
   typing
+  storage

@@ -192,7 +192,7 @@ def test_be_sparse() -> None:
     assert_be_sparse(sp.csc_matrix((10, 10)))
     assert_not_be_sparse(
         "expected scipy.sparse.csr/csc_matrix of any reasonable type, "
-        "got scipy.sparse._coo.coo_matrix of 10x10 of float64 with 0.00% nnz",
+        f"got {sp.coo_matrix.__module__}.{sp.coo_matrix.__qualname__} of 10x10 of float64 with 0.00% nnz",
         sp.coo_matrix((10, 10)),
     )
     assert_not_be_sparse(

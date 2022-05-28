@@ -10,9 +10,9 @@ However, ``numpy`` does have a concept of read-only data, so we make use of it h
 In general, ``daf`` always freezes data when it is stored, and accesses return frozen data, to protect against
 accidental in-place modification of the stored data.
 
-The code in this module allows to manually :py:obj:`~freeze`, :py:obj:`~unfreeze`, or test whether data
-:py:obj:`~is_frozen`, using the ``numpy`` capabilities. In addition, in cases you *really* know what you are doing, it
-allows you to temporary modify :py:obj:`~unfrozen` data.
+The code in this module allows to manually `.freeze`, `.unfreeze`, or test whether data `.is_frozen`, using the
+``numpy`` capabilities. In addition, in cases you *really* know what you are doing, it allows you to temporary modify
+`.unfrozen` data.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -50,8 +50,9 @@ def freeze(data: T) -> T:
     """
     Ensure that some 1/2D data is protected against modification.
 
-    This **tries** to freeze the data in place, but for ``pandas`` we are forced to return a new frozen object, because
-    "reasons". Hence the safe idiom is ``data = freeze(data)``. Sigh.
+    This **tries** to unfreeze the data in place, but because ``pandas`` has strange behavior, we are forced to return a
+    new frozen object (this is only a wrapper, the data itself is not copied). Hence the safe idiom is ``data =
+    freeze(data)``. Sigh.
     """
     if isinstance(data, pd.DataFrame):
         return pd.DataFrame(freeze(data.values), index=data.index, columns=data.columns)
@@ -72,8 +73,8 @@ def unfreeze(data: T) -> T:
     Ensure that some 1/2D data is not protected against modification.
 
     This **tries** to unfreeze the data in place, but because ``pandas`` has strange behavior, we are forced to return a
-    new frozen object, (this is only a wrapper, the data itself is not copied). Hence the safe idiom is
-    ``data = freeze(data)``. Sigh.
+    new frozen object (this is only a wrapper, the data itself is not copied). Hence the safe idiom is ``data =
+    unfreeze(data)``. Sigh.
     """
     if isinstance(data, pd.DataFrame):
         return pd.DataFrame(unfreeze(data.values), index=data.index, columns=data.columns)
@@ -116,10 +117,11 @@ def unfrozen(data: T) -> Generator[T, None, None]:
         # The ``data`` is immutable here.
 
         with unfrozen(data) as melted:
-            # It is crucial you do **not** write ``as data`` - this will overwrite ``data`` with a mutable reference!
             # ``melted`` data is writable here.
+            # Do **not** leak the reference to the ``melted`` data to outside the block.
+            # In particular, do **not** write ``with unfrozen(data) as data:``.
 
-        # The ``data`` stays immutable here, as long as you didn't write ``as data`` above.
+        # The ``data`` stays immutable here, as long as you didn't leak ``melted`` above.
     """
     was_frozen = is_frozen(data)
     if was_frozen:

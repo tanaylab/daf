@@ -82,7 +82,7 @@ staged:  ## check everything is staged for git commit
 	else true; \
 	fi
 
-format: trailingspaces linebreaks backticks fstrings isort black flake8  ## check code format
+format: trailingspaces linebreaks fstrings isort black flake8  ## check code format
 
 trailingspaces: .make.trailingspaces  ## check for trailing spaces
 
@@ -106,34 +106,6 @@ linebreaks: .make.linebreaks  ## check line breaks in Python code
 	@if grep -Hn "[^=*][^][/<>\"'a-zA-Z0-9_,:()#}{.?!\\=\`+-]$$" $(PY_SOURCE_FILES) | grep -v -- '--$$\|import \*$$'; \
 	then \
 	    echo 'Files wrap lines after instead of before an operator (fix manually).'; \
-	    false; \
-	fi
-	touch $@
-
-backticks: .make.backticks  ## check usage of backticks in documentation
-
-BT_SOURCE_FILES = \
-    $(filter-out docs/Metacells_Vignette.rst, \
-    $(filter-out docs/Manual_Analysis.rst, \
-    $(filter-out docs/Seurat_Analysis.rst, \
-    $(RST_SOURCE_FILES))))
-
-.make.backticks: $(PY_SOURCE_FILES) $(BT_SOURCE_FILES)
-	@echo "backticks"
-	@OK=true; \
-	for FILE in $(PY_SOURCE_FILES) $(BT_SOURCE_FILES); \
-	do \
-	    if sed 's/``\([^`]*\)``/\1/g;s/:`\([^`]*\)`/:\1/g;s/`\([^`]*\)`_/\1_/g' "$$FILE" \
-	    | grep --label "$$FILE" -n -H '`' \
-	    | sed 's//`/g' \
-	    | grep '.'; \
-	    then OK=false; \
-	    fi; \
-	done; \
-	if $$OK; \
-	then true; \
-	else \
-	    echo 'Documentation contains invalid ` markers (fix manually).'; \
 	    false; \
 	fi
 	touch $@

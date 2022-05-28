@@ -36,24 +36,25 @@ extensions = [
     'sphinx.ext.todo',
 ]
 
+default_role = "py:obj"
 autodoc_member_order = 'bysource'
 autosectionlabel_prefix_document = True
 nitpicky = True
 nitpick_ignore = [
     ('py:class', 'anndata._core.anndata.AnnData'),
-    ('py:class', 'daf.typing.Array1D'),
-    ('py:class', 'daf.typing.ArrayColumns'),
-    ('py:class', 'daf.typing.ArrayRows'),
-    ('py:class', 'daf.typing.ColumnMajor'),
-    ('py:class', 'daf.typing.FrameColumns'),
-    ('py:class', 'daf.typing.FrameRows'),
-    ('py:class', 'daf.typing.RowMajor'),
-    ('py:class', 'daf.typing.Series'),
-    ('py:class', 'daf.typing.SparseColumns'),
-    ('py:class', 'daf.typing.SparseRows'),
-    ('py:class', 'daf.typing.T'),
-    ('py:class', 'IO'),
-    ('py:class', 'Iterator[None]'),
+    ('py:class', 'daf.typing.layouts.ColumnMajor'),
+    ('py:class', 'daf.typing.layouts.RowMajor'),
+    ('py:class', 'daf.typing.optimization.T'),
+    ('py:class', 'daf.typing.freezing.T'),
+    ('py:class', '_array2d.Array2D'),
+    ('py:class', '_array2d.ArrayInColumns'),
+    ('py:class', '_array2d.ArrayInRows'),
+    ('py:class', '_frames.Frame'),
+    ('py:class', '_matrices.Matrix'),
+    ('py:class', '_matrices.MatrixInColumns'),
+    ('py:class', '_matrices.MatrixInRows'),
+    ('py:class', '_vectors.Vector'),
+    ('py:class', 'numpy.dtype'),
     ('py:class', 'numpy.ndarray'),
     ('py:class', 'pandas.core.frame.DataFrame'),
     ('py:class', 'pandas.core.series.Series'),

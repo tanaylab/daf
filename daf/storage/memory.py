@@ -31,13 +31,11 @@ __all__ = [
 
 class MemoryReader(_interface.StorageReader):
     """
-    Implement the :py:obj:`~daf.storage.interface.StorageReader` interface for in-memory storage.
+    Implement the `.StorageReader` interface for in-memory storage.
 
-    We restrict the stored data to be in plain format (that is, :py:obj:`~daf.typing.array1d.Array1D` and
-    :py:obj:`~daf.typing.grid.Grid` data), storing the axes indices separately as
-    :py:obj:`~daf.typing.array1d.Array1D` of strings and only constructing ``pandas.Series`` and/or
-    ``pandas.DataFrame`` on demand, which is acceptable as these are just lightweight objects referring to the actual
-    data arrays.
+    We restrict the stored data to be in plain format (that is, `.Array1D` and `.Grid` data), storing the axes indices
+    separately as `.Array1D` of strings and only constructing ``pandas.Series`` and/or ``pandas.DataFrame`` on demand,
+    which is acceptable as these are just lightweight objects referring to the actual data arrays.
     """
 
     def __init__(self, *, name: Optional[str] = None) -> None:
@@ -56,13 +54,13 @@ class MemoryReader(_interface.StorageReader):
 
     def datum_names(self) -> Collection[str]:
         """
-        See :py:obj:`~daf.storage.interface.StorageReader.datum_names`.
+        See :`.StorageReader.datum_names`.
         """
         return self.data.keys()
 
     def has_datum(self, name: str) -> bool:
         """
-        See :py:obj:`~daf.storage.interface.StorageReader.has_datum`.
+        See `.StorageReader.has_datum`.
         """
         return name in self.data
 
@@ -71,7 +69,7 @@ class MemoryReader(_interface.StorageReader):
 
     def axis_names(self) -> Collection[str]:
         """
-        See :py:obj:`~daf.storage.interface.StorageReader.axis_names`.
+        See `.StorageReader.axis_names`.
         """
         return self.axes.keys()
 
@@ -79,7 +77,7 @@ class MemoryReader(_interface.StorageReader):
 
     def has_axis(self, axis: str) -> bool:
         """
-        See :py:obj:`~daf.storage.interface.StorageReader.has_axis`.
+        See `.StorageReader.has_axis`.
         """
         return axis in self.axes
 
@@ -117,7 +115,7 @@ class MemoryStorage(MemoryReader, _interface.StorageWriter):
     .. note::
 
         This just keeps a reference to the data it is given, so care must be taken not to mess it up after it has been
-        put into the storage. It does :py:obj:`~daf.typing.freeze` it to prevent accidental modifications.
+        put into the storage. It does `.freeze` it to prevent accidental modifications.
     """
 
     def _set_datum(self, name: str, datum: Any) -> None:

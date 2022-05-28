@@ -4,7 +4,7 @@ Test ``daf.storage.chain``.
 
 import numpy as np
 
-from daf.storage.chain import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from daf.storage.chains import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.storage.memory import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.storage.none import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing import *  # pylint: disable=wildcard-import,unused-wildcard-import

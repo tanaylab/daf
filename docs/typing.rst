@@ -3,8 +3,8 @@ Typing
 
 .. automodule:: daf.typing
 
-Vectors
--------
+Vector Types
+------------
 
 .. automodule:: daf.typing.vectors
     :members:
@@ -21,8 +21,8 @@ Pandas Series
 .. automodule:: daf.typing.series
     :members:
 
-Matrices
---------
+Matrix Types
+------------
 
 .. automodule:: daf.typing.matrices
     :members:

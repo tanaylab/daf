@@ -3,8 +3,7 @@ Low-level interface for storage objects.
 
 The types here define the abstract interface implemented by all ``daf`` storage format adapters. This interface focuses
 on simplicity to to make it easier to **implement** new adapters for specific formats, which makes it inconvenient to
-actually **use**. For a more usable interface, see the :py:obj:`~daf.access.DafReader` and
-:py:obj:`~daf.access.DafWriter` classes.
+actually **use**. For a more usable interface, see the ``TODOL-DafReader`` and ``TODOL-DafReader`` classes.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -19,6 +18,7 @@ from typing import Collection
 from typing import Generator
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 import pandas as pd  # type: ignore
@@ -43,14 +43,15 @@ from ..typing import is_optimal
 from ..typing import is_series
 from ..typing import is_table
 from ..typing import is_vector
-from . import chain as _chain
+from . import chains as _chains
 
 # pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
     "StorageReader",
     "StorageWriter",
-    "parse_1d_axis",
+    "extract_1d_axis",
+    "extract_2d_axes",
     "parse_2d_axes",
 ]
 
@@ -64,7 +65,7 @@ class StorageReader(ABC):
     .. note::
 
         Not all the abstract methods are public; if you want to implement a storage adapter yourself, look at the source
-        code. You can use the simple :py:obj:`~daf.storage.memory.MemoryStorage` class as a starting point.
+        code. You can use the simple `.MemoryStorage` class as a starting point.
     """
 
     def __init__(self, *, name: Optional[str] = None) -> None:
@@ -81,11 +82,11 @@ class StorageReader(ABC):
 
     def as_reader(self) -> "StorageReader":
         """
-        Return the storage as a :py:obj:`~StorageReader`.
+        Return the storage as a `.StorageReader`.
 
         This is a no-op (returns self) for "real" read-only objects, but for writable objects, it returns a "real"
         read-only wrapper object (that does not implement the writing methods). This ensures that the result can't be
-        used to modify the data if passed by mistake to a function that takes a :py:obj:`~StorageWriter`.
+        used to modify the data if passed by mistake to a function that takes a `.StorageWriter`.
         """
         return self
 
@@ -165,7 +166,7 @@ class StorageReader(ABC):
 
         The name must be in the format ``axis:name`` which uniquely identifies the 1D data.
         """
-        axis = parse_1d_axis(name)
+        axis = extract_1d_axis(name)
         return self.has_axis(axis) and self._has_vector(axis, name)
 
     @abstractmethod
@@ -174,11 +175,11 @@ class StorageReader(ABC):
 
     def get_array1d(self, name: str) -> Array1D:
         """
-        Get the ``name`` 1D data (which must exist) as an :py:obj:`~daf.typing.array1d.Array1D`.
+        Get the ``name`` 1D data (which must exist) as an `.Array1D`.
 
         The name must be in the format ``axis:name`` which uniquely identifies the 1D data.
         """
-        axis = parse_1d_axis(name)
+        axis = extract_1d_axis(name)
         assert self.has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
         assert self.has_vector(name), f"missing vector: {name} in the storage: {self.name}"
         return self._get_array1d(axis, name)
@@ -195,14 +196,14 @@ class StorageReader(ABC):
 
         The ``index`` of the series will be the names of the entries of the axis.
         """
-        axis = parse_1d_axis(name)
+        axis = extract_1d_axis(name)
         assert self.has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
         assert self.has_vector(name), f"missing vector: {name} in the storage: {self.name}"
         index = self.axis_entries(axis)
         array1d = self._get_array1d(axis, name)
         return freeze(pd.Series(array1d, index=index))
 
-    def matrix_names(self, axes: Tuple[str, str]) -> Collection[str]:
+    def matrix_names(self, axes: Union[str, Tuple[str, str]]) -> Collection[str]:
         """
         Return the names of the 2D data that exists in the storage for a specific pair of ``axes`` (which must exist).
 
@@ -210,6 +211,8 @@ class StorageReader(ABC):
 
         If two copies of the data exist in transposed axes order, then two different names will be returned.
         """
+        if isinstance(axes, str):
+            axes = parse_2d_axes(axes)
         assert self.has_axis(axes[0]), f"missing rows axis: {axes[0]} in the storage: {self.name}"
         assert self.has_axis(axes[1]), f"missing columns axis: {axes[1]} in the storage: {self.name}"
         return self._matrix_names(axes)
@@ -224,7 +227,7 @@ class StorageReader(ABC):
 
         The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data.
         """
-        axes = parse_2d_axes(name)
+        axes = extract_2d_axes(name)
         return self.has_axis(axes[0]) and self.has_axis(axes[1]) and self._has_matrix(axes, name)
 
     @abstractmethod
@@ -233,11 +236,11 @@ class StorageReader(ABC):
 
     def get_grid(self, name: str) -> Grid:
         """
-        Get the ``name`` 2D data (which must exist) as a :py:obj:`~daf.typing.grids.Grid`.
+        Get the ``name`` 2D data (which must exist) as a `.Grid`.
 
         The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data.
         """
-        axes = parse_2d_axes(name)
+        axes = extract_2d_axes(name)
         assert self.has_axis(axes[0]), f"missing rows axis: {axes[0]} in the storage: {self.name}"
         assert self.has_axis(axes[1]), f"missing columns axis: {axes[1]} in the storage: {self.name}"
         assert self.has_matrix(name), f"missing matrix: {name} in the storage: {self.name}"
@@ -249,14 +252,14 @@ class StorageReader(ABC):
 
     def get_table(self, name: str) -> Table:
         """
-        Get the ``name`` 2D data (which must exist) as a :py:obj:`~daf.typing.tables.Table` (that is, a
-        ``pandas.DataFrame`` with homogeneous data elements).
+        Get the ``name`` 2D data (which must exist) as a `.Table` (that is, a ``pandas.DataFrame`` with homogeneous data
+        elements).
 
         The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data.
 
         The ``index`` and ``columns`` of the table will be the names of the entries of the rows and column axes.
         """
-        axes = parse_2d_axes(name)
+        axes = extract_2d_axes(name)
         assert self.has_axis(axes[0]), f"missing rows axis: {axes[0]} in the storage: {self.name}"
         assert self.has_axis(axes[1]), f"missing columns axis: {axes[1]} in the storage: {self.name}"
         assert self.has_matrix(name), f"missing matrix: {name} in the storage: {self.name}"
@@ -275,18 +278,18 @@ class StorageWriter(StorageReader):
     .. note::
 
         Not all the abstract methods are public; if you want to implement a storage adapter yourself, look at the source
-        code. You can use the simple :py:obj:`~daf.storage.MemoryStorage` class as a starting point.
+        code. You can use the simple `.MemoryStorage` class as a starting point.
     """
 
     def as_reader(self) -> StorageReader:
         """
-        Return the storage as a :py:obj:`~StorageReader`.
+        Return the storage as a `.StorageReader`.
 
         This is a no-op (returns self) for "real" read-only objects, but for writable objects, it returns a "real"
         read-only wrapper object (that does not implement the writing methods). This ensures that the result can't be
-        used to modify the data if passed by mistake to a function that takes a :py:obj:`~StorageWriter`.
+        used to modify the data if passed by mistake to a function that takes a `.StorageWriter`.
         """
-        return _chain.StorageChain([self], name=self._name)
+        return _chains.StorageChain([self], name=self._name)
 
     def update(self, storage: StorageReader, *, overwrite: bool = False) -> None:
         """
@@ -375,7 +378,7 @@ class StorageWriter(StorageReader):
             name
         ), f"refuse to overwrite the vector: {name} in the storage: {self.name}"
 
-        axis = parse_1d_axis(name)
+        axis = extract_1d_axis(name)
 
         assert len(vector) == self.axis_size(axis), (
             f"vector: {name} size: {len(vector)} is different from axis size: {self.axis_size(axis)} "
@@ -398,8 +401,8 @@ class StorageWriter(StorageReader):
         """
         Set a ``name`` 2D data ``matrix``.
 
-        The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data. The
-        data must be in row-major order, and optimized.
+        The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data. The data
+        must be in row-major order, and optimized.
 
         If ``overwrite``, will silently overwrite an existing matrix of the same name, otherwise overwriting will fail.
         """
@@ -410,7 +413,7 @@ class StorageWriter(StorageReader):
             name
         ), f"refuse to overwrite the matrix: {name} in the storage: {self.name}"
 
-        axes = parse_2d_axes(name)
+        axes = extract_2d_axes(name)
 
         assert matrix.shape[0] == self.axis_size(axes[0]), (
             f"matrix: {name} rows: {matrix.shape[0]} is different from axis size: {self.axis_size(axes[0])} "
@@ -457,15 +460,15 @@ class StorageWriter(StorageReader):
             # Here the array IS set inside the storage,
             # that is, one can use ``get_grid`` to access it.
 
-        This allows :py:obj:`~daf.storage.Files` to create the array on disk, without first having to create an
-        in-memory copy. By default (for other adapters), this just creates and returns an uninitialized in-memory 2D
-        dense array, then calls :py:obj:`~StorageWriter.set_matrix` with the initialized result.
+        This allows ``TODOL-Files`` to create the array on disk, without first having to create an in-memory copy. By
+        default (for other adapters), this just creates and returns an uninitialized in-memory 2D dense array, then
+        calls `.StorageWriter.set_matrix` with the initialized result.
         """
         assert overwrite or not self.has_matrix(
             name
         ), f"refuse to overwrite the matrix: {name} in the storage: {self.name}"
 
-        axes = parse_2d_axes(name)
+        axes = extract_2d_axes(name)
 
         shape = (self.axis_size(axes[0]), self.axis_size(axes[1]))
         with self._create_array2d(shape, name, dtype) as array2d:
@@ -478,21 +481,28 @@ class StorageWriter(StorageReader):
         self.set_matrix(name, array2d, overwrite=True)
 
 
-def parse_1d_axis(name: str) -> str:
+def extract_1d_axis(name: str) -> str:
     """
-    Parse the axis out of a ``axis:name`` 1D data name.
+    Extract the axis out of a ``axis:name`` 1D data name.
     """
     parts = name.split(":")
     assert len(parts) == 2, f"invalid 1D data name: {name}"
     return parts[0]
 
 
-def parse_2d_axes(name: str) -> Tuple[str, str]:
+def extract_2d_axes(name: str) -> Tuple[str, str]:
     """
-    Parse the axes out of ``rows_axis,column_axis:name`` 2D data name.
+    Extract the axes out of ``rows_axis,column_axis:name`` 2D data name.
     """
     parts = name.split(":")
     assert len(parts) == 2, f"invalid 2D data name: {name}"
-    axes = parts[0].split(",")
+    return parse_2d_axes(parts[0])
+
+
+def parse_2d_axes(name: str) -> Tuple[str, str]:
+    """
+    Parse the axes in a ``rows_axis,column_axis`` 2D data axes.
+    """
+    axes = name.split(",")
     assert len(axes) == 2, f"invalid 2D data name: {name}"
     return (axes[0], axes[1])

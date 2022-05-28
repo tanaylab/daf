@@ -1,28 +1,34 @@
 Storage
-======
+=======
 
 .. automodule:: daf.storage
 
-Interface
----------
+Storage Interface
+-----------------
 
 .. automodule:: daf.storage.interface
     :members:
 
-Chain
-.....
+Storage Formats
+---------------
 
-.. automodule:: daf.storage.chain
-    :members:
-
-Memory
-......
+Memory Storage
+..............
 
 .. automodule:: daf.storage.memory
     :members:
 
-NoStorage
-.........
+Storage Support
+---------------
+
+Storage Chains
+..............
+
+.. automodule:: daf.storage.chains
+    :members:
+
+No Storage
+..........
 
 .. automodule:: daf.storage.none
     :members:

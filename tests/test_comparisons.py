@@ -64,8 +64,8 @@ def test_compare_sparse() -> None:
 
 def test_compare_fail() -> None:
     with expect_raise(
-        "comparing a scipy.sparse._coo.coo_matrix of 2x2 of int64 with 50.00% nnz "
-        "with a scipy.sparse._coo.coo_matrix of 2x2 of int64 with 50.00% nnz"
+        f"comparing a {sp.coo_matrix.__module__}.{sp.coo_matrix.__qualname__} of 2x2 of int64 with 50.00% nnz "
+        f"with a {sp.coo_matrix.__module__}.{sp.coo_matrix.__qualname__} of 2x2 of int64 with 50.00% nnz"
     ):
         fast_all_close(sp.coo_matrix([[0, 1], [1, 0]]), sp.coo_matrix([[0, 1], [1, 0]]))
 

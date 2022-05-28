@@ -1,9 +1,8 @@
 """
-The :py:obs:`NO_STORAGE` is used to disable caching (e.g., caching sliced data in a
-:py:obj:`daf.storage.views.StorageView`).
+The `.NO_STORAGE` is used to disable caching (e.g., caching sliced data in a ``TODO-L StorageView``).
 
-Creating or setting data inside ``NO_STORAGE`` has no effect. Unlike a real storage, it allows querying for names of
-axes that don't exist (since in it, no axes exist). It also
+Creating or setting data inside `.NO_STORAGE` has no effect. Unlike a real storage, it allows querying for names of axes
+that don't exist (since in it, no axes exist). It also
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -15,6 +14,7 @@ from typing import Any
 from typing import Collection
 from typing import Generator
 from typing import Tuple
+from typing import Union
 
 from ..typing import Array1D
 from ..typing import Array2D
@@ -94,7 +94,7 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def get_series(self, name: str) -> Series:
         assert False, "never happens"
 
-    def matrix_names(self, axes: Tuple[str, str]) -> Collection[str]:
+    def matrix_names(self, axes: Union[str, Tuple[str, str]]) -> Collection[str]:
         return []
 
     def _matrix_names(self, axes: Tuple[str, str]) -> Collection[str]:

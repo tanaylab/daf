@@ -3,15 +3,14 @@
 access any element using its row and column index. In practice, the choice of layout is crucial to get reasonable
 performance, as accessing data "against the grain" results in orders of magnitude loss of performance.
 
-We restrict 2D data stored in ``daf`` to two laytouts: :py:obj:`~ROW_MAJOR` and :py:obj:`~COLUMN_MAJOR`. This applies
-both to dense data and also to sparse data (where "row-major" data means "CSR" and "column-major" means "CSC").
+We restrict 2D data stored in ``daf`` to two laytouts: `.ROW_MAJOR` and `.COLUMN_MAJOR`. This applies both to dense data
+and also to sparse data (where "row-major" data means "CSR" and "column-major" means "CSC").
 
 We provide explicit data type annotations expressing the distinction between these layouts by suffixing the base type
-with ``InRows`` or ``InColumns`` (e.g., :py:obj:`~daf.typing.matrices.TableInRows` vs.
-:py:obj:`~daf.typing.matrices.TableInColumns`). This makes it easier to ensure that operations get data in the correct
-layout, e.g. summing each row of row-major data would be much, much faster than summing the rows of column-major data.
-Arguably clever implementation of the algorithms could mitigate this to some degree, but libraries almost never do these
-difficult optimizations.
+with ``InRows`` or ``InColumns`` (e.g., `.TableInRows` vs. `.TableInColumns`). This makes it easier to ensure that
+operations get data in the correct layout, e.g. summing each row of row-major data would be much, much faster than
+summing the rows of column-major data. Arguably clever implementation of the algorithms could mitigate this to some
+degree, but libraries almost never do these difficult optimizations.
 
 The code here provides functions to test for the layout of 2D data and to convert data to the desired layout, providing
 a somewhat more efficient algorithm to do so than is provided by ``numpy``.
@@ -124,9 +123,6 @@ _ANY_MAJOR: AnyMajor = AnyMajor()
 class RowMajor(AnyMajor):  # pylint: disable=too-few-public-methods
     """
     Require row-major layout.
-
-    In this layout, the elements of each row are stored contiguously in memory. For sparse matrices,
-    only the non-zero elements are stored ("CSR" format).
     """
 
     name = "row-major"
@@ -138,15 +134,16 @@ class RowMajor(AnyMajor):  # pylint: disable=too-few-public-methods
 
 
 #: Require row-major layout.
+#:
+#:
+#: In this layout, the elements of each row are stored contiguously in memory. For sparse matrices, only the non-zero
+#: elements are stored ("CSR" format).
 ROW_MAJOR: RowMajor = RowMajor()
 
 
 class ColumnMajor(AnyMajor):  # pylint: disable=too-few-public-methods
     """
     Require column-major layout.
-
-    In this layout, the elements of each column are stored contiguously in memory. For sparse matrices,
-    only the non-zero elements are stored ("CSC" format).
     """
 
     name = "column-major"
@@ -158,6 +155,9 @@ class ColumnMajor(AnyMajor):  # pylint: disable=too-few-public-methods
 
 
 #: Require column-major layout.
+#:
+#: In this layout, the elements of each column are stored contiguously in memory. For sparse matrices, only the non-zero
+#: elements are stored ("CSC" format).
 COLUMN_MAJOR: ColumnMajor = ColumnMajor()
 
 

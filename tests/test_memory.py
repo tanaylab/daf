@@ -106,7 +106,7 @@ def test_memory_matrix() -> None:
 
     assert not memory.has_matrix("cells,genes:UMIs")
     with expect_raise("missing rows axis: cells in the storage: test"):
-        memory.matrix_names(("cells", "genes"))
+        memory.matrix_names("cells,genes")
     with expect_raise("missing rows axis: cells in the storage: test"):
         memory.get_grid("cells,genes:UMIs")
     with expect_raise("missing rows axis: cells in the storage: test"):
@@ -117,7 +117,7 @@ def test_memory_matrix() -> None:
 
     assert not memory.has_matrix("cells,genes:UMIs")
     with expect_raise("missing columns axis: genes in the storage: test"):
-        memory.matrix_names(("cells", "genes"))
+        memory.matrix_names("cells,genes")
     with expect_raise("missing columns axis: genes in the storage: test"):
         memory.get_grid("cells,genes:UMIs")
     with expect_raise("missing columns axis: genes in the storage: test"):
@@ -127,7 +127,7 @@ def test_memory_matrix() -> None:
     memory.create_axis("genes", gene_names)
 
     assert not memory.has_matrix("cells,genes:UMIs")
-    assert len(memory.matrix_names(("cells", "genes"))) == 0
+    assert len(memory.matrix_names("cells,genes")) == 0
     with expect_raise("missing matrix: cells,genes:UMIs in the storage: test"):
         memory.get_grid("cells,genes:UMIs")
     with expect_raise("missing matrix: cells,genes:UMIs in the storage: test"):
@@ -137,7 +137,7 @@ def test_memory_matrix() -> None:
     memory.set_matrix("cells,genes:UMIs", umis)
 
     assert memory.has_matrix("cells,genes:UMIs")
-    assert set(memory.matrix_names(("cells", "genes"))) == set(["cells,genes:UMIs"])
+    assert set(memory.matrix_names("cells,genes")) == set(["cells,genes:UMIs"])
     assert is_array_in_rows(memory.get_grid("cells,genes:UMIs"))
     assert is_frozen(memory.get_grid("cells,genes:UMIs"))
     assert fast_all_close(memory.get_grid("cells,genes:UMIs"), umis)

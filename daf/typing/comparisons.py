@@ -44,15 +44,15 @@ def fast_all_close(
 
     * Both values must be vectors (``numpy`` or ``pandas``), or
 
-    * Both values must be must be :py:obj:`~daf.typing.dense.Dense` matrices (``numpy`` or ``pandas``), or
+    * Both values must be must be `.Dense` matrices (``numpy`` or ``pandas``), or
 
-    * Both values must be must be :py:obj:`~daf.typing.sparse.Sparse` matrices.
+    * Both values must be must be `.Sparse` matrices.
 
     And if the values are matrices:
 
-    * Both matrices must be in :py:obj:`~daf.typing.layouts.ROW_MAJOR` layout, or
+    * Both matrices must be in `.ROW_MAJOR` layout, or
 
-    * Both matrices must be in :py:obj:`~daf.typing.layouts.COLUMN_MAJOR` layout.
+    * Both matrices must be in `.COLUMN_MAJOR` layout.
 
     Otherwise the code will ``assert``.
 
@@ -60,7 +60,7 @@ def fast_all_close(
 
         When comparing sparse matrices, the ``rtol``, ``atol`` and ``equal_nan`` values are only used to compare the
         non-zero values, after ensuring their structure is identical in both matrices. This requires both matrices to be
-        :py:obj:`~daf.typing.optimization.is_optimal`.
+        `.is_optimal`.
     """
 
     if left.shape != right.shape:

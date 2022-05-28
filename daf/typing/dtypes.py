@@ -26,15 +26,14 @@ that ``object`` means ``str``. We also never store categorical data, only allowi
 .. note::
 
     In ``daf``, it makes more sense to define a "category" as an "axis", and simply store integer elements whose value
-    is the index along that axis. The :py:obj:`~daf.typing.optimizations` module helps with converting categorical data
-    into plain string data.
+    is the index along that axis. The `.optimization` module helps with converting categorical data into plain string
+    data.
 
 Some ``daf`` functions take a ``dtype`` (or a collection), e.g. when testing whether some data elements have an
 acceptable type. This forces us to introduce a single ``dtype`` to stand for "string", which we have chosen to be ``U``.
 This value has the advantage you can pass it to either ``numpy`` or ``pandas`` when **creating** new data. You can't
 directly **test** for ``dtype == "U"``, of course, but if you pass ``U`` to any ``daf`` function that tests the element
-data type (e.g., :py:obj:`~daf.typing.vectors.is_array1d`), then the code will do its best to test that the data
-actually contains strings.
+data type (e.g., `.is_array1d`), then the code will do its best to test that the data actually contains strings.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -53,6 +52,7 @@ __all__ = [
     "INT_DTYPES",
     "FLOAT_DTYPES",
     "NUM_DTYPES",
+    "ALL_DTYPES",
     "is_dtype",
 ]
 
@@ -75,8 +75,7 @@ NUM_DTYPES = ("int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "u
 
 #: All the "acceptable" data types.
 #:
-#: This is used as the default set of data types when testing for whether a ``dtype`` is as expected via
-#: :py:obj:`~is_dtype`.
+#: This is used as the default set of data types when testing for whether a ``dtype`` is as expected via `.is_dtype`.
 #:
 #: .. note::
 #:
@@ -104,10 +103,10 @@ def is_dtype(dtype: Union[str, np.dtype], dtypes: Union[None, str, Collection[st
     """
     Check whether a ``numpy`` ``dtype`` is one of the expected ``dtypes``.
 
-    If no ``dtypes`` are provided, tests for :py:obj:`~ALL_DTYPES`.
+    If no ``dtypes`` are provided, tests for `.ALL_DTYPES`.
 
-    When testing for strings, use :py:obj:`~STR_DTYPE` (that is, ``U``), since ``numpy`` and ``pandas`` use many
-    different actual ``dtype`` values to represent strings because "reasons".
+    When testing for strings, use `.STR_DTYPE` (that is, ``U``), since ``numpy`` and ``pandas`` use many different
+    actual ``dtype`` values to represent strings because "reasons".
     """
     dtype = str(dtype)
 

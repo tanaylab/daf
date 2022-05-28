@@ -21,7 +21,6 @@ from typing import Union
 from typing import overload
 
 try:
-    from typing import Annotated  # pylint: disable=unused-import
     from typing import TypeGuard  # pylint: disable=unused-import
 except ImportError:
     pass  # Older python versions.
@@ -52,49 +51,49 @@ __all__ = [
     "be_array_in_columns",
 ]
 
-#: 2-dimensional ``numpy`` array in :py:obj:`~daf.typing.layouts.ROW_MAJOR` layout.
-ArrayInRows = NewType("ArrayInRows", "Annotated[np.ndarray, 'row_major']")
+#: 2-dimensional ``numpy`` array in `.ROW_MAJOR` layout.
+ArrayInRows = NewType("ArrayInRows", np.ndarray)
 
 
 def is_array_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[ArrayInRows]:
     """
-    Check whether some ``data`` is an :py:obj:`~ArrayInRows`, optionally only of some ``dtype``.
+    Check whether some ``data`` is an `.ArrayInRows`, optionally only of some ``dtype``.
 
-    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     return is_array2d(data, dtype=dtype, layout=_layouts.ROW_MAJOR)
 
 
 def be_array_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> ArrayInRows:
     """
-    Assert that some ``data`` is a :py:obj:`~ArrayInRows`, optionally only of some ``dtype``, and return it as such for
+    Assert that some ``data`` is an `.ArrayInRows`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
-    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_array_in_rows(data, dtype=dtype), "row-major numpy.ndarray", data, dtype)
     return data
 
 
 #: 2-dimensional ``numpy`` array in column-major layout.
-ArrayInColumns = NewType("ArrayInColumns", "Annotated[np.ndarray, 'column_major']")
+ArrayInColumns = NewType("ArrayInColumns", np.ndarray)
 
 
 def is_array_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[ArrayInColumns]:
     """
-    Check whether some ``data`` is an :py:obj:`~ArrayInColumns`, optionally only of some ``dtype``.
+    Check whether some ``data`` is an `.ArrayInColumns`, optionally only of some ``dtype``.
 
-    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     return is_array2d(data, dtype=dtype, layout=_layouts.COLUMN_MAJOR)
 
 
 def be_array_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> ArrayInColumns:
     """
-    Assert that some ``data`` is a :py:obj:`~ArrayInColumns`, optionally only of some ``dtype``, and return it as such
+    Assert that some ``data`` is an `.ArrayInColumns`, optionally only of some ``dtype``, and return it as such
     for ``mypy``.
 
-    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     _descriptions.assert_data(is_array_in_columns(data, dtype=dtype), "column-major numpy.ndarray", data, dtype)
     return data
@@ -108,10 +107,9 @@ def is_array2d(
     data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> TypeGuard[Array2D]:
     """
-    Check whether some ``data`` is an :py:obj:`~Array2D`, optionally only of some ``dtype``, optionally only of some
-    ``layout``.
+    Check whether some ``data`` is an `.Array2D`, optionally only of some ``dtype``, optionally only of some ``layout``.
 
-    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
     return (
@@ -130,17 +128,17 @@ def be_array2d(
     layout: Optional[_layouts.AnyMajor] = None,
 ) -> Array2D:
     """
-    Assert that some ``data`` is an :py:obj:`~Array2D` optionally only of some ``dtype``, optionally of only of a
-    specific ``layout``, and return it as such for ``mypy``.
+    Assert that some ``data`` is an `.Array2D` optionally only of some ``dtype``, optionally of only of a specific
+    ``layout``, and return it as such for ``mypy``.
 
-    By default, checks that the data type is one of :py:obj:`~daf.typing.ALL_DTYPES`.
+    By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
     _descriptions.assert_data(is_array2d(data, dtype=dtype, layout=layout), f"{layout.name} numpy.ndarray", data, dtype)
     return data
 
 
-#: Anything that can be used to construct an :py:obj:`~Array2D`.
+#: Anything that can be used to construct an `.Array2D`.
 Data2D = Union[Sequence[Sequence[Any]], sp.spmatrix, pd.DataFrame, np.ndarray]
 
 
@@ -166,8 +164,8 @@ def as_array2d(data: Data2D, *, force_copy: bool = False) -> Array2D:
     Access the internal 2D ``numpy`` array, if possible; otherwise, or if ``force_copy``, return a copy of the 2D data
     as a ``numpy`` array.
 
-    Accepts as input many data types that aren't even a :py:obj:`~daf.typing.vectors.Matrix`, such as nested lists
-    (basically anything that ``numpy.array`` can use to construct a 2D array).
+    Accepts as input many data types that aren't even a `.Matrix`, such as nested lists (basically anything that
+    ``numpy.array`` can use to construct a 2D array).
 
     If the input is a ``pandas.DataFrame``, this will only work if all the data in the frame has the same type.
 
@@ -179,7 +177,7 @@ def as_array2d(data: Data2D, *, force_copy: bool = False) -> Array2D:
     if isinstance(data, pd.DataFrame):
         data = data.values
 
-    if force_copy or not isinstance(data, np.ndarray) or data.dtype == "category" or isinstance(data, np.matrix):
+    if force_copy or not isinstance(data, np.ndarray) or str(data.dtype) == "category" or isinstance(data, np.matrix):
         data = np.array(data)
 
     _descriptions.assert_data(data.ndim == 2, "2D data", data, None)

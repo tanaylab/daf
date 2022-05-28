@@ -1,7 +1,7 @@
 # You can set these variables from the command line.
-SPHINXOPTS    =
+SPHINXOPTS    = -W --keep-going
 SPHINXBUILD   = python -m sphinx
-SPHINXPROJ    = metacells
+SPHINXPROJ    = daf
 SOURCEDIR     = .
 BUILDDIR      = _build
 

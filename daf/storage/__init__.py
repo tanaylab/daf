@@ -1,6 +1,6 @@
 """
 Storage objects provide low-level API for storing data in specific formats. To extend ``daf`` to support an additional
-format, implement a ``StorageReader`` or a ``StorageWriter`` for that format.
+format, implement a `.StorageReader` or a `.StorageWriter` for that format.
 
 A storage object contains some 0D ("blob") data, a set of axes (each with a unique name for each entry), and 1D and 2D
 data based on these axes.
@@ -12,7 +12,7 @@ and its transpose, each in row-major order. Often a storage object would only co
 would only report containing one of ``foo,bar:baz`` and ``bar,foo:baz``.
 """
 
-from .chain import *
+from .chains import *
 from .interface import *
 from .memory import *
 from .none import *

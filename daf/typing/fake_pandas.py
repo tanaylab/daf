@@ -5,9 +5,9 @@ requires the annotated class to be known. As a workaround we define fake pandas 
 for the annotation instead. To shut ``mypy`` up we need to populate them with all the public interface of the real
 classes.
 
-Hopefully `<https://github.com/python/mypy/issues/12757>`_ will be implemented and all of this mess would be able
-to be deleted. Or, of course, maybe one day ``pandas`` will provide some form of type annotations, but that seems
-even less likely.
+Hopefully `<https://github.com/python/mypy/issues/12757>`_ will be implemented and all of this mess would be able to be
+deleted. Or, of course, maybe one day ``pandas`` will provide some form of type annotations, but that seems even less
+likely.
 """
 
 # pylint: disable=duplicate-code,cyclic-import

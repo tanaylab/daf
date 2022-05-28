@@ -12,4 +12,5 @@ __version__ = "0.1.0-dev.1"
 # pylint: disable=wrong-import-position
 
 
+from .storage import *
 from .typing import *
