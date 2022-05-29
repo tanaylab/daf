@@ -17,3 +17,4 @@ from .chains import *
 from .interface import *
 from .memory import *
 from .none import *
+from .views import *

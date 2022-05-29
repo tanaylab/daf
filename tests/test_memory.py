@@ -44,7 +44,7 @@ def test_memory_axis() -> None:
     with expect_raise("missing axis: cells in the storage: test"):
         memory.axis_entries("cells")
 
-    cell_names = as_array1d(["cell0", "cell1"])
+    cell_names = freeze(as_array1d(["cell0", "cell1"]))
     memory.create_axis("cells", cell_names)
 
     assert memory.has_axis("cells")
@@ -67,7 +67,7 @@ def test_memory_array1d() -> None:
     with expect_raise("missing axis: cells in the storage: test"):
         memory.get_array1d("cells:type")
 
-    cell_names = as_array1d(["cell0", "cell1"])
+    cell_names = freeze(as_array1d(["cell0", "cell1"]))
     memory.create_axis("cells", cell_names)
 
     assert not memory.has_array1d("cells:type")
@@ -94,7 +94,7 @@ def test_memory_data2d() -> None:
     with expect_raise("missing rows axis: cells in the storage: test"):
         memory.get_data2d("cells,genes:UMIs")
 
-    cell_names = as_array1d(["cell0", "cell1"])
+    cell_names = freeze(as_array1d(["cell0", "cell1"]))
     memory.create_axis("cells", cell_names)
 
     assert not memory.has_data2d("cells,genes:UMIs")
@@ -103,7 +103,7 @@ def test_memory_data2d() -> None:
     with expect_raise("missing columns axis: genes in the storage: test"):
         memory.get_data2d("cells,genes:UMIs")
 
-    gene_names = as_array1d(["gene0", "gene1", "gene2"])
+    gene_names = freeze(as_array1d(["gene0", "gene1", "gene2"]))
     memory.create_axis("genes", gene_names)
 
     assert not memory.has_data2d("cells,genes:UMIs")

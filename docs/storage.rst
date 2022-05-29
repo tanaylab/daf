@@ -27,6 +27,12 @@ Storage Chains
 .. automodule:: daf.storage.chains
     :members:
 
+Storage Views
+.............
+
+.. automodule:: daf.storage.views
+    :members:
+
 No Storage
 ..........
 

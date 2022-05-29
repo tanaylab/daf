@@ -34,13 +34,13 @@ def test_chain_datum() -> None:
 
 def test_chain_axis() -> None:
     base = MemoryStorage(name="base")
-    base_names = as_array1d(["base0", "base1"])
-    both_names = as_array1d(["both0", "both1", "both2"])
+    base_names = freeze(as_array1d(["base0", "base1"]))
+    both_names = freeze(as_array1d(["both0", "both1", "both2"]))
     base.create_axis("base_axis", base_names)
     base.create_axis("both_axis", both_names)
 
     delta = MemoryStorage(name="delta")
-    delta_names = as_array1d(["both0", "both1", "both2"])
+    delta_names = freeze(as_array1d(["both0", "both1", "both2"]))
     delta.create_axis("both_axis", both_names)
     delta.create_axis("delta_axis", delta_names)
 
@@ -61,7 +61,7 @@ def test_chain_axis() -> None:
 
 def test_chain_array1d() -> None:
     base = MemoryStorage(name="base")
-    axis_names = as_array1d(["entry0", "entry1"])
+    axis_names = freeze(as_array1d(["entry0", "entry1"]))
     base.create_axis("axis", axis_names)
 
     base_values = freeze(as_array1d([0, 1]))
@@ -91,9 +91,9 @@ def test_chain_array1d() -> None:
 
 def test_chain_data2d() -> None:
     base = MemoryStorage(name="base")
-    row_names = as_array1d(["row0", "row1"])
+    row_names = freeze(as_array1d(["row0", "row1"]))
     base.create_axis("rows", row_names)
-    column_names = as_array1d(["column0", "column1", "column2"])
+    column_names = freeze(as_array1d(["column0", "column1", "column2"]))
     base.create_axis("columns", column_names)
 
     base_values = freeze(be_array_in_rows(as_array2d([[0, 1, 2], [3, 4, 5]])))

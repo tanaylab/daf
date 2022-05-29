@@ -329,13 +329,17 @@ class StorageWriter(StorageReader):
         """
         Create a new ``axis`` and the unique ``entries`` identifying each entry along the axis.
 
+        The ``entries`` must be `.is_frozen` and contain string data.
+
         It is always an error to overwrite an existing axis.
         """
         assert_data(is_array1d(entries, dtype=STR_DTYPE), "1D np.ndarray", entries, STR_DTYPE)
+        assert_data(is_optimal(entries), "optimal 1D np.ndarray", entries, STR_DTYPE)
+        assert_data(is_frozen(entries), "frozen 1D np.ndarray", entries, STR_DTYPE)
 
         assert not self.has_axis(axis), f"refuse to recreate the axis: {axis} in the storage: {self.name}"
 
-        self._create_axis(axis, freeze(entries))
+        self._create_axis(axis, entries)
 
     @abstractmethod
     def _create_axis(self, axis: str, entries: Array1D) -> None:
