@@ -30,10 +30,14 @@ import scipy.sparse as sp  # type: ignore
 
 from . import descriptions as _descriptions
 from . import fake_pandas as _fake_pandas  # pylint: disable=unused-import
+from . import matrices as _matrices
+from . import vectors as _vectors
 
 # pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
+    "ProperData",
+    "ProperT",
     "freeze",
     "unfreeze",
     "is_frozen",
@@ -41,13 +45,14 @@ __all__ = [
 ]
 
 
-#: Any data type that ``daf`` basically understands.
-ProperData = Union[np.ndarray, sp.csr_matrix, sp.csc_matrix, _fake_pandas.PandasSeries, _fake_pandas.PandasFrame]
+#: Any "proper" data type that ``daf`` supports.
+ProperData = Union[_matrices.Matrix, _vectors.Vector]
 
-T = TypeVar("T", bound=ProperData)
+#: A ``TypeVar`` bound to `.ProperData`.
+ProperT = TypeVar("ProperT", bound=ProperData)
 
 
-def freeze(data: T) -> T:
+def freeze(data: ProperT) -> ProperT:
     """
     Ensure that some 1/2D data is protected against modification.
 
@@ -70,7 +75,7 @@ def freeze(data: T) -> T:
     assert False, "never happens"
 
 
-def unfreeze(data: T) -> T:
+def unfreeze(data: ProperT) -> ProperT:
     """
     Ensure that some 1/2D data is not protected against modification.
 
@@ -109,7 +114,7 @@ def is_frozen(data: ProperData) -> bool:
 
 
 @contextmanager
-def unfrozen(data: T) -> Generator[T, None, None]:
+def unfrozen(data: ProperT) -> Generator[ProperT, None, None]:
     """
     Execute some in-place modification, temporarily unfreezing the 1/2D data.
 

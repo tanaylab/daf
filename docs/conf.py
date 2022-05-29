@@ -21,6 +21,11 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
+# TODO: Remove this monkey-patching if/when sphinx fixes https://github.com/sphinx-doc/sphinx/issues/10333
+from sphinx.util import inspect
+inspect.TypeAliasForwardRef.__repr__ = lambda self: self.name
+inspect.TypeAliasForwardRef.__hash__ = lambda self: hash(self.name)
+
 # -- General configuration ---------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -38,6 +43,35 @@ extensions = [
 
 default_role = "py:obj"
 autodoc_member_order = 'bysource'
+autodoc_type_aliases = {
+  "Array1D": "daf.typing.array1d.Array1D",
+  "Array2D": "daf.typing.array2d.Array2D",
+  "ArrayInColumns": "daf.typing.array2d.ArrayInColumns",
+  "ArrayInRows": "daf.typing.array2d.ArrayInRows",
+  "AxisView": "daf.storage.views.AxisView",
+  "Data1D": "daf.typing.array1d.Data1D",
+  "Data2D": "daf.typing.array2d.Data2D",
+  "DataView": "daf.storage.views.DataView",
+  "Dense": "daf.typing.dense.Dense",
+  "DenseInColumns": "daf.typing.dense.DenseInColumns",
+  "DenseInRows": "daf.typing.dense.DenseInRows",
+  "Frame": "daf.typing.frames.Frame",
+  "FrameInColumns": "daf.typing.frames.FrameInColumns",
+  "FrameInRows": "daf.typing.frames.FrameInRows",
+  "Grid": "daf.typing.grids.Grid",
+  "GridInColumns": "daf.typing.grids.GridInColumns",
+  "GridInRows": "daf.typing.grids.GridInRows",
+  "KnownData": "daf.typing.freezing.KnownData",
+  "KnownT": "T[KnownData]",
+  "Matrix": "daf.typing.matrices.Matrix",
+  "MatrixInColumns": "daf.typing.matrices.MatrixInColumns",
+  "MatrixInRows": "daf.typing.matrices.MatrixInRows",
+  "Series": "daf.typing.series.Series",
+  "Sparse": "daf.typing.sparse.Sparse",
+  "SparseInColumns": "daf.typing.sparse.SparseInColumns",
+  "SparseInRows": "daf.typing.sparse.SparseInRows",
+  "Vector": "daf.typing.vectors.Vector",
+}
 autosectionlabel_prefix_document = True
 nitpicky = True
 nitpick_ignore = [
@@ -65,6 +99,7 @@ nitpick_ignore = [
     ('py:class', 'scipy.sparse.csc.csc_matrix'),
     ('py:class', 'scipy.sparse._csr.csr_matrix'),
     ('py:class', 'scipy.sparse.csr.csr_matrix'),
+    ('py:class', 'T'),
     ('py:class', '_vectors.Vector'),
     ('py:obj', 'typing.Union'),
 ]

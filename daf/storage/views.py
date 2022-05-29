@@ -9,6 +9,8 @@ specific axes names, and is not capable of dealing with too many axes.
 
 # pylint: disable=duplicate-code
 
+from __future__ import annotations
+
 from typing import Any
 from typing import Collection
 from typing import Dict
@@ -188,17 +190,17 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
 
                     if is_dtype(entries.dtype, "bool"):
                         entries = np.where(entries)[0]
+                        assert entries is not None
                     elif is_dtype(entries.dtype, STR_DTYPE):
-                        entries = freeze(
-                            as_array1d(
-                                pd.Series(
-                                    np.arange(self.storage.axis_size(wrapped_axis)),
-                                    index=self.storage.axis_entries(wrapped_axis),
-                                )[entries]
-                            )
+                        entries = as_array1d(
+                            pd.Series(
+                                np.arange(self.storage.axis_size(wrapped_axis)),
+                                index=self.storage.axis_entries(wrapped_axis),
+                            )[entries]
                         )
                     else:
                         entries = entries.copy()
+
                     entries = freeze(entries)
 
             self._wrapped_axis_views[wrapped_axis] = exposed_axis
@@ -412,30 +414,18 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         return self._exposed_data2d[axes][exposed_data2d]
 
     def datum_names(self) -> Collection[str]:
-        """
-        See `.StorageReader.datum_names`.
-        """
         return self._exposed_data.keys()
 
     def has_datum(self, name: str) -> bool:
-        """
-        See `.StorageReader.has_datum`.
-        """
         return name in self._exposed_data
 
     def _get_datum(self, name: str) -> Any:
         return self.storage.get_datum(self._exposed_data[name])
 
     def axis_names(self) -> Collection[str]:
-        """
-        See `.StorageReader.axis_names`.
-        """
         return self._exposed_axes.keys()
 
     def has_axis(self, axis: str) -> bool:
-        """
-        See `.StorageReader.has_axis`.
-        """
         return axis in self._exposed_axes
 
     def _axis_size(self, axis: str) -> int:

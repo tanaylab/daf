@@ -25,6 +25,7 @@ from __future__ import annotations
 from typing import Any
 from typing import Sequence
 from typing import TypeVar
+from typing import Union
 from typing import overload
 
 import numpy as np
@@ -44,6 +45,8 @@ from . import sparse as _sparse
 # pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
+    "KnownData",
+    "KnownT",
     "is_optimal",
     "be_optimal",
     "optimize",
@@ -91,10 +94,14 @@ def is_optimal(data: Any) -> bool:  # pylint: disable=too-many-return-statements
     assert False, f"expected a matrix or a vector, got {_descriptions.data_description(data)}"
 
 
-T = TypeVar("T")
+#: Any data type that ``daf`` knows about.
+KnownData = Union[np.ndarray, sp.spmatrix, _fake_pandas.PandasSeries, _fake_pandas.PandasFrame]
+
+#: A ``TypeVar`` bound to `.KnownData`.
+KnownT = TypeVar("KnownT", bound=KnownData)
 
 
-def be_optimal(data: T) -> T:
+def be_optimal(data: KnownT) -> KnownT:
     """
     Assert that some data is in "optimal" format and return it as-is.
     """
@@ -217,7 +224,7 @@ def optimize(  # pylint: disable=too-many-branches
     """
     if isinstance(data, np.ndarray) and 1 <= data.ndim <= 2:
         if force_copy or not is_optimal(data):
-            freeze = not force_copy and _freezing.is_frozen(data)
+            freeze = not force_copy and _freezing.is_frozen(data)  # type: ignore
             data = np.array(data, order=preferred_layout.numpy_order)  # type: ignore
         else:
             freeze = False

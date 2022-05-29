@@ -50,32 +50,20 @@ class MemoryReader(_interface.StorageReader):
         self._grids: Dict[Tuple[str, str], Dict[str, GridInRows]] = {}
 
     def datum_names(self) -> Collection[str]:
-        """
-        See :`.StorageReader.datum_names`.
-        """
         return self._data.keys()
 
     def has_datum(self, name: str) -> bool:
-        """
-        See `.StorageReader.has_datum`.
-        """
         return name in self._data
 
     def _get_datum(self, name: str) -> Any:
         return self._data[name]
 
     def axis_names(self) -> Collection[str]:
-        """
-        See `.StorageReader.axis_names`.
-        """
         return self._axes.keys()
 
     # pylint: disable=duplicate-code
 
     def has_axis(self, axis: str) -> bool:
-        """
-        See `.StorageReader.has_axis`.
-        """
         return axis in self._axes
 
     def _axis_size(self, axis: str) -> int:

@@ -111,6 +111,8 @@ class StorageReader(ABC):
     @abstractmethod
     def axis_names(self) -> Collection[str]:
         """
+        .. index:: ! Python
+
         Return a collection of the names of the axes that exist in the storage.
         """
 

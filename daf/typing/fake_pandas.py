@@ -14,7 +14,6 @@ classes.
 
 from __future__ import annotations
 
-from abc import ABC
 from typing import Any
 from typing import Tuple
 
@@ -27,7 +26,7 @@ from typing import Tuple
 __all__ = ["PandasSeries", "PandasFrame"]
 
 
-class PandasSeries(ABC):
+class PandasSeries:
     """
     Fake class for ``mypy``.
     """
@@ -796,7 +795,7 @@ class PandasSeries(ABC):
     # pylint: enable=unused-argument,missing-function-docstring,no-self-use,invalid-name
 
 
-class PandasFrame(ABC):  # pylint: disable=too-many-public-methods
+class PandasFrame:  # pylint: disable=too-many-public-methods
     """
     Fake class for ``mypy``.
     """

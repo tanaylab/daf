@@ -31,7 +31,7 @@ def data_description(data: Any) -> str:  # pylint: disable=too-many-return-state
     Return a short description of some hopefully 1D/2D data for error messages and logging.
     """
     if isinstance(data, np.ndarray):
-        frozen = "frozen " if _freezing.is_frozen(data) else ""
+        frozen = "frozen " if _freezing.is_frozen(data) else ""  # type: ignore
         if data.ndim == 1:
             return f"{frozen}1D numpy.ndarray of {data.shape[0]} of {data.dtype}"
 
