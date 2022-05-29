@@ -174,7 +174,7 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 # so a file named "default.css" will overwrite the builtin "default.css".
 #html_static_path = ['_static']
 
-# html_logo = "daf.png"
+html_logo = "logo.svg"
 
 
 # -- Options for HTMLHelp output ---------------------------------------
