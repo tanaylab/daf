@@ -190,7 +190,7 @@ mypy: .make.mypy  ## check code with mypy
 pytest: .make.pytest  ## run tests on the active Python with pytest
 
 .make.pytest: .make.build
-	pytest -s --cov=$(NAME) --cov-report=html --cov-report=term --no-cov-on-fail tests
+	pytest -vv -s --cov=$(NAME) --cov-report=html --cov-report=term --no-cov-on-fail tests
 	touch $@
 
 tox: .make.tox  ## run tests on a clean Python version with tox
