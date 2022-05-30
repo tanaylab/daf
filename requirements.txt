@@ -1,6 +1,7 @@
 anndata
 numpy
 pandas
+pyaml
 pyyaml
 scanpy
 scipy

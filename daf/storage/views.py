@@ -21,7 +21,7 @@ from typing import Union
 import numpy as np
 import pandas as pd  # type: ignore
 
-from ..typing import INT_DTYPES
+from ..typing import ENTRIES_DTYPES
 from ..typing import ROW_MAJOR
 from ..typing import STR_DTYPE
 from ..typing import Array1D
@@ -40,7 +40,7 @@ from . import memory as _memory
 
 # pylint: enable=duplicate-code
 
-__all__ = ["DataView", "AxisView", "StorageView", "ENTRIES_DTYPES"]
+__all__ = ["DataView", "AxisView", "StorageView"]
 
 #: Describe how to expose an axis of some wrapped `.StorageReader` from a `.StorageView`:
 #:
@@ -79,9 +79,6 @@ AxisView = Union[None, str, Array1D, Tuple[str, Array1D]]
 #:    For 2D data, specify only one of the two ``foo,bar:baz`` and ``bar,foo:baz`` names, and it will automatically also
 #:    apply to its transpose.
 DataView = Optional[str]
-
-#: Data types of axis slice entries.
-ENTRIES_DTYPES = (STR_DTYPE, "bool") + INT_DTYPES
 
 
 class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instance-attributes

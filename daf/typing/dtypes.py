@@ -52,6 +52,8 @@ __all__ = [
     "INT_DTYPES",
     "FLOAT_DTYPES",
     "NUM_DTYPES",
+    "FIXED_DTYPES",
+    "ENTRIES_DTYPES",
     "ALL_DTYPES",
     "is_dtype",
 ]
@@ -72,6 +74,13 @@ FLOAT_DTYPES = ("float16", "float32", "float64")
 
 #: Values of ``dtype`` for simple numbers (integers or floats) of any size.
 NUM_DTYPES = ("int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float16", "float32", "float64")
+
+#: Values for ``dtype`` for specifying slice entries (for `.StorageView`).
+ENTRIES_DTYPES = (STR_DTYPE, "bool") + NUM_DTYPES
+
+#: Values for ``dtype`` for fized-size data (for `.memory_mapping`).
+FIXED_DTYPES = ("bool",) + NUM_DTYPES
+
 
 #: All the "acceptable" data types.
 #:

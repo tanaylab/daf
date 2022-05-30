@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
+from . import dtypes as _dtypes
 from . import freezing as _freezing
 from . import layouts as _layouts
 from . import optimization as _optimization
@@ -131,10 +132,23 @@ def assert_data(condition: bool, kind: str, data: Any, dtype: Union[None, str, C
     """
     if condition:
         return
+
     if kind == "pandas.DataFrame":
         assert False, f"expected {kind}, got {data_description(data)}"
-    if dtype is None:
-        assert False, f"expected {kind} of any reasonable type, got {data_description(data)}"
-    if isinstance(dtype, str):
-        dtype = [dtype]
-    assert False, f"expected {kind} of {' or '.join(dtype)}, got {data_description(data)}"
+
+    if dtype is None or dtype == _dtypes.ALL_DTYPES:
+        dtype = "any reasonable type"
+    elif dtype == _dtypes.INT_DTYPES:
+        dtype = "int"
+    elif dtype == _dtypes.FLOAT_DTYPES:
+        dtype = "float"
+    elif dtype == _dtypes.NUM_DTYPES:
+        dtype = "number"
+    elif dtype == _dtypes.FIXED_DTYPES:
+        dtype = "fixed"
+    elif dtype == _dtypes.ENTRIES_DTYPES:
+        dtype = "entries (bool or int or str)"
+    elif not isinstance(dtype, str):
+        dtype = " or ".join(dtype)
+
+    assert False, f"expected {kind} of {dtype}, got {data_description(data)}"
