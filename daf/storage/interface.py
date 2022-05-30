@@ -148,7 +148,7 @@ class StorageReader(ABC):
         """
         Return the names of the 1D data that exists in the storage for a specific ``axis`` (which must exist).
 
-        The returned names are in the format ``axis:name`` which uniquely identifies the 1D data.
+        The returned names are in the format ``axis;name`` which uniquely identifies the 1D data.
         """
         assert self.has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
         return self._array1d_names(axis)
@@ -161,7 +161,7 @@ class StorageReader(ABC):
         """
         Check whether the ``name`` 1D data exists.
 
-        The name must be in the format ``axis:name`` which uniquely identifies the 1D data.
+        The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
         """
         axis = extract_1d_axis(name)
         return self.has_axis(axis) and self._has_array1d(axis, name)
@@ -174,7 +174,7 @@ class StorageReader(ABC):
         """
         Get the ``name`` 1D data (which must exist) as an `.Array1D`.
 
-        The name must be in the format ``axis:name`` which uniquely identifies the 1D data.
+        The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
         """
         axis = extract_1d_axis(name)
         assert self.has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
@@ -189,7 +189,7 @@ class StorageReader(ABC):
         """
         Return the names of the 2D data that exists in the storage for a specific pair of ``axes`` (which must exist).
 
-        The returned names are in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data.
+        The returned names are in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
 
         If two copies of the data exist in transposed axes order, then two different names will be returned.
         """
@@ -207,7 +207,7 @@ class StorageReader(ABC):
         """
         Check whether the ``name`` 2D data exists.
 
-        The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data.
+        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
         """
         axes = extract_2d_axes(name)
         return self.has_axis(axes[0]) and self.has_axis(axes[1]) and self._has_data2d(axes, name)
@@ -220,7 +220,7 @@ class StorageReader(ABC):
         """
         Get the ``name`` 2D data (which must exist).
 
-        The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data.
+        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
 
         .. note:
 
@@ -351,7 +351,7 @@ class StorageWriter(StorageReader):
         """
         Set a ``name`` `.Array1D` data.
 
-        The name must be in the format ``axis:name`` which uniquely identifies the 1D data. The data must be
+        The name must be in the format ``axis;name`` which uniquely identifies the 1D data. The data must be
         `.is_frozen` and `.is_optimal`.
 
         If ``overwrite``, will silently overwrite an existing 1D data of the same name, otherwise overwriting will fail.
@@ -381,7 +381,7 @@ class StorageWriter(StorageReader):
         """
         Set a ``name`` ``grid``.
 
-        The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data. The data
+        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data. The data
         must be an `.is_frozen` `.is_optimal` `.GridInRows`.
 
         If ``overwrite``, will silently overwrite an existing 2D data of the same name, otherwise overwriting will fail.
@@ -425,13 +425,13 @@ class StorageWriter(StorageReader):
         Create an uninitialized `.ROW_MAJOR` .`ArrayInRows` of some ``dtype`` to be set by the ``name`` in the storage,
         expecting the code to initialize it.
 
-        The name must be in the format ``rows_axis,columns_axis:name`` which uniquely identifies the 2D data.
+        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
 
         Expected usage is:
 
         .. code::
 
-            with storage.create_array_in_rows(name="rows_axis,columns_axis:name", dtype="...") as array2d:
+            with storage.create_array_in_rows(name="rows_axis,columns_axis;name", dtype="...") as array2d:
                 # Here the array is still not necessarily set inside the storage,
                 # that is, one can't assume ``get_grid`` will access it.
                 # It is only available for filling in the values:
@@ -465,18 +465,18 @@ class StorageWriter(StorageReader):
 
 def extract_1d_axis(name: str) -> str:
     """
-    Extract the axis out of a ``axis:name`` 1D data name.
+    Extract the axis out of a ``axis;name`` 1D data name.
     """
-    parts = name.split(":")
+    parts = name.split(";")
     assert len(parts) == 2, f"invalid 1D data name: {name}"
     return parts[0]
 
 
 def extract_2d_axes(name: str) -> Tuple[str, str]:
     """
-    Extract the axes out of ``rows_axis,column_axis:name`` 2D data name.
+    Extract the axes out of ``rows_axis,column_axis;name`` 2D data name.
     """
-    parts = name.split(":")
+    parts = name.split(";")
     assert len(parts) == 2, f"invalid 2D data name: {name}"
     return parse_2d_axes(parts[0])
 

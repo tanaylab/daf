@@ -76,7 +76,7 @@ AxisView = Union[None, str, Array1D, Tuple[str, Array1D]]
 #:
 #: .. note::
 #:
-#:    For 2D data, specify only one of the two ``foo,bar:baz`` and ``bar,foo:baz`` names, and it will automatically also
+#:    For 2D data, specify only one of the two ``foo,bar;baz`` and ``bar,foo;baz`` names, and it will automatically also
 #:    apply to its transpose.
 DataView = Optional[str]
 
@@ -225,11 +225,11 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             ), f"missing the data: {wrapped_data} in the storage: {self.storage.name} for the view: {self.name}"
 
     def _collect_view(self, wrapped_data: str, data_view: DataView) -> bool:
-        if ":" not in wrapped_data:
+        if ";" not in wrapped_data:
             self._wrapped_data_views[wrapped_data] = data_view
             return self.storage.has_datum(wrapped_data)
 
-        axes, name = wrapped_data.split(":")
+        axes, name = wrapped_data.split(";")
 
         if "," not in axes:
             self._wrapped_array1d_views[wrapped_data] = data_view
@@ -237,7 +237,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
 
         self._wrapped_data2d_views[wrapped_data] = data_view
         rows_axis, columns_axis = axes.split(",")
-        transposed_data = f"{columns_axis},{rows_axis}:{name}"
+        transposed_data = f"{columns_axis},{rows_axis};{name}"
         if transposed_data not in self._wrapped_data2d_views:
             self._wrapped_data2d_views[transposed_data] = data_view
         else:
@@ -281,15 +281,15 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             _exposed_array1d = self._exposed_array1d[exposed_axis]
 
             for wrapped_data in self.storage.array1d_names(wrapped_axis):
-                name = wrapped_data.split(":")[1]
-                exposed_data: Optional[str] = f"{exposed_axis}:{name}"
+                name = wrapped_data.split(";")[1]
+                exposed_data: Optional[str] = f"{exposed_axis};{name}"
 
                 if wrapped_data in self._wrapped_array1d_views:
                     data_view = self._wrapped_array1d_views[wrapped_data]
                     if data_view is None:
                         exposed_data = None
                     else:
-                        exposed_data = f"{exposed_axis}:{data_view}"
+                        exposed_data = f"{exposed_axis};{data_view}"
 
                 self._wrapped_array1d_views[wrapped_data] = exposed_data
                 if exposed_data is not None:
@@ -321,15 +321,15 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
                 exposed_data2d = self._exposed_data2d[(exposed_rows_axis, exposed_columns_axis)]
 
                 for wrapped_data in self.storage.data2d_names((wrapped_rows_axis, wrapped_columns_axis)):
-                    name = wrapped_data.split(":")[1]
-                    exposed_data: Optional[str] = f"{exposed_rows_axis},{exposed_columns_axis}:{name}"
+                    name = wrapped_data.split(";")[1]
+                    exposed_data: Optional[str] = f"{exposed_rows_axis},{exposed_columns_axis};{name}"
 
                     if wrapped_data in self._wrapped_data2d_views:
                         data_view = self._wrapped_data2d_views[wrapped_data]
                         if data_view is None:
                             exposed_data = None
                         else:
-                            exposed_data = f"{exposed_rows_axis},{exposed_columns_axis}:{data_view}"
+                            exposed_data = f"{exposed_rows_axis},{exposed_columns_axis};{data_view}"
 
                     self._wrapped_data2d_views[wrapped_data] = exposed_data
                     if exposed_data is not None:

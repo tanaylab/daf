@@ -29,10 +29,10 @@ def make_base() -> MemoryStorage:
     memory.create_axis("genes", gene_names)
 
     cell_types = freeze(as_array1d(["T", "B"]))
-    memory.set_array1d("cells:type", cell_types)
+    memory.set_array1d("cells;type", cell_types)
 
     umis = freeze(be_array_in_rows(as_array2d([[0, 10, 90], [190, 10, 0]])))
-    memory.set_grid("cells,genes:UMIs", umis)
+    memory.set_grid("cells,genes;UMIs", umis)
 
     return memory
 
@@ -199,16 +199,16 @@ def check_same_axes(view: StorageView, base: StorageReader) -> None:
 
 def check_same_array1d(view: StorageView, base: StorageReader) -> None:
     check_array1d_names(view, "cells", base)
-    assert view.wrapped_array1d("cells:type") == "cells:type"
-    assert view.exposed_array1d("cells:type") == "cells:type"
-    check_array1d_value(view, "cells:type", base)
+    assert view.wrapped_array1d("cells;type") == "cells;type"
+    assert view.exposed_array1d("cells;type") == "cells;type"
+    check_array1d_value(view, "cells;type", base)
 
 
 def check_same_data2d(view: StorageView, base: StorageReader) -> None:
     check_data2d_names(view, "cells,genes", base)
-    assert view.wrapped_data2d("cells,genes:UMIs") == "cells,genes:UMIs"
-    assert view.exposed_data2d("cells,genes:UMIs") == "cells,genes:UMIs"
-    check_data2d_value(view, "cells,genes:UMIs", base)
+    assert view.wrapped_data2d("cells,genes;UMIs") == "cells,genes;UMIs"
+    assert view.exposed_data2d("cells,genes;UMIs") == "cells,genes;UMIs"
+    check_data2d_value(view, "cells,genes;UMIs", base)
 
 
 def test_default_view() -> None:
@@ -252,33 +252,33 @@ def test_hide_axis() -> None:
     assert view.exposed_axis("genes") is None
 
     check_data2d_names(view, "cells,genes", None)
-    check_data2d_value(view, "cells,genes:UMIs", None)
+    check_data2d_value(view, "cells,genes;UMIs", None)
 
 
 def test_hide_array1d() -> None:
     base = make_base()
-    view = StorageView(base, name="view", data={"cells:type": None})
+    view = StorageView(base, name="view", data={"cells;type": None})
 
     check_same_data(view, base)
     check_same_axes(view, base)
     check_same_data2d(view, base)
 
     check_array1d_names(view, "cells", [])
-    assert view.exposed_array1d("cells:type") is None
-    check_array1d_value(view, "cells:type", None)
+    assert view.exposed_array1d("cells;type") is None
+    check_array1d_value(view, "cells;type", None)
 
 
 def test_hide_data2d() -> None:
     base = make_base()
-    view = StorageView(base, name="view", data={"cells,genes:UMIs": None})
+    view = StorageView(base, name="view", data={"cells,genes;UMIs": None})
 
     check_same_data(view, base)
     check_same_axes(view, base)
     check_same_array1d(view, base)
 
     check_data2d_names(view, "cells,genes", [])
-    assert view.exposed_data2d("cells,genes:UMIs") is None
-    check_data2d_value(view, "cells,genes:UMIs", None)
+    assert view.exposed_data2d("cells,genes;UMIs") is None
+    check_data2d_value(view, "cells,genes;UMIs", None)
 
 
 def test_rename_datum() -> None:
@@ -315,38 +315,38 @@ def test_rename_axis() -> None:
     assert view.exposed_axis("cells") == "cells"
     assert view.exposed_axis("genes") == "values"
 
-    check_data2d_names(view, "cells,values", ["cells,values:UMIs"])
-    assert view.wrapped_data2d("cells,values:UMIs") == "cells,genes:UMIs"
-    assert view.exposed_data2d("cells,genes:UMIs") == "cells,values:UMIs"
-    check_data2d_value(view, "cells,values:UMIs", "cells,genes:UMIs", base)
+    check_data2d_names(view, "cells,values", ["cells,values;UMIs"])
+    assert view.wrapped_data2d("cells,values;UMIs") == "cells,genes;UMIs"
+    assert view.exposed_data2d("cells,genes;UMIs") == "cells,values;UMIs"
+    check_data2d_value(view, "cells,values;UMIs", "cells,genes;UMIs", base)
 
 
 def test_rename_array1d() -> None:
     base = make_base()
-    view = StorageView(base, name="view", data={"cells:type": "kind"})
+    view = StorageView(base, name="view", data={"cells;type": "kind"})
 
     check_same_data(view, base)
     check_same_axes(view, base)
     check_same_data2d(view, base)
 
-    check_array1d_names(view, "cells", ["cells:kind"])
-    assert view.wrapped_array1d("cells:kind") == "cells:type"
-    assert view.exposed_array1d("cells:type") == "cells:kind"
-    check_array1d_value(view, "cells:kind", "cells:type", base)
+    check_array1d_names(view, "cells", ["cells;kind"])
+    assert view.wrapped_array1d("cells;kind") == "cells;type"
+    assert view.exposed_array1d("cells;type") == "cells;kind"
+    check_array1d_value(view, "cells;kind", "cells;type", base)
 
 
 def test_rename_data2d() -> None:
     base = make_base()
-    view = StorageView(base, name="view", data={"cells,genes:UMIs": "counts"})
+    view = StorageView(base, name="view", data={"cells,genes;UMIs": "counts"})
 
     check_same_data(view, base)
     check_same_axes(view, base)
     check_same_array1d(view, base)
 
-    check_data2d_names(view, "cells,genes", ["cells,genes:counts"])
-    assert view.wrapped_data2d("cells,genes:counts") == "cells,genes:UMIs"
-    assert view.exposed_data2d("cells,genes:UMIs") == "cells,genes:counts"
-    check_data2d_value(view, "cells,genes:counts", "cells,genes:UMIs", base)
+    check_data2d_names(view, "cells,genes", ["cells,genes;counts"])
+    assert view.wrapped_data2d("cells,genes;counts") == "cells,genes;UMIs"
+    assert view.exposed_data2d("cells,genes;UMIs") == "cells,genes;counts"
+    check_data2d_value(view, "cells,genes;counts", "cells,genes;UMIs", base)
 
 
 def test_slice_axis_strings() -> None:
@@ -367,10 +367,10 @@ def test_slice_axis_strings() -> None:
     assert view.exposed_axis("genes") == "genes"
 
     check_data2d_names(view, "cells,genes", base)
-    assert view.wrapped_data2d("cells,genes:UMIs") == "cells,genes:UMIs"
-    assert view.exposed_data2d("cells,genes:UMIs") == "cells,genes:UMIs"
-    check_data2d_value(view, "cells,genes:UMIs", as_array2d([[90, 0], [0, 190]]))
-    check_data2d_value(view, "cells,genes:UMIs", as_array2d([[90, 0], [0, 190]]))
+    assert view.wrapped_data2d("cells,genes;UMIs") == "cells,genes;UMIs"
+    assert view.exposed_data2d("cells,genes;UMIs") == "cells,genes;UMIs"
+    check_data2d_value(view, "cells,genes;UMIs", as_array2d([[90, 0], [0, 190]]))
+    check_data2d_value(view, "cells,genes;UMIs", as_array2d([[90, 0], [0, 190]]))
 
 
 def test_slice_axis_mask() -> None:
@@ -391,10 +391,10 @@ def test_slice_axis_mask() -> None:
     assert view.exposed_axis("genes") == "genes"
 
     check_data2d_names(view, "cells,genes", base)
-    assert view.wrapped_data2d("cells,genes:UMIs") == "cells,genes:UMIs"
-    assert view.exposed_data2d("cells,genes:UMIs") == "cells,genes:UMIs"
-    check_data2d_value(view, "cells,genes:UMIs", as_array2d([[0, 90], [190, 0]]))
-    check_data2d_value(view, "cells,genes:UMIs", as_array2d([[0, 90], [190, 0]]))
+    assert view.wrapped_data2d("cells,genes;UMIs") == "cells,genes;UMIs"
+    assert view.exposed_data2d("cells,genes;UMIs") == "cells,genes;UMIs"
+    check_data2d_value(view, "cells,genes;UMIs", as_array2d([[0, 90], [190, 0]]))
+    check_data2d_value(view, "cells,genes;UMIs", as_array2d([[0, 90], [190, 0]]))
 
 
 def test_rename_slice_axis_indices() -> None:
@@ -413,14 +413,14 @@ def test_rename_slice_axis_indices() -> None:
     assert view.exposed_axis("cells") == "places"
     assert view.exposed_axis("genes") == "genes"
 
-    check_array1d_names(view, "places", ["places:type"])
-    assert view.wrapped_array1d("places:type") == "cells:type"
-    assert view.exposed_array1d("cells:type") == "places:type"
-    check_array1d_value(view, "places:type", as_array1d(["B", "T"]))
-    check_array1d_value(view, "places:type", as_array1d(["B", "T"]))
+    check_array1d_names(view, "places", ["places;type"])
+    assert view.wrapped_array1d("places;type") == "cells;type"
+    assert view.exposed_array1d("cells;type") == "places;type"
+    check_array1d_value(view, "places;type", as_array1d(["B", "T"]))
+    check_array1d_value(view, "places;type", as_array1d(["B", "T"]))
 
-    check_data2d_names(view, "places,genes", ["places,genes:UMIs"])
-    assert view.wrapped_data2d("places,genes:UMIs") == "cells,genes:UMIs"
-    assert view.exposed_data2d("cells,genes:UMIs") == "places,genes:UMIs"
-    check_data2d_value(view, "places,genes:UMIs", as_array2d([[190, 10, 0], [0, 10, 90]]))
-    check_data2d_value(view, "places,genes:UMIs", as_array2d([[190, 10, 0], [0, 10, 90]]))
+    check_data2d_names(view, "places,genes", ["places,genes;UMIs"])
+    assert view.wrapped_data2d("places,genes;UMIs") == "cells,genes;UMIs"
+    assert view.exposed_data2d("cells,genes;UMIs") == "places,genes;UMIs"
+    check_data2d_value(view, "places,genes;UMIs", as_array2d([[190, 10, 0], [0, 10, 90]]))
+    check_data2d_value(view, "places,genes;UMIs", as_array2d([[190, 10, 0], [0, 10, 90]]))
