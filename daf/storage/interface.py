@@ -85,17 +85,25 @@ class StorageReader(ABC):
         """
         return self
 
-    @abstractmethod
     def datum_names(self) -> Collection[str]:
         """
         Return a collection of the names of the 0D ("blobs") data that exists in the storage.
         """
+        return self._datum_names()
 
     @abstractmethod
+    def _datum_names(self) -> Collection[str]:
+        ...
+
     def has_datum(self, name: str) -> bool:
         """
         Check whether the ``name`` 0D ("blob") datum exists in the storage.
         """
+        return self._has_datum(name)
+
+    @abstractmethod
+    def _has_datum(self, name: str) -> bool:
+        ...
 
     def get_datum(self, name: str) -> Any:
         """
@@ -108,19 +116,25 @@ class StorageReader(ABC):
     def _get_datum(self, name: str) -> Any:
         ...
 
-    @abstractmethod
     def axis_names(self) -> Collection[str]:
         """
-        .. index:: ! Python
-
         Return a collection of the names of the axes that exist in the storage.
         """
+        return self._axis_names()
 
     @abstractmethod
+    def _axis_names(self) -> Collection[str]:
+        ...
+
     def has_axis(self, axis: str) -> bool:
         """
         Check whether the ``axis`` exists in the storage.
         """
+        return self._has_axis(axis)
+
+    @abstractmethod
+    def _has_axis(self, axis: str) -> bool:
+        ...
 
     def axis_size(self, axis: str) -> int:
         """
@@ -249,6 +263,10 @@ class StorageWriter(StorageReader):
 
         Not all the abstract methods are public; if you want to implement a storage adapter yourself, look at the source
         code. You can use the simple `.MemoryStorage` class as a starting point.
+
+    .. todo::
+
+        The `.StorageWriter` interface needs to be extended to allow for deleting data (dangerous as this may be).
     """
 
     def as_reader(self) -> StorageReader:
@@ -440,7 +458,7 @@ class StorageWriter(StorageReader):
             # Here the array IS set inside the storage,
             # that is, one can use ``get_grid`` to access it.
 
-        This allows ``TODOL-Files`` to create the array on disk, without first having to create an in-memory copy. By
+        This allows `.FilesWriter` to create the array on disk without first having to create an in-memory copy. By
         default (for other adapters), this just creates and returns an uninitialized in-memory 2D dense array, then
         calls `.StorageWriter.set_grid` with the initialized result.
         """
@@ -448,16 +466,12 @@ class StorageWriter(StorageReader):
             name
         ), f"refuse to overwrite the matrix: {name} in the storage: {self.name}"
 
-        axes = extract_2d_axes(name)
-
-        shape = (self.axis_size(axes[0]), self.axis_size(axes[1]))
-        with self._create_array_in_rows(shape, name, dtype) as array2d:
+        with self._create_array_in_rows(extract_2d_axes(name), name, dtype) as array2d:
             yield array2d
 
     @contextmanager
-    def _create_array_in_rows(
-        self, shape: Tuple[int, int], name: str, dtype: str
-    ) -> Generator[ArrayInRows, None, None]:
+    def _create_array_in_rows(self, axes: Tuple[str, str], name: str, dtype: str) -> Generator[ArrayInRows, None, None]:
+        shape = (self.axis_size(axes[0]), self.axis_size(axes[1]))
         array2d = be_array_in_rows(np.empty(shape, dtype=dtype), dtype=dtype)
         yield array2d
         self.set_grid(name, freeze(array2d), overwrite=True)

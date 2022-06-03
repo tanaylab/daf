@@ -112,48 +112,48 @@ Usage
     import scipy.sparse as sp
 
     # Open an existing DAF storage in the "files" format.
-    data = daf.FilesStorage("...")
+    data = daf.DafReader(daf.FilesReader("..."))
 
     # Access an arbitrary 0D "blob".
-    description = daf.get_datum("description")
+    description = data.get_datum("description")
 
     # Get a 1D numpy array by axis and name.
-    metacell_types = data.get_array1d("metacells:type")
+    metacell_types = data.get_array1d("metacell;type")
 
     # Get a Pandas series by axis and name (index is the type names).
-    type_colors = data.get_series("types:color")
+    type_colors = data.get_series("type;color")
 
     # Combine these to get a Pandas series of the color of each metacell (index is the metacell type names).
     metacell_colors = type_colors[metacell_types]
 
     # Get a 2D matrix by two axes and a name.
-    umis_grid = data.get_grid("cells,genes:UMIs")
+    umis_grid = data.get_grid("cell,gene;UMIs")
 
     if daf.is_array2d(umis_matrix):
         # Umis matrix is dense (2D numpy array).
         ...
     else:
         assert daf.is_sparse(umis_matrix)
-        # Umis matrix is sparse (sp.csr_matrix or sp.csc_matrix).
+        # Umis matrix is sparse (sp.csr_matrix).
         ...
 
     # Get a Pandas data frame with homogeneous data elements by two axes and a name.
-    type_marker_genes = data.get_table("genes,types:marker")
+    type_marker_genes = data.get_frame("gene,type;marker")
 
-    # Access the mask of marker genes for a specific type.
+    # Access the mask of marker genes for a specific type as a Pandas series.
     t_marker_genes = type_marker_genes["T"]
 
     # Get a Pandas data frame with multiple named vectors (columns) of possibly different types, all of the same axis.
-    genes_masks = data.get_frame(["genes:forbidden", "genes:significant"])
+    genes_masks = data.get_columns(["gene;forbidden", "gene;significant"])
 
-    # Access the mask of significant genes in the frame.
+    # Access the mask of significant genes in the frame as a Pandas series.
     significant_genes_mask = genes_masks["significant"]
 
     # Get (and cache) the total sum of UMIs per cell, so repeated requests will not re-compute it.
-    cells_umis_sum = data.get_array1d("cells,gene:UMIs|sum")
+    cells_umis_sum = data.get_array1d("cell,gene;UMIs|sum")
 
     #: Slice the data to look only at cells with a high number of UMIs and significant.
-    strong_data = daf.View(data, cells=cells_umis_sum > 1000, genes=significant_genes_mask)
+    strong_data = data.DafView(data, axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask))
 
 See the `documentation <https://daf.readthedocs.io/en/latest/?badge=latest>`_ for the full API details.
 

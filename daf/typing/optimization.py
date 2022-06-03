@@ -216,11 +216,11 @@ def optimize(  # pylint: disable=too-many-branches
 
     .. note::
 
-        This used `.unfrozen` to modify a ``scipy.sparse.csr_matrix`` or a ``scipy.sparse.csc_matrix`` **in-place**,
+        This uses `.unfrozen` to modify a ``scipy.sparse.csr_matrix`` or a ``scipy.sparse.csc_matrix`` **in-place**,
         even if it is `.is_frozen` (unless ``force_copy`` is specified). This seems acceptable for in-memory sparse
         matrices, but will fail for read-only memory-mapped sparse matrices; this works because memory-mapped sparse
-        matrices are only created by the ``TODOL-Files`` format, which always writes them in the optimal format so no
-        in-place modification is done.
+        matrices are only created by the `.FilesWriter`, which always writes them in the optimal format, so no in-place
+        modification is done.
     """
     if isinstance(data, np.ndarray) and 1 <= data.ndim <= 2:
         if force_copy or not is_optimal(data):

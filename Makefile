@@ -148,7 +148,7 @@ black: .make.black  ## check format with black
 flake8: .make.flake8  ## check format with flake8
 
 .make.flake8: $(PY_SOURCE_FILES)
-	flake8 --max-line-length $(MAX_LINE_LENGTH) --ignore E203,F401,F403,F405,W503 $(NAME) tests
+	flake8 --max-line-length $(MAX_LINE_LENGTH) --ignore E203,E711,F401,F403,F405,W503 $(NAME) tests
 	touch $@
 
 reformat: stripspaces isortify blackify  ## reformat code

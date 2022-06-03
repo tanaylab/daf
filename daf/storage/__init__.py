@@ -14,6 +14,7 @@ and ``bar,foo:baz``.
 """
 
 from .chains import *
+from .files import *
 from .interface import *
 from .memory import *
 from .none import *

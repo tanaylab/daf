@@ -43,6 +43,7 @@ extensions = [
 
 default_role = "py:obj"
 autodoc_member_order = 'bysource'
+todo_include_todos = True
 autodoc_type_aliases = {
   "Array1D": "daf.typing.array1d.Array1D",
   "Array2D": "daf.typing.array2d.Array2D",

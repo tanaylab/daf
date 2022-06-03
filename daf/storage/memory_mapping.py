@@ -47,7 +47,7 @@ from ..typing import be_array_in_rows
 from ..typing import freeze
 from ..typing import is_dtype
 from ..typing import is_optimal
-from ..typing import is_sparse
+from ..typing import is_sparse_in_rows
 
 # pylint: enable=duplicate-code,cyclic-import
 
@@ -88,7 +88,8 @@ def create_memory_mapped_array(path: str, shape: Union[int, Tuple[int, int]], dt
     """
     Create new disk files for a memory-mapped ``numpy.ndarray`` of some ``shape`` and ``dtype`` in some ``path``.
 
-    This will refuse to overwrite existing files.
+    This will silently overwrite existing files. In particular, it will delete ``<path>.sparse``, ``<path>.indices``
+    and/or ``<path>.indptr`` files if the exists.
 
     The array element type must be one of `.FIXED_DTYPES`, that is, one can't create a memory-mapped file of strings or
     objects of strange types.
@@ -99,7 +100,7 @@ def create_memory_mapped_array(path: str, shape: Union[int, Tuple[int, int]], dt
 
     * ``<path>.yaml`` which contains a mapping with three keys:
 
-      * ``version`` is a list of two integers, the major and minor version numbers, to protect against
+      * ``version`` is a list of two integers, the major and minor format version numbers, to protect against
         future extensions of the format. This version of the library will generate ``[1, 0]`` files and will accept any
         files with a major version of ``1``.
 
@@ -121,8 +122,6 @@ def create_memory_mapped_array(path: str, shape: Union[int, Tuple[int, int]], dt
         all.
     """
     assert is_dtype(dtype, FIXED_DTYPES), f"unsupported memory-mapped array dtype: {dtype}"
-    assert not exists_path(f"{path}.yaml"), f"refuse to overwrite existing file: {path}.yaml"
-    assert not exists_path(f"{path}.array"), f"refuse to overwrite existing file: {path}.array"
 
     if isinstance(shape, tuple):
         shape_list = list(shape)
@@ -141,12 +140,16 @@ def create_memory_mapped_array(path: str, shape: Union[int, Tuple[int, int]], dt
         data_file.flush()
         data_file.close()
 
+    for suffix in (".sparse", ".indices", ".indptr"):
+        if exists_path(f"{path}.{suffix}"):
+            remove_path(f"{path}.{suffix}")
+
 
 def open_memory_mapped_array(path: str, mode: str) -> Union[Array1D, ArrayInRows]:
     """
     Open memory-mapped ``numpy.ndarray`` disk files.
 
-    The ``mode`` must be one of ``w`` for read-write access, or ``r`` for read-only access (which returns `.is_frozen`
+    The ``mode`` must be one of ``r+`` for read-write access, or ``r`` for read-only access (which returns `.is_frozen`
     data).
 
     .. note::
@@ -162,7 +165,9 @@ def open_memory_mapped_array(path: str, mode: str) -> Union[Array1D, ArrayInRows
         as necessary when data is accessed, and is free to flush/forget them to release space, so only a small subset of
         them must exist in RAM at any given time.
     """
-    assert mode in ("r", "w"), f"invalid memory-mapped mode: {mode}"
+    assert mode in ("r", "r+"), f"invalid memory-mapped mode: {mode}"
+
+    # pylint: disable=duplicate-code
 
     with open(f"{path}.yaml", "r", encoding="utf-8") as yaml_file:
         metadata = load_yaml(yaml_file)
@@ -182,6 +187,8 @@ def open_memory_mapped_array(path: str, mode: str) -> Union[Array1D, ArrayInRows
         f"unsupported version: {metadata['version'][0]}.{metadata['version'][1]} "
         f"for the memory-mapped array metadata: {path}"
     )
+
+    # pylint: enable=duplicate-code
 
     array = _mmap_array(f"{path}.array", metadata["shape"], mode, metadata["dtype"])
     if len(metadata["shape"]) == 1:
@@ -215,6 +222,8 @@ def write_memory_mapped_sparse(path: str, sparse: SparseInRows) -> None:
     """
     Write the disk files for a memory-mapped `.SparseInRows` matrix, if they exist.
 
+    This will silently overwrite existing files. In particular, it will delete a ``<path>.array`` file if one exists.
+
     This creates four disk files:
 
     * ``<path>.sparse`` which contains just the non-zero data elements.
@@ -242,12 +251,8 @@ def write_memory_mapped_sparse(path: str, sparse: SparseInRows) -> None:
     This simple representation makes it easy for other systems to directly access the data. However, it basically makes
     it impossible to automatically report the type of the files (e.g., using the Linux ``file`` command).
     """
-    assert_data(is_sparse(sparse, dtype=FIXED_DTYPES), AnyMajor.sparse_class_name, sparse, FIXED_DTYPES)
+    assert_data(is_sparse_in_rows(sparse, dtype=FIXED_DTYPES), AnyMajor.sparse_class_name, sparse, FIXED_DTYPES)
     assert_data(is_optimal(sparse), f"optimal {AnyMajor.sparse_class_name}", sparse, FIXED_DTYPES)
-    assert not exists_path(f"{path}.yaml"), f"refuse to overwrite existing file: {path}.yaml"
-    assert not exists_path(f"{path}.sparse"), f"refuse to overwrite existing file: {path}.sparse"
-    assert not exists_path(f"{path}.indices"), f"refuse to overwrite existing file: {path}.indices"
-    assert not exists_path(f"{path}.indptr"), f"refuse to overwrite existing file: {path}.indptr"
 
     with open(f"{path}.yaml", "w", encoding="utf-8") as yaml_file:
         dump_yaml(
@@ -265,6 +270,9 @@ def write_memory_mapped_sparse(path: str, sparse: SparseInRows) -> None:
     for (suffix, array) in (("sparse", sparse.data), ("indices", sparse.indices), ("indptr", sparse.indptr)):
         with open(f"{path}.{suffix}", "wb") as data_file:
             data_file.write(array.data)
+
+    if exists_path(f"{path}.array"):
+        remove_path(f"{path}.array")
 
 
 def open_memory_mapped_sparse(path: str, mode: str) -> SparseInRows:
@@ -307,17 +315,17 @@ def open_memory_mapped_sparse(path: str, mode: str) -> SparseInRows:
     return sp.csr_matrix((data_array, indices_array, indptr_array))
 
 
-def _mmap_array(path: str, shape: List[int], mode: str, dtype: str) -> np.ndarray:
-    mode_flags = dict(r="rb", w="r+b")[mode]
-    mode_prot = dict(r=PROT_READ, w=PROT_READ | PROT_WRITE)[mode]
+_PROT_OF_MODE = {"r": PROT_READ, "r+": PROT_READ | PROT_WRITE}
 
+
+def _mmap_array(path: str, shape: List[int], mode: str, dtype: str) -> np.ndarray:
     memory = CACHE.get((mode, path))
     if memory is None and mode == "r":
-        memory = CACHE.get(("w", path))
+        memory = CACHE.get(("r+", path))
 
     if memory is None:
-        with open(path, mode_flags) as data_file:  # pylint: disable=unspecified-encoding
-            CACHE[(mode, path)] = memory = mmap(data_file.fileno(), 0, prot=mode_prot)
+        with open(path, f"{mode}b") as data_file:  # pylint: disable=unspecified-encoding
+            CACHE[(mode, path)] = memory = mmap(data_file.fileno(), 0, prot=_PROT_OF_MODE[mode])
 
     size = reduce(mul, shape, 1) * np.dtype(dtype).itemsize
     assert len(memory) == size, f"wrong size for the memory-mapped data file: {path}"

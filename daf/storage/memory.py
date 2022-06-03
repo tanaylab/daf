@@ -49,21 +49,25 @@ class MemoryReader(_interface.StorageReader):
         # For each pair of axis, the 2D `.is_optimal` `.ROW_MAJOR` `.GridInRows` indexed by that pair.
         self._grids: Dict[Tuple[str, str], Dict[str, GridInRows]] = {}
 
-    def datum_names(self) -> Collection[str]:
+    # pylint: disable=duplicate-code
+
+    def _datum_names(self) -> Collection[str]:
         return self._data.keys()
 
-    def has_datum(self, name: str) -> bool:
+    def _has_datum(self, name: str) -> bool:
         return name in self._data
+
+    # pylint: enable=duplicate-code
 
     def _get_datum(self, name: str) -> Any:
         return self._data[name]
 
-    def axis_names(self) -> Collection[str]:
+    def _axis_names(self) -> Collection[str]:
         return self._axes.keys()
 
     # pylint: disable=duplicate-code
 
-    def has_axis(self, axis: str) -> bool:
+    def _has_axis(self, axis: str) -> bool:
         return axis in self._axes
 
     def _axis_size(self, axis: str) -> int:
@@ -71,8 +75,6 @@ class MemoryReader(_interface.StorageReader):
 
     def _axis_entries(self, axis: str) -> Array1D:
         return self._axes[axis]
-
-    # pylint: enable=duplicate-code
 
     def _array1d_names(self, axis: str) -> Collection[str]:
         return self._arrays[axis].keys()
@@ -89,13 +91,15 @@ class MemoryReader(_interface.StorageReader):
     def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
         return name in self._grids[axes]
 
+    # pylint: enable=duplicate-code
+
     def _get_data2d(self, axes: Tuple[str, str], name: str) -> Data2D:
         return self._grids[axes][name]
 
 
 class MemoryStorage(MemoryReader, _interface.StorageWriter):
     """
-    Adapter for simple read-write in-memory storage.
+    Implement the `.StorageWriter` interface for in-memory storage.
 
     .. note::
 
@@ -106,6 +110,8 @@ class MemoryStorage(MemoryReader, _interface.StorageWriter):
     def _set_datum(self, name: str, datum: Any) -> None:
         self._data[name] = datum
 
+    # pylint: disable=duplicate-code
+
     def _create_axis(self, axis: str, entries: Array1D) -> None:
         self._arrays[axis] = {}
         for other_axis in self._axes:
@@ -113,6 +119,8 @@ class MemoryStorage(MemoryReader, _interface.StorageWriter):
             self._grids[(other_axis, axis)] = {}
         self._grids[(axis, axis)] = {}
         self._axes[axis] = entries
+
+    # pylint: enable=duplicate-code
 
     def _set_array1d(self, axis: str, name: str, array1d: Array1D) -> None:
         self._arrays[axis][name] = array1d

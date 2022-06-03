@@ -40,10 +40,10 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def as_reader(self) -> _interface.StorageReader:
         return self
 
-    def datum_names(self) -> Collection[str]:
+    def _datum_names(self) -> Collection[str]:
         return []
 
-    def has_datum(self, name: str) -> bool:
+    def _has_datum(self, name: str) -> bool:
         return False
 
     def get_datum(self, name: str) -> Any:
@@ -52,10 +52,10 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def _get_datum(self, name: str) -> Any:
         assert False, "never happens"
 
-    def axis_names(self) -> Collection[str]:
+    def _axis_names(self) -> Collection[str]:
         return []
 
-    def has_axis(self, axis: str) -> bool:
+    def _has_axis(self, axis: str) -> bool:
         return False
 
     def axis_size(self, axis: str) -> int:
@@ -140,9 +140,7 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
         assert False, "never happens"
 
     @contextmanager
-    def _create_array_in_rows(
-        self, shape: Tuple[int, int], name: str, dtype: str
-    ) -> Generator[ArrayInRows, None, None]:
+    def _create_array_in_rows(self, axes: Tuple[str, str], name: str, dtype: str) -> Generator[ArrayInRows, None, None]:
         assert False, "never happens"
 
 

@@ -2,7 +2,7 @@
 Storage views allow slicing the data, and/or renaming and/or hiding specific axes or data.
 
 A view is just a light-weight read-only adapter of some underlying storage; a common idiom (e.g. for exporting a subset
-of the data) is to create a view, then copy its contents into an empty new persistent storage (such as ``TODOL-FIles``)
+of the data) is to create a view, then copy its contents into an empty new persistent storage (such as `.FilesWriter`)
 to save just this data to the disk. This is crucial when converting ``daf`` data to ``AnnData``, as ``AnnData`` requires
 specific axes names, and is not capable of dealing with too many axes.
 """
@@ -44,9 +44,10 @@ __all__ = ["DataView", "AxisView", "StorageView"]
 
 #: Describe how to expose an axis of some wrapped `.StorageReader` from a `.StorageView`:
 #:
-#: * By default, axes are passed as-is.
+#: * By default, axes are passed as-is. But this can be changed by setting ``hide_implicit`` to ``True``, in which
+#:   case, by default axes are hidden.
 #:
-#: * If the ``AxisView`` is ``None``, the axis is hidden, together with all data that is based on it.
+#: * If the ``AxisView`` is ``None``, the axis is explicitly hidden, together with all data that is based on it.
 #:
 #: * If the ``AxisView`` is a string, the axis is exposed under this new name. For example, when viewing data for
 #:   copying into ``AnnData``, one axis needs to be exposed as ``obs`` and another as ``vars``.
@@ -68,9 +69,10 @@ AxisView = Union[None, str, Array1D, Tuple[str, Array1D]]
 #: Describe how to expose data of some wrapped `.StorageReader` from a `.StorageView`:
 #:
 #:  * By default, all data is passed as-is, as long as the axes it is based on (if any) are exposed. If the axes were
-#:    renamed, the data is exposed using the new axes names.
+#:    renamed, the data is exposed using the new axes names. Setting ``hide_implicit`` to ``True`` changes the
+#:    default to hide data by default.
 #:
-#:  * If the ``DataView`` is ``None``, the data is hidden, even if the axes it is based on are exposed.
+#:  * If the ``DataView`` is ``None``, the data is explicitly hidden, even if the axes it is based on are exposed.
 #:
 #:  * If the ``DataView`` is a string, it is exposed under this new name (which should not contain the axes names(s)).
 #:
@@ -95,6 +97,10 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
 
         Do **not** modify the wrapped storage after creating a view. Modifications may or may not be visible in the
         view, causing subtle problems.
+
+    .. todo::
+
+        Implement ``hide_implicit=True``.
     """
 
     def __init__(
@@ -105,8 +111,11 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         data: Optional[Dict[str, DataView]] = None,
         name: Optional[str] = None,
         cache: Optional[_interface.StorageWriter] = None,
+        hide_implicit: bool = False,
     ) -> None:
         super().__init__(name=name)
+
+        assert not hide_implicit, "hide_implicit is not implemented yet"
 
         #: The wrapped storage.
         self.storage = storage
@@ -410,19 +419,19 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         axes = _interface.extract_2d_axes(exposed_data2d)
         return self._exposed_data2d[axes][exposed_data2d]
 
-    def datum_names(self) -> Collection[str]:
+    def _datum_names(self) -> Collection[str]:
         return self._exposed_data.keys()
 
-    def has_datum(self, name: str) -> bool:
+    def _has_datum(self, name: str) -> bool:
         return name in self._exposed_data
 
     def _get_datum(self, name: str) -> Any:
         return self.storage.get_datum(self._exposed_data[name])
 
-    def axis_names(self) -> Collection[str]:
+    def _axis_names(self) -> Collection[str]:
         return self._exposed_axes.keys()
 
-    def has_axis(self, axis: str) -> bool:
+    def _has_axis(self, axis: str) -> bool:
         return axis in self._exposed_axes
 
     def _axis_size(self, axis: str) -> int:

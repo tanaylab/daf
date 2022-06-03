@@ -29,7 +29,7 @@ def test_memory_mapping_array1d() -> None:
         create_memory_mapped_array(path, 10, "int32")
 
         assert exists_memory_mapped_array(path)
-        array1d = open_memory_mapped_array(path, "w")
+        array1d = open_memory_mapped_array(path, "r+")
         assert is_array1d(array1d)
         assert not is_frozen(array1d)
         assert array1d.dtype == "int32"
@@ -53,7 +53,7 @@ def test_memory_mapping_array2d() -> None:
         create_memory_mapped_array(path, (10, 20), "float32")
 
         assert exists_memory_mapped_array(path)
-        array2d = open_memory_mapped_array(path, "w")
+        array2d = open_memory_mapped_array(path, "r+")
         assert is_array_in_rows(array2d)
         assert not is_frozen(array2d)
         assert array2d.dtype == "float32"

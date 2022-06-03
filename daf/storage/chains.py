@@ -90,13 +90,13 @@ class StorageChain(_interface.StorageReader):
                         f"in the storage chain: {self.name}"
                     )
 
-    def datum_names(self) -> Collection[str]:
+    def _datum_names(self) -> Collection[str]:
         names: Set[str] = set()
         for storage in self.chain:
             names.update(storage.datum_names())
         return names
 
-    def has_datum(self, name: str) -> bool:
+    def _has_datum(self, name: str) -> bool:
         for storage in self.chain:
             if storage.has_datum(name):
                 return True
@@ -108,13 +108,13 @@ class StorageChain(_interface.StorageReader):
                 return storage._get_datum(name)
         assert False, "never happens"
 
-    def axis_names(self) -> Collection[str]:
+    def _axis_names(self) -> Collection[str]:
         names: Set[str] = set()
         for storage in self.chain:
             names.update(storage.axis_names())
         return names
 
-    def has_axis(self, axis: str) -> bool:
+    def _has_axis(self, axis: str) -> bool:
         for storage in self.chain:
             if storage.has_axis(axis):
                 return True
