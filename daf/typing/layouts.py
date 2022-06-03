@@ -160,14 +160,19 @@ class ColumnMajor(AnyMajor):  # pylint: disable=too-few-public-methods
 #: elements are stored ("CSC" format).
 COLUMN_MAJOR: ColumnMajor = ColumnMajor()
 
+_SMALL_BLOCK_SIZE = 12 * 1024  # Two copies of this should fit in the L1 w/o trashing it.
+_LARGE_BLOCK_SIZE = 1024 * 1024  # Two copies of this should fit in the L2.
+
 
 @overload
 def as_layout(
     matrix: _array2d.Array2D,
     layout: RowMajor,
+    *,
     force_copy: bool = False,
     max_workers: int = 1,
-    block_size: int = 8 * 1024 * 1024,
+    small_block_size: int = _SMALL_BLOCK_SIZE,
+    large_block_size: int = _LARGE_BLOCK_SIZE,
 ) -> _array2d.ArrayInRows:
     ...
 
@@ -176,9 +181,11 @@ def as_layout(
 def as_layout(
     matrix: _array2d.Array2D,
     layout: ColumnMajor,
+    *,
     force_copy: bool = False,
     max_workers: int = 1,
-    block_size: int = 8 * 1024 * 1024,
+    small_block_size: int = _SMALL_BLOCK_SIZE,
+    large_block_size: int = _LARGE_BLOCK_SIZE,
 ) -> _array2d.ArrayInColumns:
     ...
 
@@ -187,9 +194,11 @@ def as_layout(
 def as_layout(
     matrix: _sparse.Sparse,
     layout: RowMajor,
+    *,
     force_copy: bool = False,
     max_workers: int = 1,
-    block_size: int = 8 * 1024 * 1024,
+    small_block_size: int = _SMALL_BLOCK_SIZE,
+    large_block_size: int = _LARGE_BLOCK_SIZE,
 ) -> _sparse.SparseInRows:
     ...
 
@@ -198,9 +207,11 @@ def as_layout(
 def as_layout(
     matrix: _sparse.Sparse,
     layout: ColumnMajor,
+    *,
     force_copy: bool = False,
     max_workers: int = 1,
-    block_size: int = 8 * 1024 * 1024,
+    small_block_size: int = _SMALL_BLOCK_SIZE,
+    large_block_size: int = _LARGE_BLOCK_SIZE,
 ) -> _sparse.SparseInColumns:
     ...
 
@@ -209,9 +220,11 @@ def as_layout(
 def as_layout(
     matrix: _frames.Frame,
     layout: RowMajor,
+    *,
     force_copy: bool = False,
     max_workers: int = 1,
-    block_size: int = 8 * 1024 * 1024,
+    small_block_size: int = _SMALL_BLOCK_SIZE,
+    large_block_size: int = _LARGE_BLOCK_SIZE,
 ) -> _frames.FrameInRows:
     ...
 
@@ -220,9 +233,11 @@ def as_layout(
 def as_layout(
     matrix: _frames.Frame,
     layout: ColumnMajor,
+    *,
     force_copy: bool = False,
     max_workers: int = 1,
-    block_size: int = 8 * 1024 * 1024,
+    small_block_size: int = _SMALL_BLOCK_SIZE,
+    large_block_size: int = _LARGE_BLOCK_SIZE,
 ) -> _frames.FrameInColumns:
     ...
 
@@ -230,9 +245,11 @@ def as_layout(
 def as_layout(
     matrix: Union[_matrices.Matrix, sp.spmatrix],
     layout: AnyMajor,
+    *,
     force_copy: bool = False,
     max_workers: int = 1,
-    block_size: int = 8 * 1024 * 1024,
+    small_block_size: int = _SMALL_BLOCK_SIZE,
+    large_block_size: int = _LARGE_BLOCK_SIZE,
 ) -> _matrices.Matrix:
     """
     Access the data in a specific layout.
@@ -245,8 +262,14 @@ def as_layout(
     figure out what is the available number of workers we can use, so we default to the only safe value of just one.
 
     It also turns out that for large dense data it is more efficient to work on the data in blocks that fit a
-    "reasonable" HW cache level. The code here uses a default ``block_size`` of 8 megabytes, which seems to work well in
-    CPUs circa 2022. This optimization should really have been in ``numpy`` itself.
+    "reasonable" HW cache levels. The code here uses a default ``small_block_size`` of 12KB (two copies of this should
+    fit in the L1 w/o completely trashing it), and a default ``large_block_size`` of 1MB (two copies of this "should"
+    fit in the L2); these values seems to work well in CPUs circa 2022. This optimization should really have been in
+    ``numpy`` itself.
+
+    .. todo::
+
+        If/when https://github.com/numpy/numpy/issues/21655 is implemented, change the code here to use it.
     """
     if _matrices.is_matrix(matrix, layout=layout):
         if force_copy:
@@ -258,7 +281,7 @@ def as_layout(
         return layout.sparse_class(matrix)  # type: ignore
 
     assert _dense.is_dense(matrix)
-    array2d = _relayout_array2d(_array2d.as_array2d(matrix), layout, max_workers, block_size)
+    array2d = _relayout_array2d(_array2d.as_array2d(matrix), layout, max_workers, small_block_size, large_block_size)
 
     if _array2d.is_array2d(matrix):
         return array2d
@@ -272,60 +295,89 @@ def as_layout(
 
 @overload
 def _relayout_array2d(
-    array2d: _array2d.Array2D, layout: RowMajor, max_workers: int, block_size: int
+    array2d: _array2d.Array2D, layout: RowMajor, max_workers: int, small_block_size: int, large_block_size: int
 ) -> _array2d.ArrayInRows:
     ...
 
 
 @overload
 def _relayout_array2d(
-    array2d: _array2d.Array2D, layout: ColumnMajor, max_workers: int, block_size: int
+    array2d: _array2d.Array2D, layout: ColumnMajor, max_workers: int, small_block_size: int, large_block_size: int
 ) -> _array2d.ArrayInColumns:
     ...
 
 
 @overload
 def _relayout_array2d(
-    array2d: _array2d.Array2D, layout: AnyMajor, max_workers: int, block_size: int
+    array2d: _array2d.Array2D, layout: AnyMajor, max_workers: int, small_block_size: int, large_block_size: int
 ) -> _array2d.Array2D:
     ...
 
 
-def _relayout_array2d(
-    array2d: _array2d.Array2D, layout: AnyMajor, max_workers: int, block_size: int
+def _relayout_array2d(  # pylint: disable=too-many-locals
+    array2d: _array2d.Array2D, layout: AnyMajor, max_workers: int, small_block_size: int, large_block_size: int
 ) -> _array2d.Array2D:
-    block_elements = int(sqrt(block_size / array2d.dtype.itemsize))
+    large_block_elements = int(sqrt(large_block_size / array2d.dtype.itemsize))
+    small_block_elements = int(sqrt(small_block_size / array2d.dtype.itemsize))
 
-    row_elements = array2d.shape[0]
-    column_elements = array2d.shape[1]
+    large_row_elements = array2d.shape[0]
+    large_column_elements = array2d.shape[1]
 
-    row_blocks = int(ceil(row_elements / block_elements))
-    column_blocks = int(ceil(column_elements / block_elements))
+    large_row_blocks = int(ceil(large_row_elements / large_block_elements))
+    large_column_blocks = int(ceil(large_column_elements / small_block_elements))
 
     result = np.empty(array2d.shape, dtype=array2d.dtype, order=layout.numpy_order)  # type: ignore
 
-    def _relayout_block(block: int) -> None:
-        column_block = block // row_blocks
-        row_block = block % row_blocks
+    def _relayout_large_block(large_block: int) -> None:
+        large_column_block = large_block // large_row_blocks
+        large_row_block = large_block % large_row_blocks
 
-        start_row = int(round(row_block * row_elements / row_blocks))
-        stop_row = int(round((row_block + 1) * row_elements / row_blocks))
+        large_start_row = int(round(large_row_block * large_row_elements / large_row_blocks))
+        large_stop_row = int(round((large_row_block + 1) * large_row_elements / large_row_blocks))
 
-        start_column = int(round(column_block * column_elements / column_blocks))
-        stop_column = int(round((column_block + 1) * column_elements / column_blocks))
+        large_start_column = int(round(large_column_block * large_column_elements / large_column_blocks))
+        large_stop_column = int(round((large_column_block + 1) * large_column_elements / large_column_blocks))
 
-        result[start_row:stop_row, start_column:stop_column] = array2d[start_row:stop_row, start_column:stop_column]
+        small_row_elements = large_stop_row - large_start_row
+        small_column_elements = large_stop_column - large_start_column
 
-    blocks_count = row_blocks * column_blocks
-    max_workers = min(max_workers, blocks_count)
+        small_row_blocks = int(ceil(small_row_elements / small_block_elements))
+        small_column_blocks = int(ceil(small_column_elements / small_block_elements))
+
+        small_blocks_count = small_row_blocks * small_column_blocks
+
+        def _relayout_small_block(small_block: int) -> None:
+            small_column_block = small_block // small_row_blocks
+            small_row_block = small_block % small_row_blocks
+
+            small_start_row = large_start_row + int(round(small_row_block * small_row_elements / small_row_blocks))
+            small_stop_row = large_start_row + int(round((small_row_block + 1) * small_row_elements / small_row_blocks))
+
+            small_start_column = large_start_column + int(
+                round(small_column_block * small_column_elements / small_column_blocks)
+            )
+            small_stop_column = large_start_column + int(
+                round((small_column_block + 1) * small_column_elements / small_column_blocks)
+            )
+
+            result[small_start_row:small_stop_row, small_start_column:small_stop_column] = array2d[
+                small_start_row:small_stop_row, small_start_column:small_stop_column
+            ]
+
+        for small_block in range(small_blocks_count):
+            _relayout_small_block(small_block)
+
+    large_blocks_count = large_row_blocks * large_column_blocks
+    max_workers = min(max_workers, large_blocks_count)
 
     if max_workers == 1:
-        for block in range(blocks_count):
-            _relayout_block(block)
+        for large_block in range(large_blocks_count):
+            _relayout_large_block(large_block)
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            for _ in executor.map(_relayout_block, range(blocks_count)):
+            for _ in executor.map(_relayout_large_block, range(large_blocks_count)):
                 pass
 
-    assert layout.is_layout_of(result)  # type: ignore
-    return result  # type: ignore
+    assert _array2d.is_array2d(result)
+    assert layout.is_layout_of(result)
+    return result

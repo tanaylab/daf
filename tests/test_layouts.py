@@ -126,8 +126,8 @@ def test_as_layout() -> None:
 def test_big_as_layout() -> None:
     np.random.seed(123456)
     row_major = be_array2d(np.random.rand(10, 20))
-    serial_column_major = as_layout(row_major, COLUMN_MAJOR, block_size=40)
-    parallel_column_major = as_layout(row_major, COLUMN_MAJOR, max_workers=2, block_size=40)
+    serial_column_major = as_layout(row_major, COLUMN_MAJOR, small_block_size=10, large_block_size=40)
+    parallel_column_major = as_layout(row_major, COLUMN_MAJOR, max_workers=2, small_block_size=10, large_block_size=40)
     assert isinstance(serial_column_major, np.ndarray)
     assert isinstance(parallel_column_major, np.ndarray)
     assert np.allclose(row_major, serial_column_major)
