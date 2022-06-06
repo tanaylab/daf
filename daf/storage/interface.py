@@ -287,6 +287,12 @@ class StorageWriter(StorageReader):
 
         Any axes that already exist must have exactly the same entries as in the copied storage.
 
+        This can be used to copy data between different storage objects. A common idiom is creating a new empty storage
+        and then calling ``update`` to fill it with the data from some other storage (often a `.StorageView` and/or a
+        `.StorageChain` to control exactly what is being copied). A notable exception is ``TODOL-AnnDataWriter`` which,
+        due to `AnnData <https://pypi.org/project/anndata>`_ limitations, must be given the copied data in its
+        constructor.
+
         .. note::
 
             This will convert any non-`.Grid` 2D data in the ``storage`` into a `.Grid` to satisfy our promise that we

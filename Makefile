@@ -172,8 +172,8 @@ pylint: .make.pylint  ## check code with pylint
 .make.pylint: $(PY_SOURCE_FILES)
 	@if [ `python -c "import sys; print(sys.version_info.major >= 3 and sys.version_info.minor >= 10)"` == "True" ]; \
 	then \
-	echo pylint --max-line-length $(MAX_LINE_LENGTH) $(NAME) tests; \
-	pylint --max-line-length $(MAX_LINE_LENGTH) $(NAME) tests; \
+	echo pylint -j 0 --max-line-length $(MAX_LINE_LENGTH) $(NAME) tests; \
+	pylint -j 0 --max-line-length $(MAX_LINE_LENGTH) $(NAME) tests; \
 	else echo "Skip pylint as this python version is too old."; \
 	fi
 	touch $@

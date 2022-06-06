@@ -97,10 +97,6 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
 
         Do **not** modify the wrapped storage after creating a view. Modifications may or may not be visible in the
         view, causing subtle problems.
-
-    .. todo::
-
-        Implement ``hide_implicit=True``.
     """
 
     def __init__(
@@ -114,8 +110,6 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         hide_implicit: bool = False,
     ) -> None:
         super().__init__(name=name)
-
-        assert not hide_implicit, "hide_implicit is not implemented yet"
 
         #: The wrapped storage.
         self.storage = storage
@@ -149,18 +143,18 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
 
         axes = axes or {}
         self._verify_axes(axes)
-        self._collect_axes(axes)
+        self._collect_axes(axes, hide_implicit)
         self._collect_cache_axes()
 
         self._collect_views(data or {})
 
-        self._collect_data()
+        self._collect_data(hide_implicit)
 
         self._init_array1d()
-        self._collect_array1d()
+        self._collect_array1d(hide_implicit)
 
         self._init_data2d()
-        self._collect_data2d()
+        self._collect_data2d(hide_implicit)
 
     def _verify_axes(self, axes: Dict[str, AxisView]) -> None:
         for axis in axes:
@@ -168,46 +162,42 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
                 axis
             ), f"missing the axis: {axis} in the storage: {self.storage.name} for the view: {self.name}"
 
-    def _collect_axes(self, axes: Dict[str, AxisView]) -> None:
+    def _collect_axes(self, axes: Dict[str, AxisView], hide_implicit: bool) -> None:
         for wrapped_axis in self.storage.axis_names():
-            exposed_axis: Optional[str] = wrapped_axis
             entries: Optional[Array1D] = None
+            axis_view = axes.get(wrapped_axis, None if hide_implicit else wrapped_axis)
+            if axis_view is None:
+                exposed_axis = None
+            elif isinstance(axis_view, str):
+                exposed_axis = axis_view
+            elif isinstance(axis_view, tuple):
+                exposed_axis, entries = axis_view
+                assert isinstance(exposed_axis, str), (
+                    f"invalid view for the axis: {wrapped_axis} "
+                    f"of the storage: {self.storage.name} "
+                    f"for the view: {self.name}"
+                )
+            else:
+                exposed_axis = wrapped_axis
+                entries = axis_view
 
-            if wrapped_axis in axes:
-                axis_view = axes[wrapped_axis]
-                if axis_view is None:
-                    exposed_axis = None
+            if entries is not None:
+                assert_data(is_array1d(entries, dtype=ENTRIES_DTYPES), "1D numpy array", entries, None)
 
-                elif isinstance(axis_view, str):
-                    exposed_axis = axis_view
-
-                elif isinstance(axis_view, tuple):
-                    exposed_axis, entries = axis_view
-                    assert isinstance(exposed_axis, str), (
-                        f"invalid view for the axis: {wrapped_axis} "
-                        f"of the storage: {self.storage.name} "
-                        f"for the view: {self.name}"
+                if is_dtype(entries.dtype, "bool"):
+                    entries = np.where(entries)[0]
+                    assert entries is not None
+                elif is_dtype(entries.dtype, STR_DTYPE):
+                    entries = as_array1d(
+                        pd.Series(
+                            np.arange(self.storage.axis_size(wrapped_axis)),
+                            index=self.storage.axis_entries(wrapped_axis),
+                        )[entries]
                     )
                 else:
-                    entries = axis_view
+                    entries = entries.copy()
 
-                if entries is not None:
-                    assert_data(is_array1d(entries, dtype=ENTRIES_DTYPES), "1D numpy array", entries, None)
-
-                    if is_dtype(entries.dtype, "bool"):
-                        entries = np.where(entries)[0]
-                        assert entries is not None
-                    elif is_dtype(entries.dtype, STR_DTYPE):
-                        entries = as_array1d(
-                            pd.Series(
-                                np.arange(self.storage.axis_size(wrapped_axis)),
-                                index=self.storage.axis_entries(wrapped_axis),
-                            )[entries]
-                        )
-                    else:
-                        entries = entries.copy()
-
-                    entries = freeze(entries)
+                entries = freeze(entries)
 
             self._wrapped_axis_views[wrapped_axis] = exposed_axis
             if exposed_axis is not None:
@@ -259,13 +249,9 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             )
         return self.storage.has_data2d(wrapped_data)
 
-    def _collect_data(self) -> None:
+    def _collect_data(self, hide_implicit: bool) -> None:
         for wrapped_data in self.storage.datum_names():
-            exposed_data: Optional[str] = wrapped_data
-
-            if wrapped_data in self._wrapped_data_views:
-                exposed_data = self._wrapped_data_views[wrapped_data]
-
+            exposed_data = self._wrapped_data_views.get(wrapped_data, None if hide_implicit else wrapped_data)
             self._wrapped_data_views[wrapped_data] = exposed_data
             if exposed_data is not None:
                 assert exposed_data not in self._exposed_data, (
@@ -281,7 +267,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         for exposed_axis in self._exposed_axes:
             self._exposed_array1d[exposed_axis] = {}
 
-    def _collect_array1d(self) -> None:
+    def _collect_array1d(self, hide_implicit: bool) -> None:
         for wrapped_axis in self.storage.axis_names():
             exposed_axis = self.exposed_axis(wrapped_axis)
             if exposed_axis is None:
@@ -290,15 +276,14 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             _exposed_array1d = self._exposed_array1d[exposed_axis]
 
             for wrapped_data in self.storage.array1d_names(wrapped_axis):
-                name = wrapped_data.split(";")[1]
-                exposed_data: Optional[str] = f"{exposed_axis};{name}"
+                exposed_data: Optional[str]
 
-                if wrapped_data in self._wrapped_array1d_views:
-                    data_view = self._wrapped_array1d_views[wrapped_data]
-                    if data_view is None:
-                        exposed_data = None
-                    else:
-                        exposed_data = f"{exposed_axis};{data_view}"
+                name = wrapped_data.split(";")[1]
+                data_view = self._wrapped_array1d_views.get(wrapped_data, None if hide_implicit else name)
+                if data_view is None:
+                    exposed_data = None
+                else:
+                    exposed_data = f"{exposed_axis};{data_view}"
 
                 self._wrapped_array1d_views[wrapped_data] = exposed_data
                 if exposed_data is not None:
@@ -316,7 +301,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             for exposed_columns_axis in self._exposed_axes:
                 self._exposed_data2d[(exposed_rows_axis, exposed_columns_axis)] = {}
 
-    def _collect_data2d(self) -> None:
+    def _collect_data2d(self, hide_implicit: bool) -> None:
         for wrapped_rows_axis in self.storage.axis_names():
             exposed_rows_axis = self.exposed_axis(wrapped_rows_axis)
             if exposed_rows_axis is None:
@@ -330,15 +315,14 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
                 exposed_data2d = self._exposed_data2d[(exposed_rows_axis, exposed_columns_axis)]
 
                 for wrapped_data in self.storage.data2d_names((wrapped_rows_axis, wrapped_columns_axis)):
-                    name = wrapped_data.split(";")[1]
-                    exposed_data: Optional[str] = f"{exposed_rows_axis},{exposed_columns_axis};{name}"
+                    exposed_data: Optional[str]
 
-                    if wrapped_data in self._wrapped_data2d_views:
-                        data_view = self._wrapped_data2d_views[wrapped_data]
-                        if data_view is None:
-                            exposed_data = None
-                        else:
-                            exposed_data = f"{exposed_rows_axis},{exposed_columns_axis};{data_view}"
+                    name = wrapped_data.split(";")[1]
+                    data_view = self._wrapped_data2d_views.get(wrapped_data, None if hide_implicit else name)
+                    if data_view is None:
+                        exposed_data = None
+                    else:
+                        exposed_data = f"{exposed_rows_axis},{exposed_columns_axis};{data_view}"
 
                     self._wrapped_data2d_views[wrapped_data] = exposed_data
                     if exposed_data is not None:
