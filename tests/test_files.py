@@ -57,7 +57,6 @@ def test_files_axis() -> None:
 
             assert files.has_axis("cell")
             assert set(files.axis_names()) == set(["cell"])
-            assert is_frozen(files.axis_entries("cell"))
             assert len(files.axis_entries("cell")) == len(cell_names)
             assert np.all(files.axis_entries("cell") == cell_names)
 
@@ -94,7 +93,6 @@ def test_files_array1d_of_str() -> None:
             assert files.has_array1d("cell;type")
             assert set(files.array1d_names("cell")) == set(["cell;type"])
             assert is_array1d(files.get_array1d("cell;type"), dtype=STR_DTYPE)
-            assert is_frozen(files.get_array1d("cell;type"))
             assert np.all(files.get_array1d("cell;type") == cell_types)
 
             if not isinstance(files, FilesWriter):
@@ -265,7 +263,6 @@ def test_files_grid_of_str() -> None:
             assert files.has_data2d("cell,gene;level")
             assert set(files.data2d_names("cell,gene")) == set(["cell,gene;level"])
             assert is_array_in_rows(files.get_data2d("cell,gene;level"))
-            assert is_frozen(be_grid(files.get_data2d("cell,gene;level")))
             assert np.all(files.get_data2d("cell,gene;level") == levels)
 
             if not isinstance(files, FilesWriter):

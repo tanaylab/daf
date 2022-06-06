@@ -56,12 +56,12 @@ __all__ = ["DataView", "AxisView", "StorageView"]
 #:
 #:   * An array of strings contains the names of the entries to expose.
 #:   * An array of integers contains the indices of the entries to expose.
-#:   * An array of booleans contains a mask of the entries to expose.
+#:   * An array of Booleans contains a mask of the entries to expose.
 #:
 #:   .. note::
 #:
 #:      The order of the string or integer entries is significant as it controls the order of the entries in the exposed
-#:      axis. Slicing using a boolean mask keeps the original entries order.
+#:      axis. Slicing using a Boolean mask keeps the original entries order.
 #:
 #: * If the ``AxisView`` is a tuple of a string and an array, the axis is both renamed and sliced as above.
 AxisView = Union[None, str, Array1D, Tuple[str, Array1D]]
@@ -197,8 +197,6 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
                 else:
                     entries = entries.copy()
 
-                entries = freeze(entries)
-
             self._wrapped_axis_views[wrapped_axis] = exposed_axis
             if exposed_axis is not None:
                 assert exposed_axis not in self._exposed_axes, (
@@ -214,8 +212,8 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         for axis, (wrapped_name, wrapped_indices) in self._exposed_axes.items():
             entries = self.storage.axis_entries(wrapped_name)
             if wrapped_indices is not None:
-                entries = freeze(entries[wrapped_indices])
-            self.cache.create_axis(axis, entries)
+                entries = entries[wrapped_indices]
+            self.cache.create_axis(axis, freeze(entries))
 
     def _collect_views(self, data: Dict[str, DataView]) -> None:
         for wrapped_data, data_view in data.items():
@@ -440,8 +438,8 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         if wrapped_entries is None:
             return array1d
 
-        array1d = freeze(array1d[wrapped_entries])
-        self.cache.set_array1d(name, array1d)
+        array1d = array1d[wrapped_entries]
+        self.cache.set_array1d(name, freeze(array1d))
         return array1d
 
     def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:
@@ -470,6 +468,6 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         if grid is None:
             return data2d
 
-        grid = freeze(optimize(as_layout(grid, ROW_MAJOR)))
-        self.cache.set_grid(name, grid)
+        grid = optimize(as_layout(grid, ROW_MAJOR))
+        self.cache.set_grid(name, freeze(grid))
         return grid

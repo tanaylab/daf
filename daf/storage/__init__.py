@@ -11,6 +11,12 @@ least, never in `.COLUMN_MAJOR` layout). Thus for a storage object to report con
 ``bar,foo:baz``, it must be that it contains both the data and its transpose, each in `.ROW_MAJOR` layout. Often a
 storage object would only contain a single copy of the data, so it would only report containing one of ``foo,bar:baz``
 and ``bar,foo:baz``.
+
+.. todo::
+
+    Provide a ``ConcatStorage`` that allows concatenating two data sets along a single axis, reusing all the other axes
+    (e.g., concatenating two data sets for distinct cells using identical genes into a single data set containing both
+    sets of cells).
 """
 
 from .chains import *

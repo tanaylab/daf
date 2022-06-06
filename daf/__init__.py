@@ -1,5 +1,11 @@
 """
 Data in Axes in Formats
+
+.. todo::
+
+    Extend ``daf`` to support "masked arrays" for storing nullable integers and nullable Booleans. This requires
+    accompanying each nullable array with a Boolean mask of valid elements, and using the appropriate ``numpy`` and
+    ``pandas`` APIs to deal with this.
 """
 
 import sys

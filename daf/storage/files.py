@@ -67,7 +67,7 @@ complex single-file format such as ``H5AD`` has some advantages:
 * It lazily loads the data, which allows "instantaneously" opening large data sets and quickly access just the data you
   need out of them.
 
-* It uses memory-mapping to access 1D/2D binary (numeric/boolean) data, which allows efficient accessing very large data
+* It uses memory-mapping to access 1D/2D binary (numeric/Boolean) data, which allows efficient accessing very large data
   sets. This even allows accessing data sets larger than the physical RAM, though of course this will be slower. See
   `.memory_mapping` for further details on the (trivial) format of the memory-mapped files.
 
@@ -133,7 +133,6 @@ from ..typing import as_array1d
 from ..typing import be_array1d
 from ..typing import be_array_in_rows
 from ..typing import be_sparse_in_rows
-from ..typing import freeze
 from ..typing import is_array1d
 from ..typing import is_dtype
 from ..typing import is_grid_in_rows
@@ -156,7 +155,7 @@ class NotLoadedYet:  # pylint: disable=too-few-public-methods
 
     def __init__(self, kind: str) -> None:
         #: The format of the data, one of ``YAML`` (for 0D "blob" data), ``csv`` for 1D/2D string data, ``array`` for
-        #: 1D/2D numeric/boolean data, or ``sparse`` for 2D numeric/boolean data.
+        #: 1D/2D numeric/Boolean data, or ``sparse`` for 2D numeric/Boolean data.
         self.kind = kind
 
 
@@ -313,7 +312,7 @@ class FilesReader(_interface.StorageReader):
             assert (
                 len(frame.columns) == 1 and frame.columns[0] == axis and is_dtype(frame.values.dtype, STR_DTYPE)
             ), f"invalid axis entries CSV file: {self.path}/{axis}.csv"
-            self._axes[axis] = entries = freeze(as_array1d(frame))
+            self._axes[axis] = entries = as_array1d(frame)
         return entries
 
     # pylint: disable=duplicate-code
@@ -387,7 +386,7 @@ class FilesReader(_interface.StorageReader):
         array = np.full(self.axis_size(axis), None, dtype="object")
         series = pd.Series(array, index=self.axis_entries(axis))
         series[csv_data[axis_header]] = csv_data[name_header].values
-        return freeze(be_array1d(array, dtype=STR_DTYPE))
+        return be_array1d(array, dtype=STR_DTYPE)
 
     def _read_2d_csv(self, axes: Tuple[str, str], name: str) -> ArrayInRows:
         rows_axis_header, columns_axis_header, name_header = _2d_csv_header(axes, name)
@@ -407,7 +406,7 @@ class FilesReader(_interface.StorageReader):
         )
         array = frame.values.T
         array[array == "__no_value_in_csv__"] = None
-        return be_array_in_rows(freeze(array), dtype=STR_DTYPE)
+        return be_array_in_rows(array, dtype=STR_DTYPE)
 
 
 class FilesWriter(FilesReader, _interface.StorageWriter):
