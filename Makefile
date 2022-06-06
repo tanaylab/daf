@@ -202,6 +202,9 @@ tox: .make.tox  ## run tests on a clean Python version with tox
 .PHONY: docs
 docs: .make.docs  ## generate HTML documentation
 
+docs/post.sed: $(PY_SOURCE_FILES)
+	PYTHONPATH=".:$$PYTHONPATH" python docs/collect_post_sed.py > $@
+
 .make.docs: $(DOCS_SOURCE_FILES) $(PY_PACKAGE_FILES) $(RST_SOURCE_FILES)
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
@@ -210,7 +213,7 @@ docs: .make.docs  ## generate HTML documentation
 
 build: .make.build  ## build the C++ extensions
 
-.make.build: $(PY_PACKAGE_FILES) $(H_SOURCE_FILES)
+.make.build: $(PY_PACKAGE_FILES)
 	python setup.py build_ext --inplace
 	python setup.py build
 	touch $@

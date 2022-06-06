@@ -10,8 +10,7 @@ This stores all the data as simple files in a trivial format in a single directo
     any existing `.FilesReader` or `.FilesWriter` object. To access the new data, you will need to create a new
     `.FilesReader` or `.FilesWriter` object.
 
-Directory Structure
--------------------
+**Directory Structure**
 
 A ``daf`` storage directory will contain the following files:
 
@@ -59,8 +58,7 @@ Other files, if any, are silently ignored.
     it is even possible to memory-map a large 1D/2D string data file by using an accompanying array of offsets indices).
     Pull requests are welcome :-)
 
-Motivation
-----------
+**Motivation**
 
 The intent here is **not** to define a "new format", but to use the trivial/standard existing formats to store the data
 in files in a directory in the simplest way possible. Using a directory of separate files for separate data instead of a

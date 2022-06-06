@@ -48,6 +48,8 @@ __all__ = [
     "ROW_MAJOR",
     "COLUMN_MAJOR",
     "as_layout",
+    "LARGE_BLOCK_SIZE",
+    "SMALL_BLOCK_SIZE",
 ]
 
 
@@ -160,8 +162,11 @@ class ColumnMajor(AnyMajor):  # pylint: disable=too-few-public-methods
 #: elements are stored ("CSC" format).
 COLUMN_MAJOR: ColumnMajor = ColumnMajor()
 
-_SMALL_BLOCK_SIZE = 12 * 1024  # Two copies of this should fit in the L1 w/o trashing it.
-_LARGE_BLOCK_SIZE = 1024 * 1024  # Two copies of this should fit in the L2.
+#: The default size of the block to use in the L1 (two copies should fit w/o thrasing it).
+SMALL_BLOCK_SIZE = 12 * 1024
+
+#: The default size of the block to use in the L1 (two copies should fit in it).
+LARGE_BLOCK_SIZE = 1024 * 1024
 
 
 @overload
@@ -171,8 +176,8 @@ def as_layout(
     *,
     force_copy: bool = False,
     max_workers: int = 1,
-    small_block_size: int = _SMALL_BLOCK_SIZE,
-    large_block_size: int = _LARGE_BLOCK_SIZE,
+    small_block_size: int = SMALL_BLOCK_SIZE,
+    large_block_size: int = LARGE_BLOCK_SIZE,
 ) -> _array2d.ArrayInRows:
     ...
 
@@ -184,8 +189,8 @@ def as_layout(
     *,
     force_copy: bool = False,
     max_workers: int = 1,
-    small_block_size: int = _SMALL_BLOCK_SIZE,
-    large_block_size: int = _LARGE_BLOCK_SIZE,
+    small_block_size: int = SMALL_BLOCK_SIZE,
+    large_block_size: int = LARGE_BLOCK_SIZE,
 ) -> _array2d.ArrayInColumns:
     ...
 
@@ -197,8 +202,8 @@ def as_layout(
     *,
     force_copy: bool = False,
     max_workers: int = 1,
-    small_block_size: int = _SMALL_BLOCK_SIZE,
-    large_block_size: int = _LARGE_BLOCK_SIZE,
+    small_block_size: int = SMALL_BLOCK_SIZE,
+    large_block_size: int = LARGE_BLOCK_SIZE,
 ) -> _sparse.SparseInRows:
     ...
 
@@ -210,8 +215,8 @@ def as_layout(
     *,
     force_copy: bool = False,
     max_workers: int = 1,
-    small_block_size: int = _SMALL_BLOCK_SIZE,
-    large_block_size: int = _LARGE_BLOCK_SIZE,
+    small_block_size: int = SMALL_BLOCK_SIZE,
+    large_block_size: int = LARGE_BLOCK_SIZE,
 ) -> _sparse.SparseInColumns:
     ...
 
@@ -223,8 +228,8 @@ def as_layout(
     *,
     force_copy: bool = False,
     max_workers: int = 1,
-    small_block_size: int = _SMALL_BLOCK_SIZE,
-    large_block_size: int = _LARGE_BLOCK_SIZE,
+    small_block_size: int = SMALL_BLOCK_SIZE,
+    large_block_size: int = LARGE_BLOCK_SIZE,
 ) -> _frames.FrameInRows:
     ...
 
@@ -236,8 +241,8 @@ def as_layout(
     *,
     force_copy: bool = False,
     max_workers: int = 1,
-    small_block_size: int = _SMALL_BLOCK_SIZE,
-    large_block_size: int = _LARGE_BLOCK_SIZE,
+    small_block_size: int = SMALL_BLOCK_SIZE,
+    large_block_size: int = LARGE_BLOCK_SIZE,
 ) -> _frames.FrameInColumns:
     ...
 
@@ -248,8 +253,8 @@ def as_layout(
     *,
     force_copy: bool = False,
     max_workers: int = 1,
-    small_block_size: int = _SMALL_BLOCK_SIZE,
-    large_block_size: int = _LARGE_BLOCK_SIZE,
+    small_block_size: int = SMALL_BLOCK_SIZE,
+    large_block_size: int = LARGE_BLOCK_SIZE,
 ) -> _matrices.Matrix:
     """
     Access the data in a specific layout.
