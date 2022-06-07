@@ -32,19 +32,20 @@ A ``daf`` storage directory will contain the following files:
   (always in the axis entries order). See `.create_memory_mapped_array` for details in the (trivial) format of these
   files.
 
-* For 2D string data, there will be a ``row,column;name.csv`` file with three columns, with the rows axis, columns
-  axis, and data name (if the axis names are identical we suffix them with ``.row`` and ``.column``, and if the name is
-  identical to either we suffix it with ``.value``). Any missing entries will be set to ``None``. The entries may be in
-  any order, but `.FilesWriter` always writes them in `.ROW_MAJOR` order (skipping writing of ``None`` values).
+* For 2D string data, there will be a ``row_axis,column_axis;name.csv`` file with three columns, with the rows axis,
+  columns axis, and data name (if the axis names are identical we suffix them with ``.row`` and ``.column``, and if the
+  name is identical to either we suffix it with ``.value``). Any missing entries will be set to ``None``. The entries
+  may be in any order, but `.FilesWriter` always writes them in `.ROW_MAJOR` order (skipping writing of ``None``
+  values).
 
-* For 2D dense binary data, there will be a ``row,column;name.yaml`` file accompanied by a ``row,column;name.array``
-  file (always in `.ROW_MAJOR` order based on the axis entries order). See `.create_memory_mapped_array` for details on
-  the (trivial) format of these files.
+* For 2D dense binary data, there will be a ``row_axis,column_axis;name.yaml`` file accompanied by a
+  ``row_axis,column_axis;name.array`` file (always in `.ROW_MAJOR` order based on the axis entries order). See
+  `.create_memory_mapped_array` for details on the (trivial) format of these files.
 
-* For 2D sparse binary data, there will be a ``row,column;name.yaml`` file accompanied by three files:
-  ``row,column;name.sparse``, ``row,column;name.indices`` and ``row,column;name.indptr`` (always in `.ROW_MAJOR`,
-  that is, CSR order, based on the axis entries order). See `.write_memory_mapped_sparse` for details on the (trivial)
-  format of these files.
+* For 2D sparse binary data, there will be a ``row_axis,column_axis;name.yaml`` file accompanied by three files:
+  ``row_axis,column_axis;name.sparse``, ``row_axis,column_axis;name.indices`` and ``row_axis,column_axis;name.indptr``
+  (always in `.ROW_MAJOR`, that is, CSR order, based on the axis entries order). See `.write_memory_mapped_sparse` for
+  details on the (trivial) format of these files.
 
 Other files, if any, are silently ignored.
 

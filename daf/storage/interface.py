@@ -4,6 +4,22 @@ Low-level interface for storage objects.
 The types here define the abstract interface implemented by all ``daf`` storage format adapters. This interface focuses
 on simplicity to to make it easier to **implement** new adapters for specific formats, which makes it inconvenient to
 actually **use**. For a more usable interface, see the ``TODOL-DafReader`` and ``TODOL-DafReader`` classes.
+
+Specifically, we only require storage objects to accept `.is_optimal` `.is_frozen` `.GridInRows` 2D data, but we allow
+storage objects to return whatever they happen to contain. This simplifies writing storage format adapters that access
+arbitrary data.
+
+In general ``daf`` users would not be interested in the abstract storage interface defined here, other than to construct
+storage objects (using the concrete implementation constructors) and possibly accessing ``.name`` and possibly
+``.as_reader``.
+
+It is the higher level ``TODOL-DafReader`` and ``TODOL-DafReader`` classes which will actually use the API exposed here.
+It is still documented as it is exported, and it gives deeper insight into how ``daf`` works.
+
+Implementing a new storage format adapter requires implementing the abstract methods. These are essentially simplified
+versions of the above and are omitted from the documentation to reduce clutter. If you wish to implement an adapter to a
+new storage format, you are advised to look at the sources and consider the existing implementations (in particular,
+`.MemoryStorage`) as a starting point.
 """
 
 # pylint: disable=duplicate-code,cyclic-import

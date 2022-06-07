@@ -48,14 +48,7 @@ appropriate.
 ``AnnData`` fields, one for each axis entry, named ``axis=entry;name``. This makes it slightly less unfriendly to access
 the data if/when exported to non-``daf`` systems.
 
-2D data where neither axis is ``obs`` or ``var`` is stored in an ``uns`` entry named ``row,column;name``.
-
-.. note::
-
-    To avoid conflict with the above, do **not** use names that contain ``,``, ``;``, ``=``, or ``__``. Also, don't
-    create an ``AnnData`` ``layer`` named ``X`` as it will be ambiguous with the mandatory "main" ``X`` layer.
-
-    In general it is best to restrict all basic ``daf`` names to alphanumeric characters (including a single ``_``).
+2D data where neither axis is ``obs`` or ``var`` is stored in an ``uns`` entry named ``row_axis,column_axis;name``.
 """
 
 
