@@ -1,15 +1,16 @@
 """
-The types here describe a sparse compressed ``scipy.sparse.csr_matrix`` and ``scipy.sparse.csc_matrix`` data, which is
-two ways to store 2D data in ``daf``.
+The types here describe a sparse compressed ``scipy.sparse.csr_matrix`` and ``scipy.sparse.csc_matrix`` data, which
+can be fetched from ``daf``.
 
 In theory it should have been possible to store sparse data inside a ``pandas.DataFrame``, but in practice this fails in
-various ways, so ``daf`` only stores such frames if they contain dense (that is, `.Array2D`) data.
+various ways, so **don't**. When fetching data from ``daf``, frames will alway contain dense (``numpy.ndarray`` 2D)
+data.
 
 .. note::
 
-    Other sparse formats (e.g. ``scipy.sparse.coo_matrix``) can't be stored in ``daf``. This allows ``daf`` to require
-    that all stored data is in either `.ROW_MAJOR` or `.COLUMN_MAJOR` layout, which greatly simplifies the code
-    accessing the data and also makes it easier to store the data in a consistent way.
+    Other sparse formats (e.g. ``scipy.sparse.coo_matrix``) can't be fetched from ``daf``. This allows ``daf`` to
+    require that all stored data is in either `.ROW_MAJOR` or `.COLUMN_MAJOR` layout, which greatly simplifies the code
+    accessing the data, and also makes it easier to store the data in a consistent way.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -17,7 +18,6 @@ various ways, so ``daf`` only stores such frames if they contain dense (that is,
 from __future__ import annotations
 
 from typing import Any
-from typing import Collection
 from typing import NewType
 from typing import Optional
 from typing import Union
@@ -49,62 +49,60 @@ __all__ = [
     "be_sparse_in_columns",
 ]
 
-#: 2-dimensional ``scipy.sparse`` matrix in CSR layout.
-SparseInRows = NewType("SparseInRows", _fake_sparse.SparseMatrix)
+#: 2D ``scipy.sparse.spmatrix`` in CSR layout (that is, ``scipy.sparse.csr_matrix``).
+SparseInRows = NewType("SparseInRows", "_fake_sparse.cs_matrix")
 
 
-def is_sparse_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[SparseInRows]:
+def is_sparse_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[SparseInRows]:
     """
     Check whether some ``data`` is a `.SparseInRows`, optionally only of some ``dtype``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return isinstance(data, sp.csr_matrix) and _dtypes.is_dtype(str(data.data.dtype), dtype)
+    return isinstance(data, sp.csr_matrix) and _dtypes.has_dtype(data, dtype)
 
 
-def be_sparse_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> SparseInRows:
+def be_sparse_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> SparseInRows:
     """
     Assert that some ``data`` is a `.SparseInRows`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_sparse_in_rows(data, dtype=dtype), "scipy.sparse.csr_matrix", data, dtype)
+    _descriptions.assert_data(is_sparse_in_rows(data, dtype=dtype), "scipy.sparse.csr_matrix", data, dtype=dtype)
     return data
 
 
-#: 2-dimensional ``scipy.sparse`` matrix in CSC layout.
-SparseInColumns = NewType("SparseInColumns", _fake_sparse.SparseMatrix)
+#: 2D ``scipy.sparse.spmatrix`` in CSC layout (that is, ``scipy.sparse.csc_matrix``).
+SparseInColumns = NewType("SparseInColumns", "_fake_sparse.cs_matrix")
 
 
-def is_sparse_in_columns(
-    data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None
-) -> TypeGuard[SparseInColumns]:
+def is_sparse_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[SparseInColumns]:
     """
     Check whether some ``data`` is a `.SparseInColumns`, optionally only of some ``dtype``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return isinstance(data, sp.csc_matrix) and _dtypes.is_dtype(str(data.data.dtype), dtype)
+    return isinstance(data, sp.csc_matrix) and _dtypes.has_dtype(data, dtype)
 
 
-def be_sparse_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> SparseInColumns:
+def be_sparse_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> SparseInColumns:
     """
     Assert that some ``data`` is a `.SparseInColumns`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_sparse_in_columns(data, dtype=dtype), "scipy.sparse.csc_matrix", data, dtype)
+    _descriptions.assert_data(is_sparse_in_columns(data, dtype=dtype), "scipy.sparse.csc_matrix", data, dtype=dtype)
     return data
 
 
-#: 2-dimensional ``scipy.sparse`` matrix in compressed layout.
+#: 2D ``scipy.sparse.spmatrix`` in compressed layout.
 Sparse = Union[SparseInRows, SparseInColumns]
 
 
 def is_sparse(
-    data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> TypeGuard[Sparse]:
     """
     Check whether some ``data`` is a `.Sparse`, optionally only of some ``dtype``, optionally only of some ``layout``.
@@ -112,11 +110,11 @@ def is_sparse(
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
-    return isinstance(data, layout.sparse_class) and _dtypes.is_dtype(str(data.data.dtype), dtype)
+    return isinstance(data, layout.sparse_class) and _dtypes.has_dtype(data, dtype)
 
 
 def be_sparse(
-    data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> Sparse:
     """
     Assert that some ``data`` is a `.Sparse` optionally only of some ``dtype``, optionally of some ``layout``, and
@@ -125,5 +123,5 @@ def be_sparse(
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
-    _descriptions.assert_data(is_sparse(data, dtype=dtype, layout=layout), layout.sparse_class_name, data, dtype)
+    _descriptions.assert_data(is_sparse(data, dtype=dtype, layout=layout), layout.sparse_class_name, data, dtype=dtype)
     return data

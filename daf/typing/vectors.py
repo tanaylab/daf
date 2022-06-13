@@ -1,20 +1,5 @@
 """
-The types here describe any 1D data which may be obtained from ``daf`` storage. Currently there are only two such types:
-
-* `.Array1D` is a one-dimensional ``numpy.ndarray``.
-
-* `.Series` is a ``pandas.Series`` which combines an ``Array1D`` with an index of names.
-
-The `.Vector` type annotations is their union, that is, allows for "any" 1D data.
-
-Since 1D data is so much smaller than 2D data, and since ``scipy.sparse`` compressed vector types are so different and
-so restricted, ``daf`` does not support a sparse 1D vector format. E.g., if you slice a single row or column of a sparse
-matrix, you will need to convert it to a dense format (e.g. by calling `.as_array1d`) before storing it in ``daf``.
-
-.. note::
-
-    The `.Vector` type should be used in computations with **great care**, as some operations are subtly different for
-    1D ``numpy.ndarray`` arrays and ``pandas.Series``. It is typically better to use one of the concrete types instead.
+The types here describe a 1D ``numpy.ndarray``, which can be fetched from ``daf``.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -22,17 +7,21 @@ matrix, you will need to convert it to a dense format (e.g. by calling `.as_arra
 from __future__ import annotations
 
 from typing import Any
-from typing import Collection
-from typing import Union
+from typing import NewType
+from typing import Optional
 
 try:
     from typing import TypeGuard  # pylint: disable=unused-import
 except ImportError:
     pass  # Older python versions.
 
-from . import array1d as _array1d
+import numpy as np
+import pandas as pd  # type: ignore
+import scipy.sparse as sp  # type: ignore
+
 from . import descriptions as _descriptions
-from . import series as _series
+from . import dtypes as _dtypes
+from . import unions as _unions
 
 # pylint: enable=duplicate-code,cyclic-import
 
@@ -40,27 +29,62 @@ __all__ = [
     "Vector",
     "is_vector",
     "be_vector",
+    "as_vector",
 ]
 
 
-#: Any 1D data.
-Vector = Union["_array1d.Array1D", _series.Series]
+#: 1-dimensional ``numpy`` array of bool values.
+Vector = NewType("Vector", np.ndarray)
 
 
-def is_vector(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> TypeGuard[Vector]:
+def is_vector(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[Vector]:
     """
-    Assert that some ``data`` is a `.Vector`, optionally only of some ``dtype``, and return it as such for ``mypy``.
+    Check whether some ``data`` is a `.Vector`, optionally only of some ``dtype``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return _array1d.is_array1d(data, dtype=dtype) or _series.is_series(data, dtype=dtype)
+    return isinstance(data, np.ndarray) and data.ndim == 1 and _dtypes.has_dtype(data, dtype)
 
 
-def be_vector(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> Vector:
+def be_vector(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> Vector:
     """
-    Assert that some ``data`` is a `.Vector`, optionally only of some ``dtype``, and return it as such for ``mypy``.
+    Assert that some ``data`` is a `.Vector`, optionally only of some ``dtype``, and return it as such for
+    ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_vector(data, dtype=dtype), "vector", data, dtype)
+    _descriptions.assert_data(is_vector(data, dtype=dtype), "1D numpy.ndarray", data, dtype=dtype)
     return data
+
+
+def as_vector(data: _unions.AnyData, *, force_copy: bool = False) -> Vector:
+    """
+    Access the internal 1D ``numpy`` array, if possible; otherwise, or if ``force_copy``, return a copy of the 1D data
+    as a ``numpy`` array.
+
+    Accepts as input data types that aren't even a `.Vector`, such as lists or even 2D data with a single row or column.
+
+    This ensures that ``pandas`` strings (even if categorical) will be converted to proper ``numpy`` strings.
+
+    This will reshape any matrix with a single row or a single column into a 1D ``numpy`` array.
+
+    This will convert lists (or any other sequence of values) into a 1D ``numpy`` array.
+    """
+    if isinstance(data, sp.spmatrix):
+        _descriptions.assert_data(min(data.shape) < 2, "any 1D data", data)
+        data = data.toarray()
+        force_copy = False
+
+    if isinstance(data, (pd.Series, pd.DataFrame)):
+        data = data.values
+
+    if force_copy or not isinstance(data, np.ndarray) or str(data.dtype) == "category" or isinstance(data, np.matrix):
+        data = np.array(data)
+
+    if data.ndim == 2:
+        _descriptions.assert_data(min(data.shape) < 2, "any 1D data", data)
+        data = np.reshape(data, -1)
+    else:
+        _descriptions.assert_data(data.ndim == 1, "any 1D data", data)
+
+    return data  # type: ignore

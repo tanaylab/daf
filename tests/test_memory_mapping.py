@@ -22,52 +22,52 @@ def test_allow_maximal_open_files() -> None:
     assert allow_maximal_open_files() == hard
 
 
-def test_memory_mapping_array1d() -> None:
+def test_memory_mapping_vector() -> None:
     with TemporaryDirectory() as directory:
-        path = f"{directory}/array1d"
+        path = f"{directory}/vector"
         assert not exists_memory_mapped_array(path)
         create_memory_mapped_array(path, 10, "int32")
 
         assert exists_memory_mapped_array(path)
-        array1d = open_memory_mapped_array(path, "r+")
-        assert is_array1d(array1d)
-        assert not is_frozen(array1d)
-        assert array1d.dtype == "int32"
-        assert np.all(array1d == np.zeros(10))
-        array1d[:] = np.arange(10)
+        vector = open_memory_mapped_array(path, "r+")
+        assert is_vector(vector)
+        assert not is_frozen(vector)
+        assert vector.dtype == "int32"
+        assert np.all(vector == np.zeros(10))
+        vector[:] = np.arange(10)
 
-        array1d = open_memory_mapped_array(path, "r")
-        assert is_array1d(array1d)
-        assert is_frozen(array1d)
-        assert array1d.dtype == "int32"
-        assert np.all(array1d == np.arange(10))
+        vector = open_memory_mapped_array(path, "r")
+        assert is_vector(vector)
+        assert is_frozen(vector)
+        assert vector.dtype == "int32"
+        assert np.all(vector == np.arange(10))
 
         remove_memory_mapped_array(path)
         assert not exists_memory_mapped_array(path)
 
 
-def test_memory_mapping_array2d() -> None:
+def test_memory_mapping_dense() -> None:
     with TemporaryDirectory() as directory:
-        path = f"{directory}/array2d"
+        path = f"{directory}/dense"
         assert not exists_memory_mapped_array(path)
         create_memory_mapped_array(path, (10, 20), "float32")
 
         assert exists_memory_mapped_array(path)
-        array2d = open_memory_mapped_array(path, "r+")
-        assert is_array_in_rows(array2d)
-        assert not is_frozen(array2d)
-        assert array2d.dtype == "float32"
-        assert np.all(array2d == np.zeros((10, 20)))
+        dense = open_memory_mapped_array(path, "r+")
+        assert is_dense_in_rows(dense)
+        assert not is_frozen(dense)
+        assert dense.dtype == "float32"
+        assert np.all(dense == np.zeros((10, 20)))
 
         np.random.seed(123456)
         rand2d = np.random.rand(10, 20).astype("float32")
-        array2d[:, :] = rand2d
+        dense[:, :] = rand2d
 
-        array2d = open_memory_mapped_array(path, "r")
-        assert is_array_in_rows(array2d)
-        assert is_frozen(array2d)
-        assert array2d.dtype == "float32"
-        assert np.all(array2d == rand2d)
+        dense = open_memory_mapped_array(path, "r")
+        assert is_dense_in_rows(dense)
+        assert is_frozen(dense)
+        assert dense.dtype == "float32"
+        assert np.all(dense == rand2d)
 
         remove_memory_mapped_array(path)
         assert not exists_memory_mapped_array(path)

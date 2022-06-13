@@ -14,16 +14,16 @@ features are:
 * Out of the box, allow storing the data in memory, in ``AnnData`` objects, or as a collection of simple memory-mapped
   files.
 
-* The data model is based on (1) some axes with named entries, (2) 1-D vectors of data indexed by a single axis, (3) 2-D
-  matrices indexed by a pair of axis, and also (4) 0-D data (arbitrary blobs).
+* The data model is based on (1) some axes with named entries, (2) 1-D data indexed by a single axis, (3) 2-D
+  data indexed by a pair of axes, and also (4) 0-D data items (anything not tied to some axis).
 
-* There is explicit control over matrix layout (row or column major), and support for both dense and sparse matrices,
+* There is explicit control over 2D data layout (row or column major), and support for both dense and sparse matrices,
   both of which are crucial for performance.
 
 * Allows accessing the data as either plain numpy arrays, scipy csr/csc sparse matrices, or as pandas series/frames.
 
-* Is a pure Python package so should run "anywhere" (as long as its dependencies, most notably ``pandas``, ``numpy``,
-  ``scipy`` and ``anndata`` are available).
+* Is a pure Python package so should run "anywhere" (as long as its dependencies ara available, most notably ``pandas``,
+  ``numpy``, ``scipy`` and ``anndata``).
 
 Motivation
 ----------
@@ -35,15 +35,16 @@ domains.
 The main issue we had with ``AnnData`` is that it restricts all the stored data to be described by two axes
 ("observations" and "variables"). E.g., in single-cell data, every cell would be an "observation" and every gene would
 be a "variable". As a secondary annoyance, ``AnnData`` gives one special "default" per-observation-per-variable data
-layer the uninformative name ``X``, and only allows naming additional data layers.
+layer the uninformative name ``X``, and only allows meaningful names for any additional data layers, which use a
+completely different access method.
 
 This works pretty well until one starts to perform higher level operations:
 
 * (Almost) everyone groups cells into "type" clusters. This requires storing per-cluster data (e.g. its name and its
   color).
 
-* Since "type" clusters correspond to some biological state, which maps to gene expression levels (or at least, to some
-  ranges of gene expression levels), this requires also storing per-cluster-per-gene data.
+* Since "type" clusters (hopefully) correspond to biological states, which map to gene expression levels, this requires
+  also storing per-cluster-per-gene data.
 
 * Often such clusters form at least a two-level hierarchy, so we need per-sub-cluster data and per-sub-cluster-per-gene
   data as well.
@@ -57,26 +58,28 @@ though that may not make much sense for some of the data sets. We'll also need t
 the data sets, and keep it in sync, or just store each such data in one of the data sets, and remember in which.
 
 In short, we'd end up writing some problem-specific code to manage the multiple ``AnnData`` objects for us, which kind
-of defeats the purpose of using ``AnnData`` in the first place. Instead, we have chosen to create ``daf`` which is a
+of defeats the purpose of using ``AnnData`` in the first place. Instead, we have chosen to create ``daf``, which is a
 general-purpose solution that embraces the existence of arbitrary multiple axes in the same data set, and enforces no
 opaque default names, to make it easy for us store explicitly named data per-whatever-we-damn-please all in a single
 place.
 
 When it comes to storage, ``daf`` makes it as easy as possible to write adapters to allow storing the data in your
 favorite format; in particular, ``daf`` supports ``AnnData`` (or a set of ``AnnData``) as a storage format, which in
-turn allows the data to be stored in various disk file formats such as ``h5aD``.
+turn allows the data to be stored in various disk file formats such as ``h5ad``.
 
 That said, we find the use of complex single-file formats such as ``h5ad`` to be sub-optimal. In effect they try to
-replicate a file system, and often do it badly. For example, it is difficult to list the content of the file, copy or
-delete just parts of it, find out which parts have been changed when, and most implementations do not support
-memory-mapping the data, which causes a huge performance hit for large data sets.
+replicate a file system, but offer only some of its functionality. For example, you need special APIs to list the
+content of the file, or copy or delete just parts of it. It is impossible find out which parts have been changed when,
+and most implementations do not support memory-mapping the data, which causes a huge performance hit for large data
+sets.
 
 Therefore, as an option, ``daf`` also supports a simple "files" storage format where every "annotation" is a separate
 file (in a trivial format) inside a single directory. This allows for efficient memory-mapping of files, using standard
 file system tools to list, copy and/or delete data, and using tools like ``make`` to automate incremental computations.
 The main downside is that to send a data set across the network, one has to first collect it into a ``tar`` or ``zip``
 archive. This may actually be more efficient as this allows compressing the data for more efficient transmission or
-archiving. Besides, due to the limitations of ``AnnData`` one has to send multiple files for a complete data set anyway.
+archiving. Besides, due to the limitations of ``AnnData``, one has to send multiple files for a complete data set
+anyway.
 
 In addition ``daf`` also provides a simple in-memory storage format, which means we can avoid using ``AnnData``
 altogether when we so choose. It is also possible to create views of ``daf`` data (slicing, renaming and hiding axes
@@ -85,8 +88,8 @@ data set into an ``AnnData`` data set for writing it into an ``h5ad`` file).
 
 Finally, the ``daf`` package also provides some convenience functionality out of the box, such as caching derived data
 (different layouts of the same data, sums along axes, conversion of UMIs to fractions, etc.). It is possible to disable
-such caching (always recomputing the data), or direct the cache to an arbitrary storage format (e.g., keep the derived
-data cache in-memory on top of a disk-based data set, which is a common usage pattern).
+such caching (recomputing the derived data every time it is requested), or direct the cache to an arbitrary storage
+format (e.g., keep the derived data cache in-memory on top of a disk-based data set, which is a common usage pattern).
 
 It is assumed that ``daf`` data will be processed in a single machine, that is, ``daf`` does not try to address the
 issues of a distributed cluster of servers working on a shared data set. Today's servers (as of 2022) can get very big
@@ -114,22 +117,22 @@ Usage
     # Open an existing DAF storage in the "files" format.
     data = daf.DafReader(daf.FilesReader("..."))
 
-    # Access an arbitrary 0D "blob".
-    description = data.get_datum("description")
+    # Access arbitrary 0D data.
+    description = data.get_item("description")
 
     # Get a 1D numpy array by axis and name.
-    metacell_types = data.get_array1d("metacell;type")
+    metacell_types = data.get_vector("metacell;type")
 
     # Get a Pandas series by axis and name (index is the type names).
     type_colors = data.get_series("type;color")
 
-    # Combine these to get a Pandas series of the color of each metacell (index is the metacell type names).
+    # Combine these to get a Pandas series of the color of each metacell.
     metacell_colors = type_colors[metacell_types]
 
     # Get a 2D matrix by two axes and a name.
-    umis_grid = data.get_grid("cell,gene;UMIs")
+    umis_matrix = data.get_matrix("cell,gene;UMIs")
 
-    if daf.is_array2d(umis_matrix):
+    if daf.is_dense(umis_matrix):
         # Umis matrix is dense (2D numpy array).
         ...
     else:
@@ -143,17 +146,18 @@ Usage
     # Access the mask of marker genes for a specific type as a Pandas series.
     t_marker_genes = type_marker_genes["T"]
 
-    # Get a Pandas data frame with multiple named vectors (columns) of possibly different types, all of the same axis.
-    genes_masks = data.get_columns(["gene;forbidden", "gene;significant"])
+    # Get a Pandas data frame with multiple named vectors (columns) of possibly different types.
+    genes_masks = data.get_columns("gene", ["forbidden", "significant"])
 
     # Access the mask of significant genes in the frame as a Pandas series.
     significant_genes_mask = genes_masks["significant"]
 
     # Get (and cache) the total sum of UMIs per cell, so repeated requests will not re-compute it.
-    cells_umis_sum = data.get_array1d("cell,gene;UMIs|sum")
+    cells_umis_sum = data.get_vector("cell,gene;UMIs|RowsSum")
 
     #: Slice the data to look only at cells with a high number of UMIs and significant.
-    strong_data = data.DafView(data, axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask))
+    strong_data = \
+        daf.daf_view(data, axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask))
 
 See the `documentation <https://daf.readthedocs.io/en/latest/?badge=latest>`_ for the full API details.
 

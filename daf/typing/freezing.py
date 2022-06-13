@@ -7,7 +7,7 @@ At the same time, Python doesn't really have a notion of immutable data when it 
 However, ``numpy`` does have a concept of read-only data, so we make use of it here, and extend it to deal with
 ``pandas`` and ``scipy.sparse`` data as well (as they use ``numpy`` data under the hood).
 
-In general, ``daf`` always freezes data when it is stored, and accesses return frozen data, to protect against
+In general, ``daf`` always freezes data when it is stored, and fetching data will return frozen data, to protect against
 accidental in-place modification of the stored data.
 
 The code in this module allows to manually `.freeze`, `.unfreeze`, or test whether data `.is_frozen`, using the
@@ -22,7 +22,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Generator
 from typing import TypeVar
-from typing import Union
 
 import numpy as np
 import pandas as pd  # type: ignore
@@ -30,13 +29,11 @@ import scipy.sparse as sp  # type: ignore
 
 from . import descriptions as _descriptions
 from . import fake_pandas as _fake_pandas  # pylint: disable=unused-import
-from . import matrices as _matrices
-from . import vectors as _vectors
+from . import unions as _unions
 
 # pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
-    "ProperData",
     "ProperT",
     "freeze",
     "unfreeze",
@@ -45,18 +42,15 @@ __all__ = [
 ]
 
 
-#: Any "proper" data type that ``daf`` supports.
-ProperData = Union[_matrices.Matrix, _vectors.Vector]
-
-#: A ``TypeVar`` bound to `.ProperData`.
-ProperT = TypeVar("ProperT", bound=ProperData)
+#: A ``TypeVar`` bound to `.Proper`.
+ProperT = TypeVar("ProperT", bound=_unions.Proper)
 
 
 def freeze(data: ProperT) -> ProperT:
     """
-    Ensure that some 1/2D data is protected against modification.
+    Ensure that some 1D/2D data is protected against modification.
 
-    This **tries** to unfreeze the data in place, but because ``pandas`` has strange behavior, we are forced to return a
+    This **tries** to freeze the data in place, but because ``pandas`` has strange behavior, we are forced to return a
     new frozen object (this is only a wrapper, the data itself is not copied). Hence the safe idiom is ``data =
     freeze(data)``. Sigh.
     """
@@ -68,16 +62,14 @@ def freeze(data: ProperT) -> ProperT:
         data.flags.writeable = False
         return data  # type: ignore
     if isinstance(data, (sp.csr_matrix, sp.csc_matrix)):
-        assert data.indices.flags.writeable == data.indptr.flags.writeable == data.data.flags.writeable
         data.indices.flags.writeable = data.indptr.flags.writeable = data.data.flags.writeable = False
         return data
-    _descriptions.assert_data(False, "matrix of vector", data, None)
-    assert False, "never happens"
+    assert False, f"expected: proper 1D/2D data, got: {_descriptions.data_description(data)}"
 
 
 def unfreeze(data: ProperT) -> ProperT:
     """
-    Ensure that some 1/2D data is not protected against modification.
+    Ensure that some 1D/2D data is not protected against modification.
 
     This **tries** to unfreeze the data in place, but because ``pandas`` has strange behavior, we are forced to return a
     new frozen object (this is only a wrapper, the data itself is not copied). Hence the safe idiom is ``data =
@@ -91,46 +83,47 @@ def unfreeze(data: ProperT) -> ProperT:
         data.flags.writeable = True
         return data  # type: ignore
     if isinstance(data, (sp.csr_matrix, sp.csc_matrix)):
-        assert data.indices.flags.writeable == data.indptr.flags.writeable == data.data.flags.writeable
         data.indices.flags.writeable = data.indptr.flags.writeable = data.data.flags.writeable = True
         return data
-    _descriptions.assert_data(False, "matrix of vector", data, None)
-    assert False, "never happens"
+    assert False, f"expected: proper 1D/2D data, got: {_descriptions.data_description(data)}"
 
 
-def is_frozen(data: ProperData) -> bool:
+def is_frozen(data: _unions.Known) -> bool:
     """
-    Test whether some 1/2D data is protected against modification.
+    Test whether some 1D/2D data is (known to be) protected against modification.
+
+    .. note::
+
+        This will fail for any ``scipy.sparse.spmatrix`` other than for ``scipy.sparse.csr_matrix`` or
+        ``scipy.sparse.csc_matrix``.
     """
     if isinstance(data, (pd.DataFrame, pd.Series)):
         data = data.values
     if isinstance(data, np.ndarray):
         return not data.flags.writeable
     if isinstance(data, (sp.csr_matrix, sp.csc_matrix)):
-        assert data.indices.flags.writeable == data.indptr.flags.writeable == data.data.flags.writeable
-        return not data.data.flags.writeable
-    _descriptions.assert_data(False, "matrix of vector", data, None)
-    assert False, "never happens"
+        return not data.indices.flags.writeable or not data.indptr.flags.writeable or not data.data.flags.writeable
+    assert False, f"expected: known 1D/2D data, got: {_descriptions.data_description(data)}"
 
 
 @contextmanager
 def unfrozen(data: ProperT) -> Generator[ProperT, None, None]:
     """
-    Execute some in-place modification, temporarily unfreezing the 1/2D data.
+    Execute some in-place modification, temporarily unfreezing the 1D/2D data.
 
     Expected usage is:
 
     .. code::
 
-        data = freeze(data)
-        # The ``data`` is immutable here.
+        assert is_frozen(data)  # The ``data`` is immutable here.
 
         with unfrozen(data) as melted:
             # ``melted`` data is writable here.
             # Do **not** leak the reference to the ``melted`` data to outside the block.
-            # In particular, do **not** write ``with unfrozen(data) as data:``.
+            # In particular, do **not** use the anti-pattern ``with unfrozen(data) as data: ...``.
+            assert not is_frozen(melted)
 
-        # The ``data`` stays immutable here, as long as you didn't leak ``melted`` above.
+        assert is_frozen(data)  # The ``data`` is immutable here.
     """
     was_frozen = is_frozen(data)
     if was_frozen:

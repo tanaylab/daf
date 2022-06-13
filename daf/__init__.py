@@ -1,5 +1,6 @@
 """
-Data in Axes in Formats
+This re-exports everything in the sub-modules directly from the ``daf`` module, so, for example, you can write ``from
+daf import MemoryStorage`` or ``daf.MemoryStorage`` instead of the full name ``daf.storage.memory.MemoryStorage``.
 
 .. todo::
 
@@ -24,5 +25,6 @@ __version__ = "0.1.0-dev.1"
 
 import sys
 
+from .access import *
 from .storage import *
 from .typing import *

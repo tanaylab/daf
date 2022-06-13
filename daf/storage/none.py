@@ -2,7 +2,7 @@
 The `.NO_STORAGE` is used to disable caching (e.g., caching sliced data in a `.StorageView`).
 
 Creating or setting data inside `.NO_STORAGE` has no effect. Unlike a real storage, it allows querying for names of axes
-that don't exist (since in it, no axes exist). It also
+that don't exist (since in it, no axes exist).
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -12,14 +12,18 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Any
 from typing import Collection
+from typing import Dict
 from typing import Generator
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from ..typing import Array1D
-from ..typing import ArrayInRows
-from ..typing import Data2D
-from ..typing import GridInRows
+from ..typing import DenseInRows
+from ..typing import DType
+from ..typing import Known1D
+from ..typing import Known2D
+from ..typing import MatrixInRows
+from ..typing import Vector
 from . import interface as _interface
 
 # pylint: enable=duplicate-code,cyclic-import
@@ -40,16 +44,21 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def as_reader(self) -> _interface.StorageReader:
         return self
 
-    def _datum_names(self) -> Collection[str]:
+    def description(self, *, detail: bool = False, deep: bool = False, description: Optional[Dict] = None) -> Dict:
+        description = description or {}
+        description[self.name] = "NO_STORAGE"
+        return description
+
+    def _item_names(self) -> Collection[str]:
         return []
 
-    def _has_datum(self, name: str) -> bool:
+    def _has_item(self, name: str) -> bool:
         return False
 
-    def get_datum(self, name: str) -> Any:
+    def get_item(self, name: str) -> Any:
         assert False, "never happens"
 
-    def _get_datum(self, name: str) -> Any:
+    def _get_item(self, name: str) -> Any:
         assert False, "never happens"
 
     def _axis_names(self) -> Collection[str]:
@@ -64,28 +73,28 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def _axis_size(self, axis: str) -> int:
         assert False, "never happens"
 
-    def axis_entries(self, axis: str) -> Array1D:
+    def axis_entries(self, axis: str) -> Known1D:
         assert False, "never happens"
 
-    def _axis_entries(self, axis: str) -> Array1D:
+    def _axis_entries(self, axis: str) -> Known1D:
         assert False, "never happens"
 
-    def array1d_names(self, axis: str) -> Collection[str]:
+    def data1d_names(self, axis: str) -> Collection[str]:
         return []
 
-    def _array1d_names(self, axis: str) -> Collection[str]:
+    def _data1d_names(self, axis: str) -> Collection[str]:
         assert False, "never happens"
 
-    def has_array1d(self, name: str) -> bool:
+    def has_data1d(self, name: str) -> bool:
         return False
 
-    def _has_array1d(self, axis: str, name: str) -> bool:
+    def _has_data1d(self, axis: str, name: str) -> bool:
         assert False, "never happens"
 
-    def get_array1d(self, name: str) -> Array1D:
+    def get_data1d(self, name: str) -> Known1D:
         assert False, "never happens"
 
-    def _get_array1d(self, axis: str, name: str) -> Array1D:
+    def _get_data1d(self, axis: str, name: str) -> Known1D:
         assert False, "never happens"
 
     def data2d_names(self, axes: Union[str, Tuple[str, str]]) -> Collection[str]:
@@ -100,47 +109,49 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
     def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
         assert False, "never happens"
 
-    def get_data2d(self, name: str) -> Data2D:
+    def get_data2d(self, name: str) -> Known2D:
         assert False, "never happens"
 
-    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Data2D:
+    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Known2D:
         assert False, "never happens"
 
     def update(self, storage: _interface.StorageReader, *, overwrite: bool = False) -> None:
         pass
 
-    def set_datum(self, name: str, datum: Any, *, overwrite: bool = False) -> None:
+    def set_item(self, name: str, item: Any, *, overwrite: bool = False) -> None:
         pass
 
-    def _set_datum(self, name: str, datum: Any) -> None:
+    def _set_item(self, name: str, item: Any) -> None:
         assert False, "never happens"
 
-    def create_axis(self, axis: str, entries: Array1D) -> None:
+    def create_axis(self, axis: str, entries: Vector) -> None:
         pass
 
-    def _create_axis(self, axis: str, entries: Array1D) -> None:
+    def _create_axis(self, axis: str, entries: Vector) -> None:
         assert False, "never happens"
 
-    def set_array1d(self, name: str, array1d: Array1D, *, overwrite: bool = False) -> None:
+    def set_vector(self, name: str, vector: Vector, *, overwrite: bool = False) -> None:
         pass
 
-    def _set_array1d(self, axis: str, name: str, array1d: Array1D) -> None:
+    def _set_vector(self, axis: str, name: str, vector: Vector) -> None:
         assert False, "never happens"
 
-    def set_grid(self, name: str, grid: GridInRows, *, overwrite: bool = False) -> None:
+    def set_matrix(self, name: str, matrix: MatrixInRows, *, overwrite: bool = False) -> None:
         pass
 
-    def _set_grid(self, axes: Tuple[str, str], name: str, grid: GridInRows) -> None:
+    def _set_matrix(self, axes: Tuple[str, str], name: str, matrix: MatrixInRows) -> None:
         assert False, "never happens"
 
     @contextmanager
-    def create_array_in_rows(
-        self, name: str, *, dtype: str, overwrite: bool = False
-    ) -> Generator[ArrayInRows, None, None]:
+    def create_dense_in_rows(
+        self, name: str, *, dtype: DType, overwrite: bool = False
+    ) -> Generator[DenseInRows, None, None]:
         assert False, "never happens"
 
     @contextmanager
-    def _create_array_in_rows(self, axes: Tuple[str, str], name: str, dtype: str) -> Generator[ArrayInRows, None, None]:
+    def _create_dense_in_rows(
+        self, axes: Tuple[str, str], name: str, dtype: DType
+    ) -> Generator[DenseInRows, None, None]:
         assert False, "never happens"
 
 

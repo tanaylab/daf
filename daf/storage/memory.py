@@ -4,6 +4,8 @@ Simple in-memory storage.
 This just keeps everything in-memory, similarly to the way an ``AnnData`` object works; that is, this is a lightweight
 object that just keeps references to the data it is given. Unlike ``AnnData`` it allows for efficient storage of
 multiple axes.
+
+This is the "default" storage type you should use unless, you need something specific another storage format provides.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -13,12 +15,12 @@ from __future__ import annotations
 from typing import Any
 from typing import Collection
 from typing import Dict
-from typing import Optional
 from typing import Tuple
 
-from ..typing import Array1D
-from ..typing import Data2D
-from ..typing import GridInRows
+from ..typing import Known1D
+from ..typing import Known2D
+from ..typing import MatrixInRows
+from ..typing import Vector
 from . import interface as _interface
 
 # pylint: enable=duplicate-code,cyclic-import
@@ -29,38 +31,38 @@ __all__ = [
 ]
 
 
-class MemoryReader(_interface.StorageReader):
+class _MemoryReader(_interface.StorageReader):
     """
     Implement the `.StorageReader` interface for in-memory storage.
     """
 
-    def __init__(self, *, name: Optional[str] = None) -> None:
+    def __init__(self, *, name: str) -> None:
         super().__init__(name=name)
 
-        # The 0D ("blob") data.
-        self._data: Dict[str, Any] = {}
+        # The 0D data.
+        self._items: Dict[str, Any] = {}
 
         # The entries for each known axis.
-        self._axes: Dict[str, Array1D] = {}
+        self._axes: Dict[str, Vector] = {}
 
         # For each axis, the 1D data indexed by this axis.
-        self._arrays: Dict[str, Dict[str, Array1D]] = {}
+        self._arrays: Dict[str, Dict[str, Vector]] = {}
 
-        # For each pair of axis, the 2D `.is_optimal` `.ROW_MAJOR` `.GridInRows` indexed by that pair.
-        self._grids: Dict[Tuple[str, str], Dict[str, GridInRows]] = {}
+        # For each pair of axis, the 2D `.is_optimal` `.ROW_MAJOR` `.MatrixInRows` indexed by that pair.
+        self._matrices: Dict[Tuple[str, str], Dict[str, MatrixInRows]] = {}
 
     # pylint: disable=duplicate-code
 
-    def _datum_names(self) -> Collection[str]:
-        return self._data.keys()
+    def _item_names(self) -> Collection[str]:
+        return self._items.keys()
 
-    def _has_datum(self, name: str) -> bool:
-        return name in self._data
+    def _has_item(self, name: str) -> bool:
+        return name in self._items
 
     # pylint: enable=duplicate-code
 
-    def _get_datum(self, name: str) -> Any:
-        return self._data[name]
+    def _get_item(self, name: str) -> Any:
+        return self._items[name]
 
     def _axis_names(self) -> Collection[str]:
         return self._axes.keys()
@@ -73,33 +75,35 @@ class MemoryReader(_interface.StorageReader):
     def _axis_size(self, axis: str) -> int:
         return len(self._axes[axis])
 
-    def _axis_entries(self, axis: str) -> Array1D:
+    def _axis_entries(self, axis: str) -> Known1D:
         return self._axes[axis]
 
-    def _array1d_names(self, axis: str) -> Collection[str]:
+    def _data1d_names(self, axis: str) -> Collection[str]:
         return self._arrays[axis].keys()
 
-    def _has_array1d(self, axis: str, name: str) -> bool:
+    def _has_data1d(self, axis: str, name: str) -> bool:
         return name in self._arrays[axis]
 
-    def _get_array1d(self, axis: str, name: str) -> Array1D:
+    def _get_data1d(self, axis: str, name: str) -> Known1D:
         return self._arrays[axis][name]
 
     def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:
-        return self._grids[axes].keys()
+        return self._matrices[axes].keys()
 
     def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
-        return name in self._grids[axes]
+        return name in self._matrices[axes]
 
     # pylint: enable=duplicate-code
 
-    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Data2D:
-        return self._grids[axes][name]
+    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Known2D:
+        return self._matrices[axes][name]
 
 
-class MemoryStorage(MemoryReader, _interface.StorageWriter):
+class MemoryStorage(_MemoryReader, _interface.StorageWriter):
     """
     Implement the `.StorageWriter` interface for in-memory storage.
+
+    If the ``name`` ends with ``#``, we append the object id to it to make it unique.
 
     .. note::
 
@@ -107,23 +111,29 @@ class MemoryStorage(MemoryReader, _interface.StorageWriter):
         put into the storage. It does `.freeze` it to prevent accidental modifications.
     """
 
-    def _set_datum(self, name: str, datum: Any) -> None:
-        self._data[name] = datum
+    def __init__(self, *, name: str = "memory#") -> None:
+        if name.endswith("#"):
+            name += str(id(self))
+
+        super().__init__(name=name)
+
+    def _set_item(self, name: str, item: Any) -> None:
+        self._items[name] = item
 
     # pylint: disable=duplicate-code
 
-    def _create_axis(self, axis: str, entries: Array1D) -> None:
+    def _create_axis(self, axis: str, entries: Vector) -> None:
         self._arrays[axis] = {}
         for other_axis in self._axes:
-            self._grids[(axis, other_axis)] = {}
-            self._grids[(other_axis, axis)] = {}
-        self._grids[(axis, axis)] = {}
+            self._matrices[(axis, other_axis)] = {}
+            self._matrices[(other_axis, axis)] = {}
+        self._matrices[(axis, axis)] = {}
         self._axes[axis] = entries
 
     # pylint: enable=duplicate-code
 
-    def _set_array1d(self, axis: str, name: str, array1d: Array1D) -> None:
-        self._arrays[axis][name] = array1d
+    def _set_vector(self, axis: str, name: str, vector: Vector) -> None:
+        self._arrays[axis][name] = vector
 
-    def _set_grid(self, axes: Tuple[str, str], name: str, grid: GridInRows) -> None:
-        self._grids[axes][name] = grid
+    def _set_matrix(self, axes: Tuple[str, str], name: str, matrix: MatrixInRows) -> None:
+        self._matrices[axes][name] = matrix

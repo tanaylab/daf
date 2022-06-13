@@ -14,15 +14,16 @@ from typing import Any
 from typing import Collection
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import Sequence
 from typing import Set
 from typing import Tuple
 
 import numpy as np
 
-from ..typing import Array1D
-from ..typing import Data2D
+from ..typing import Known1D
+from ..typing import Known2D
+from ..typing import Vector
+from ..typing import as_vector
 from . import interface as _interface
 from . import none as _none
 
@@ -37,9 +38,17 @@ __all__ = ["StorageChain"]
 class StorageChain(_interface.StorageReader):
     """
     Low-level read-only access to a ``chain`` of storage objects (first one wins).
+
+    If the ``name`` ends with ``#``, we append the object id to it to make it unique.
+
+    This is different from other storage implementations in that modifications to the wrapped storage objects are
+    guaranteed to be immediately visible in the chain (in contrast to, for example, `.StorageView` where this is **not**
+    the case). The implementation of `.DafWriter` relies on this fact.
     """
 
-    def __init__(self, chain: Sequence[_interface.StorageReader], *, name: Optional[str] = None) -> None:
+    def __init__(self, chain: Sequence[_interface.StorageReader], *, name: str = "chain#") -> None:
+        if name.endswith("#"):
+            name += str(id(self))
         super().__init__(name=name)
 
         unique_readers: List[_interface.StorageReader] = []
@@ -73,11 +82,11 @@ class StorageChain(_interface.StorageReader):
         unique_ids.add(reader_id)
 
     def _verify(self) -> None:
-        axes_entries: Dict[str, Tuple[str, Array1D]] = {}
+        axes_entries: Dict[str, Tuple[str, Vector]] = {}
         for storage in self.chain:
             new_name = storage.name
-            for axis in storage.axis_names():
-                new_entries = storage.axis_entries(axis)
+            for axis in storage._axis_names():
+                new_entries = as_vector(storage._axis_entries(axis))
                 old_data = axes_entries.get(axis)
                 if old_data is None:
                     axes_entries[axis] = (new_name, new_entries)
@@ -90,82 +99,89 @@ class StorageChain(_interface.StorageReader):
                         f"in the storage chain: {self.name}"
                     )
 
-    def _datum_names(self) -> Collection[str]:
+    def _self_description(self, self_description: Dict, *, detail: bool) -> None:
+        self_description["chain"] = [storage.name for storage in self.chain]
+
+    def _deep_description(self, description: Dict, self_description: Dict, *, detail: bool) -> None:
+        for storage in self.chain:
+            storage.description(description=description, detail=detail)
+
+    def _item_names(self) -> Collection[str]:
         names: Set[str] = set()
         for storage in self.chain:
-            names.update(storage.datum_names())
+            names.update(storage._item_names())
         return names
 
-    def _has_datum(self, name: str) -> bool:
+    def _has_item(self, name: str) -> bool:
         for storage in self.chain:
-            if storage.has_datum(name):
+            if storage._has_item(name):
                 return True
         return False
 
-    def _get_datum(self, name: str) -> Any:
+    def _get_item(self, name: str) -> Any:
         for storage in self.chain:
-            if storage.has_datum(name):
-                return storage._get_datum(name)
+            if storage._has_item(name):
+                return storage._get_item(name)
         assert False, "never happens"
 
     def _axis_names(self) -> Collection[str]:
         names: Set[str] = set()
         for storage in self.chain:
-            names.update(storage.axis_names())
+            names.update(storage._axis_names())
         return names
 
     def _has_axis(self, axis: str) -> bool:
         for storage in self.chain:
-            if storage.has_axis(axis):
+            if storage._has_axis(axis):
                 return True
         return False
 
     def _axis_size(self, axis: str) -> int:
         for storage in self.chain:
-            if storage.has_axis(axis):
+            if storage._has_axis(axis):
                 return storage._axis_size(axis)
         assert False, "never happens"
 
-    def _axis_entries(self, axis: str) -> Array1D:
+    def _axis_entries(self, axis: str) -> Known1D:
         for storage in self.chain:
-            if storage.has_axis(axis):
+            if storage._has_axis(axis):
                 return storage._axis_entries(axis)
         assert False, "never happens"
 
-    def _array1d_names(self, axis: str) -> Collection[str]:
+    def _data1d_names(self, axis: str) -> Collection[str]:
         names: Set[str] = set()
         for storage in self.chain:
-            if storage.has_axis(axis):
-                names.update(storage._array1d_names(axis))
+            if storage._has_axis(axis):
+                names.update(storage._data1d_names(axis))
         return names
 
-    def _has_array1d(self, axis: str, name: str) -> bool:
+    def _has_data1d(self, axis: str, name: str) -> bool:
         for storage in self.chain:
-            if storage.has_axis(axis) and storage._has_array1d(axis, name):
+            if storage._has_axis(axis) and storage._has_data1d(axis, name):
                 return True
         return False
 
-    def _get_array1d(self, axis: str, name: str) -> Array1D:
+    def _get_data1d(self, axis: str, name: str) -> Known1D:
         for storage in self.chain:
-            if storage.has_axis(axis) and storage.has_array1d(name):
-                return storage._get_array1d(axis, name)
+            if storage._has_axis(axis) and storage.has_data1d(name):
+                return storage._get_data1d(axis, name)
         assert False, "never happens"
 
     def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:
         names: Set[str] = set()
         for storage in self.chain:
-            if storage.has_axis(axes[0]) and storage.has_axis(axes[1]):
+            if storage._has_axis(axes[0]) and storage.has_axis(axes[1]):
                 names.update(storage._data2d_names(axes))
         return names
 
     def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
         for storage in self.chain:
-            if storage.has_axis(axes[0]) and storage.has_axis(axes[1]) and storage._has_data2d(axes, name):
+            if storage._has_axis(axes[0]) and storage._has_axis(axes[1]) and storage._has_data2d(axes, name):
                 return True
         return False
 
-    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Data2D:
+    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Known2D:
         for storage in self.chain:
-            if storage.has_axis(axes[0]) and storage.has_axis(axes[1]) and storage._has_data2d(axes, name):
+            if storage._has_axis(axes[0]) and storage._has_axis(axes[1]) and storage._has_data2d(axes, name):
                 return storage._get_data2d(axes, name)
         assert False, "never happens"

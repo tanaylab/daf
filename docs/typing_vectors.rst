@@ -1,10 +1,6 @@
-Vector Types
-============
+Vectors
+=======
 
 .. automodule:: daf.typing.vectors
+    :show-inheritance:
     :members:
-
-.. toctree::
-
-    Numpy 1D Arrays <typing_array1d>
-    Pandas Series <typing_series>

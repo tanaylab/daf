@@ -4,26 +4,23 @@ aren't optimal for processing. While most operations that take optimal data as i
 always the case and the documentation of the relevant libraries is mostly silent on this issue.
 
 At the same time, some code (especially C++ extension code) relies on the data being in one of the optimal formats. Even
-code that technically works will become much slower when applied to non-optimal data. Therefore, ``daf`` refuses to
-store non-optimal data.
+code that technically works can become **much** slower when applied to non-optimal data. Therefore, all data fetched
+from ``daf`` is always `.is_optimal`.
 
-Examples of non-optimal data are strided ``numpy`` data, and ``scipy.sparse`` data that contains duplicate and/or
-unsorted indices.
+Examples of non-optimal data are strided ``numpy`` data, and ``scipy.sparse.spmatrix`` that isn't
+``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``, or that is, but contains duplicate and/or unsorted indices.
 
-The functions here allow to test whether data is in an optimal format and allow converting data to an optimal format,
+The functions here allow to test whether data is in an optimal format, and allow converting data to an optimal format,
 in-place if possible, optionally forcing a copy.
 
-Most of the time, you can ignore these functions, until you see ``daf`` complaining about seeing non-optimal data, in
-which case you'll need to inject an `.optimize` call into your code. If you aren't sure how the non-optimal data was
-created, use `.is_optimal` and/or `.be_optimal` to isolate the offending operations.
+Most of the time, you can ignore these functions. However if you are writing serious processing code (e.g. a library),
+they are useful in ensuring it will be correct and efficient.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
-from typing import Any
-from typing import Sequence
 from typing import TypeVar
 from typing import Union
 from typing import overload
@@ -32,20 +29,21 @@ import numpy as np
 import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
-from . import array1d as _array1d
-from . import array2d as _array2d
+from . import dense as _dense
 from . import descriptions as _descriptions
+from . import dtypes as _dtypes
 from . import fake_pandas as _fake_pandas
+from . import fake_sparse as _fake_sparse
 from . import frames as _frames
 from . import freezing as _freezing
 from . import layouts as _layouts
-from . import series as _series
 from . import sparse as _sparse
+from . import unions as _unions
+from . import vectors as _vectors
 
 # pylint: enable=duplicate-code,cyclic-import
 
 __all__ = [
-    "KnownData",
     "KnownT",
     "is_optimal",
     "be_optimal",
@@ -53,18 +51,19 @@ __all__ = [
 ]
 
 
-def is_optimal(data: Any) -> bool:  # pylint: disable=too-many-return-statements
+def is_optimal(data: _unions.Known) -> bool:  # pylint: disable=too-many-return-statements
     """
     Whether the ``data`` is in one of the supported ``daf`` types and also in an "optimal" format.
     """
     if isinstance(data, sp.spmatrix):
         return (
             isinstance(data, (sp.csr_matrix, sp.csc_matrix))
+            and is_optimal(data.data)
+            and is_optimal(data.indices)
+            and is_optimal(data.indptr)
             and data.has_canonical_format
             and data.has_sorted_indices
-            and data.data.strides[0] == data.data.dtype.itemsize
-            and data.indices.strides[0] == data.indices.dtype.itemsize
-            and data.indptr.strides[0] == data.indptr.dtype.itemsize
+            and data.indices.flags.writeable == data.indptr.flags.writeable == data.data.flags.writeable
         )
 
     if isinstance(data, pd.DataFrame):
@@ -88,69 +87,59 @@ def is_optimal(data: Any) -> bool:  # pylint: disable=too-many-return-statements
         if data.ndim == 1:
             return data.strides[0] == data.dtype.itemsize
         if data.ndim == 2:
-            return _layouts.ROW_MAJOR.is_layout_of(data) or _layouts.COLUMN_MAJOR.is_layout_of(data)  # type: ignore
+            return _layouts.has_layout(data, _layouts.ROW_MAJOR) or _layouts.has_layout(data, _layouts.COLUMN_MAJOR)
         return False
 
-    assert False, f"expected a matrix or a vector, got {_descriptions.data_description(data)}"
+    assert False, f"expected: known data, got: {_descriptions.data_description(data)}"
 
 
-#: Any data type that ``daf`` knows about.
-KnownData = Union[np.ndarray, sp.spmatrix, _fake_pandas.PandasSeries, _fake_pandas.PandasFrame]
-
-#: A ``TypeVar`` bound to `.KnownData`.
-KnownT = TypeVar("KnownT", bound=KnownData)
+#: A ``TypeVar`` bound to `.Known`.
+KnownT = TypeVar("KnownT", bound=_unions.Known)
 
 
 def be_optimal(data: KnownT) -> KnownT:
     """
     Assert that some data is in "optimal" format and return it as-is.
     """
-    _descriptions.assert_data(is_optimal(data), "optimal matrix or vector", data, None)
+    _descriptions.assert_data(is_optimal(data), "optimal known data", data)
     return data
 
 
 @overload
 def optimize(
-    data: Sequence[Any],
-    *,
-    force_copy: bool = False,
-    preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR,
-) -> Any:
+    data: _vectors.Vector, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
+) -> _vectors.Vector:
     ...
 
 
 @overload
 def optimize(
-    data: _array1d.Array1D, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> _array1d.Array1D:
+    data: _dense.DenseInRows, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
+) -> _dense.DenseInRows:
     ...
 
 
 @overload
 def optimize(
-    data: _series.Series, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> _series.Series:
-    ...
-
-
-@overload
-def optimize(
-    data: _array2d.ArrayInRows, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> _array2d.ArrayInRows:
-    ...
-
-
-@overload
-def optimize(
-    data: _array2d.ArrayInColumns, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> _array2d.ArrayInColumns:
+    data: _dense.DenseInColumns, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
+) -> _dense.DenseInColumns:
     ...
 
 
 @overload
 def optimize(
     data: np.ndarray, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> np.ndarray:
+) -> Union[_vectors.Vector, _dense.Dense]:
+    ...
+
+
+@overload
+def optimize(
+    data: _fake_pandas.Series,
+    *,
+    force_copy: bool = False,
+    preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR,
+) -> _fake_pandas.Series:
     ...
 
 
@@ -170,11 +159,11 @@ def optimize(
 
 @overload
 def optimize(
-    data: _fake_pandas.PandasFrame,
+    data: _fake_pandas.DataFrame,
     *,
     force_copy: bool = False,
     preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR,
-) -> _fake_pandas.PandasFrame:
+) -> _frames.Frame:
     ...
 
 
@@ -193,26 +182,32 @@ def optimize(
 
 
 @overload
-def optimize(data: Any, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR) -> Any:
+def optimize(
+    data: _fake_sparse.spmatrix,
+    *,
+    force_copy: bool = False,
+    preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR,
+) -> _sparse.Sparse:
     ...
 
 
-def optimize(  # pylint: disable=too-many-branches
-    data: Any, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
-) -> Any:
+def optimize(  # pylint: disable=too-many-branches,too-many-statements
+    data: _unions.Known, *, force_copy: bool = False, preferred_layout: _layouts.AnyMajor = _layouts.ROW_MAJOR
+) -> _unions.Proper:
     """
-    Given some ``data`` in any (reasonable) format, return it in a supported, "optimal" format.
+    Given some ``data`` in any `.Known2D` format, return it in a `.Proper` "optimal" format.
 
     If possible, and ``force_copy`` is not specified, this optimizes the data in-place. Otherwise, a copy is created.
     E.g. this can sort the indices of a CSR or CSC matrix in-place.
 
-    If the data is a matrix, and it has no clear layout, a copy will be created using the ``preferred_layout``. E.g.
-    this will determine whether a COO matrix will be converted to a CSR or CSC matrix. For vector data, this argument is
-    ignored.
+    If the data is 2D, and it has no clear layout, a copy will be created using the ``preferred_layout``. E.g. this will
+    determine whether a COO matrix will be converted to a CSR or CSC matrix. For 1D data, this argument is ignored.
 
     If the data was copied and ``force_copy`` was not specified, and the data was `.is_frozen`, then so is the
     result; this ensures the code consuming the result will work regardless of whether a copy was done. If
     ``force_copy`` was specified, the result is never `.is_frozen`.
+
+    This will fail if given a ``pandas.DataFrame`` with mixed data element types.
 
     .. note::
 
@@ -224,7 +219,7 @@ def optimize(  # pylint: disable=too-many-branches
     """
     if isinstance(data, np.ndarray) and 1 <= data.ndim <= 2:
         if force_copy or not is_optimal(data):
-            freeze = not force_copy and _freezing.is_frozen(data)  # type: ignore
+            freeze = not force_copy and _freezing.is_frozen(data)
             data = np.array(data, order=preferred_layout.numpy_order)  # type: ignore
         else:
             freeze = False
@@ -232,20 +227,28 @@ def optimize(  # pylint: disable=too-many-branches
     elif isinstance(data, pd.Series):
         if force_copy or not is_optimal(data):
             freeze = not force_copy and isinstance(data.values, np.ndarray) and _freezing.is_frozen(data)
-            data = pd.Series(_array1d.as_array1d(data, force_copy=True), index=data.index)
+            dtype = _dtypes.STR_DTYPE if _dtypes.has_dtype(data, _dtypes.STR_DTYPE) else data.dtype
+            data = pd.Series(_vectors.as_vector(data, force_copy=True), index=data.index, dtype=dtype)
         else:
             freeze = False
 
     elif isinstance(data, pd.DataFrame):
-        if force_copy or not is_optimal(data):
-            freeze = not force_copy and isinstance(data.values, np.ndarray) and _freezing.is_frozen(data)
-            data = pd.DataFrame(
-                np.array(data.values, order=preferred_layout.numpy_order),  # type: ignore
-                index=data.index,
-                columns=data.columns,
-            )
-        else:
+        if not force_copy and is_optimal(data):
             freeze = False
+        else:
+            freeze = not force_copy and is_optimal(data.values) and _freezing.is_frozen(data.values)
+            if len(set(data.dtypes)) == 1:
+                dtype = str(data.dtypes[0])
+                if _dtypes.is_dtype(dtype, _dtypes.STR_DTYPE):
+                    dtype = _dtypes.STR_DTYPE
+                data = pd.DataFrame(
+                    np.array(data.values, order=preferred_layout.numpy_order),  # type: ignore
+                    index=data.index,
+                    columns=data.columns,
+                    dtype=dtype,
+                )
+            else:
+                data = pd.DataFrame({name: optimize(data[name]) for name in data}, index=data.index)
 
     elif isinstance(data, sp.spmatrix):
         if isinstance(data, (sp.csr_matrix, sp.csc_matrix)):
@@ -271,13 +274,13 @@ def optimize(  # pylint: disable=too-many-branches
         else:
             freeze = False
 
-        with _freezing.unfrozen(data) as melted:
-            melted.sum_duplicates()
-            melted.sort_indices()
+        with _freezing.unfrozen(data) as melted:  # type: ignore
+            melted.sum_duplicates()  # type: ignore
+            melted.sort_indices()  # type: ignore
 
     else:
-        assert False, f"expected a matrix or a vector, got {_descriptions.data_description(data)}"
+        assert False, f"expected known data, got: {_descriptions.data_description(data)}"
 
     if freeze:
-        data = _freezing.freeze(data)
-    return data
+        data = _freezing.freeze(data)  # type: ignore
+    return data  # type: ignore

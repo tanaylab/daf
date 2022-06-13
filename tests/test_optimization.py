@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
-from daf.typing.array1d import *  # pylint: disable=wildcard-import,unused-wildcard-import
-from daf.typing.array2d import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from daf.typing.dense import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.layouts import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.optimization import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from daf.typing.vectors import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 from . import allow_np_matrix
 
@@ -29,13 +29,14 @@ def assert_is_optimal(data: Any) -> None:
 
 def assert_not_is_optimal(data: Any, preferred_layout: AnyMajor = ROW_MAJOR) -> None:
     assert not is_optimal(data)
+
     optimized = be_optimal(optimize(data, preferred_layout=preferred_layout))
     assert id(optimized) != id(data)
 
     if data.ndim == 1:
-        assert np.all(as_array1d(data) == as_array1d(optimized))
+        assert np.all(as_vector(data) == as_vector(optimized))
     else:
-        assert np.all(as_array2d(data) == as_array2d(optimized))
+        assert np.all(as_dense(data) == as_dense(optimized))
 
 
 def test_optimize() -> None:

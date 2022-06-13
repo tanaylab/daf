@@ -1,9 +1,10 @@
 """
-Pandas doesn't provide type annotations. We don't try to overcome this here, but we do want to allow for saying "this is
-a pandas frame in column-major layout", at least as an option. To do this we need to use ``typing.NewType`` which
-requires the annotated class to be known. As a workaround we define fake pandas series and frame classes and use them
-for the annotation instead. To shut ``mypy`` up we need to populate them with all the public interface of the real
-classes.
+The ``pandas`` package doesn't provide type annotations. This means anywhere we use ``pandas.DataFrame`` or
+``pandas.Series`` it becomes ``Any``, which poisons any ``Union`` using them to become ``Any`` as well, making ``mypy``
+type checking useless. To make things worse, we'd like to be able to say "this is a pandas frame in column-major
+layout", at least as an option. To do this we need to use ``typing.NewType`` which flat-out refuses to be based on an
+unknown type. As a workaround we define fake `.DataFrame` and `.Series` and use them instead. To shut ``mypy``
+up we need to populate it with all the public interface of the real ``pandas`` classes. Sigh.
 
 .. todo::
 
@@ -23,10 +24,10 @@ from typing import Tuple
 # pylint: disable=too-many-public-methods,too-many-lines
 
 
-__all__ = ["PandasSeries", "PandasFrame"]
+__all__ = ["Series", "DataFrame"]
 
 
-class PandasSeries:
+class Series:
     """
     Fake class for ``mypy``.
     """
@@ -795,7 +796,7 @@ class PandasSeries:
     # pylint: enable=unused-argument,missing-function-docstring,no-self-use,invalid-name
 
 
-class PandasFrame:  # pylint: disable=too-many-public-methods
+class DataFrame:  # pylint: disable=too-many-public-methods
     """
     Fake class for ``mypy``.
     """

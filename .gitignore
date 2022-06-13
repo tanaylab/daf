@@ -25,6 +25,7 @@ htmlcov
 metacells/should_check_avx2.py
 metacells/*.so
 .mypy_cache/
+.nfs*
 nosetests.xml
 parts
 *.pdf

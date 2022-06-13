@@ -1,5 +1,5 @@
 """
-The types here describe a 1D ``pandas.Series``, which can be obtained from ``daf`` storage.
+The types here describe a 1D ``pandas.Series``, which can be fetched from ``daf``.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -7,9 +7,7 @@ The types here describe a 1D ``pandas.Series``, which can be obtained from ``daf
 from __future__ import annotations
 
 from typing import Any
-from typing import Collection
-from typing import NewType
-from typing import Union
+from typing import Optional
 
 try:
     from typing import TypeGuard  # pylint: disable=unused-import
@@ -27,17 +25,12 @@ from . import fake_pandas as _fake_pandas
 
 
 __all__ = [
-    "Series",
     "is_series",
     "be_series",
 ]
 
 
-#: 1-dimensional ``pandas.Series``.
-Series = NewType("Series", _fake_pandas.PandasSeries)
-
-
-def is_series(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> TypeGuard[Series]:
+def is_series(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[_fake_pandas.Series]:
     """
     Check whether some ``data`` is a `.Series`, optionally only of some ``dtype``.
 
@@ -48,15 +41,15 @@ def is_series(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> 
         and (
             (isinstance(data.values, np.ndarray) and data.values.ndim == 1) or str(data.dtype) in ("string", "category")
         )
-        and _dtypes.is_dtype(str(data.dtype), dtype)
+        and _dtypes.has_dtype(data, dtype)
     )
 
 
-def be_series(data: Any, *, dtype: Union[None, str, Collection[str]] = None) -> Series:
+def be_series(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> _fake_pandas.Series:
     """
     Assert that some ``data`` is a `.Series`, optionally only of some ``dtype``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_series(data, dtype=dtype), "pandas.Series", data, dtype)
+    _descriptions.assert_data(is_series(data, dtype=dtype), "pandas.Series", data, dtype=dtype)
     return data

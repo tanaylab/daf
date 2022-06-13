@@ -38,12 +38,13 @@ from yaml import safe_load as load_yaml
 
 from ..typing import FIXED_DTYPES
 from ..typing import AnyMajor
-from ..typing import Array1D
-from ..typing import ArrayInRows
+from ..typing import DenseInRows
+from ..typing import DType
 from ..typing import SparseInRows
+from ..typing import Vector
 from ..typing import assert_data
-from ..typing import be_array1d
-from ..typing import be_array_in_rows
+from ..typing import be_dense_in_rows
+from ..typing import be_vector
 from ..typing import freeze
 from ..typing import is_dtype
 from ..typing import is_optimal
@@ -84,11 +85,11 @@ def remove_memory_mapped_array(path: str) -> None:
     remove_path(f"{path}.array")
 
 
-def create_memory_mapped_array(path: str, shape: Union[int, Tuple[int, int]], dtype: Union[str, np.dtype]) -> None:
+def create_memory_mapped_array(path: str, shape: Union[int, Tuple[int, int]], dtype: DType) -> None:
     """
     Create new disk files for a memory-mapped ``numpy.ndarray`` of some ``shape`` and ``dtype`` in some ``path``.
 
-    This will silently overwrite existing files. In particular, it will delete ``<path>.sparse``, ``<path>.indices``
+    This will silently overwrite existing files. In particular, it will delete ``<path>.data``, ``<path>.indices``
     and/or ``<path>.indptr`` files if the exists.
 
     The array element type must be one of `.FIXED_DTYPES`, that is, one can't create a memory-mapped file of strings or
@@ -140,12 +141,12 @@ def create_memory_mapped_array(path: str, shape: Union[int, Tuple[int, int]], dt
         data_file.flush()
         data_file.close()
 
-    for suffix in (".sparse", ".indices", ".indptr"):
+    for suffix in (".data", ".indices", ".indptr"):
         if exists_path(f"{path}.{suffix}"):
             remove_path(f"{path}.{suffix}")
 
 
-def open_memory_mapped_array(path: str, mode: str) -> Union[Array1D, ArrayInRows]:
+def open_memory_mapped_array(path: str, mode: str) -> Union[Vector, DenseInRows]:
     """
     Open memory-mapped ``numpy.ndarray`` disk files.
 
@@ -192,8 +193,8 @@ def open_memory_mapped_array(path: str, mode: str) -> Union[Array1D, ArrayInRows
 
     array = _mmap_array(f"{path}.array", metadata["shape"], mode, metadata["dtype"])
     if len(metadata["shape"]) == 1:
-        return be_array1d(array, dtype=metadata["dtype"])
-    return be_array_in_rows(array, dtype=metadata["dtype"])
+        return be_vector(array, dtype=metadata["dtype"])
+    return be_dense_in_rows(array, dtype=metadata["dtype"])
 
 
 def exists_memory_mapped_sparse(path: str) -> bool:
@@ -202,7 +203,7 @@ def exists_memory_mapped_sparse(path: str) -> bool:
     """
     return (
         exists_path(f"{path}.yaml")
-        and exists_path(f"{path}.sparse")
+        and exists_path(f"{path}.data")
         and exists_path(f"{path}.indices")
         and exists_path(f"{path}.indptr")
     )
@@ -213,7 +214,7 @@ def remove_memory_mapped_sparse(path: str) -> None:
     Remove the disk files for a memory-mapped `.SparseInRows` matrix, if they exist.
     """
     remove_path(f"{path}.yaml")
-    remove_path(f"{path}.sparse")
+    remove_path(f"{path}.data")
     remove_path(f"{path}.indices")
     remove_path(f"{path}.indptr")
 
@@ -226,7 +227,7 @@ def write_memory_mapped_sparse(path: str, sparse: SparseInRows) -> None:
 
     This creates four disk files:
 
-    * ``<path>.sparse`` which contains just the non-zero data elements.
+    * ``<path>.data`` which contains just the non-zero data elements.
 
     * ``<path>.indices`` which contains the column indices of the non-zero data elements.
 
@@ -251,8 +252,8 @@ def write_memory_mapped_sparse(path: str, sparse: SparseInRows) -> None:
     This simple representation makes it easy for other systems to directly access the data. However, it basically makes
     it impossible to automatically report the type of the files (e.g., using the Linux ``file`` command).
     """
-    assert_data(is_sparse_in_rows(sparse, dtype=FIXED_DTYPES), AnyMajor.sparse_class_name, sparse, FIXED_DTYPES)
-    assert_data(is_optimal(sparse), f"optimal {AnyMajor.sparse_class_name}", sparse, FIXED_DTYPES)
+    assert_data(is_sparse_in_rows(sparse, dtype=FIXED_DTYPES), AnyMajor.sparse_class_name, sparse, dtype=FIXED_DTYPES)
+    assert_data(is_optimal(sparse), f"optimal {AnyMajor.sparse_class_name}", sparse, dtype=FIXED_DTYPES)
 
     with open(f"{path}.yaml", "w", encoding="utf-8") as yaml_file:
         dump_yaml(
@@ -267,7 +268,7 @@ def write_memory_mapped_sparse(path: str, sparse: SparseInRows) -> None:
             yaml_file,
         )
 
-    for (suffix, array) in (("sparse", sparse.data), ("indices", sparse.indices), ("indptr", sparse.indptr)):
+    for (suffix, array) in (("data", sparse.data), ("indices", sparse.indices), ("indptr", sparse.indptr)):
         with open(f"{path}.{suffix}", "wb") as data_file:
             data_file.write(array.data)
 
@@ -308,7 +309,7 @@ def open_memory_mapped_sparse(path: str, mode: str) -> SparseInRows:
             and all(isinstance(size, int) and size > 0 for size in metadata["shape"])
         ), f"invalid YAML format for the memory-mapped sparse data: {path}"
 
-    data_array = _mmap_array(f"{path}.sparse", [metadata["nnz"]], mode, metadata["data_dtype"])
+    data_array = _mmap_array(f"{path}.data", [metadata["nnz"]], mode, metadata["data_dtype"])
     indices_array = _mmap_array(f"{path}.indices", [metadata["nnz"]], mode, metadata["indices_dtype"])
     indptr_array = _mmap_array(f"{path}.indptr", [metadata["shape"][0] + 1], mode, metadata["indptr_dtype"])
 
@@ -318,7 +319,7 @@ def open_memory_mapped_sparse(path: str, mode: str) -> SparseInRows:
 _PROT_OF_MODE = {"r": PROT_READ, "r+": PROT_READ | PROT_WRITE}
 
 
-def _mmap_array(path: str, shape: List[int], mode: str, dtype: str) -> np.ndarray:
+def _mmap_array(path: str, shape: List[int], mode: str, dtype: DType) -> np.ndarray:
     memory = CACHE.get((mode, path))
     if memory is None and mode == "r":
         memory = CACHE.get(("r+", path))

@@ -103,7 +103,7 @@ linebreaks: .make.linebreaks  ## check line breaks in Python code
 
 .make.linebreaks: $(PY_SOURCE_FILES)
 	@echo "linebreaks"
-	@if grep -Hn "[^=*][^][/<>\"'a-zA-Z0-9_,:()#}{.?!\\=\`+-]$$" $(PY_SOURCE_FILES) | grep -v -- '--$$\|import \*$$'; \
+	@if grep -Hn "[^=*][^][/<>\"'a-zA-Z0-9_,;:()#}{.?!\\=\`+-]$$" $(PY_SOURCE_FILES) | grep -v -- '--$$\|import \*$$'; \
 	then \
 	    echo 'Files wrap lines after instead of before an operator (fix manually).'; \
 	    false; \
@@ -148,7 +148,7 @@ black: .make.black  ## check format with black
 flake8: .make.flake8  ## check format with flake8
 
 .make.flake8: $(PY_SOURCE_FILES)
-	flake8 --max-line-length $(MAX_LINE_LENGTH) --ignore E203,E711,F401,F403,F405,W503 $(NAME) tests
+	flake8 --max-line-length $(MAX_LINE_LENGTH) --ignore E203,E711,E722,F401,F403,F405,W503 $(NAME) tests
 	touch $@
 
 reformat: stripspaces isortify blackify  ## reformat code
@@ -201,9 +201,6 @@ tox: .make.tox  ## run tests on a clean Python version with tox
 
 .PHONY: docs
 docs: .make.docs  ## generate HTML documentation
-
-docs/post.sed: $(PY_SOURCE_FILES)
-	PYTHONPATH=".:$$PYTHONPATH" python docs/collect_post_sed.py > $@
 
 .make.docs: $(DOCS_SOURCE_FILES) $(PY_PACKAGE_FILES) $(RST_SOURCE_FILES)
 	$(MAKE) -C docs clean
@@ -325,4 +322,4 @@ is_dev:
 	fi
 
 tags: $(PY_PACKAGE_FILES)  ## generate a tags file for vi
-	ctags $(PY_PACKAGE_FILES)
+	ctags --python-kinds=-i $(PY_PACKAGE_FILES)

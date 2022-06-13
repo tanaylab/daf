@@ -4,15 +4,17 @@ Test ``daf.typing.freezing``.
 
 # pylint: disable=duplicate-code
 
+from typing import Union
+
 import numpy as np
 import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
-from daf.typing.array1d import *  # pylint: disable=wildcard-import,unused-wildcard-import
-from daf.typing.array2d import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from daf.typing.dense import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from daf.typing.fake_pandas import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.frames import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.freezing import *  # pylint: disable=wildcard-import,unused-wildcard-import
-from daf.typing.grids import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from daf.typing.matrices import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing.vectors import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 from . import expect_raise
@@ -22,78 +24,78 @@ from . import expect_raise
 # pylint: disable=missing-function-docstring
 
 
-def check_vector(vector: Vector) -> None:
-    assert not is_frozen(vector)
-    vector[1] = 1
-    assert vector[1] == 1
+def check_data1d(data1d: Union[Vector, Series]) -> None:
+    assert not is_frozen(data1d)
+    data1d[1] = 1
+    assert data1d[1] == 1
 
-    vector = freeze(vector)
+    data1d = freeze(data1d)
 
-    assert is_frozen(vector)
+    assert is_frozen(data1d)
     with expect_raise("assignment destination is read-only"):
-        vector[1] = 2
-    assert vector[1] == 1
+        data1d[1] = 2
+    assert data1d[1] == 1
 
-    with unfrozen(vector) as melted:
+    with unfrozen(data1d) as melted:
         assert not is_frozen(melted)
         melted[1] = 2
 
-    assert is_frozen(vector)
-    assert vector[1] == 2
+    assert is_frozen(data1d)
+    assert data1d[1] == 2
     with expect_raise("assignment destination is read-only"):
-        vector[1] = 3
-    assert vector[1] == 2
+        data1d[1] = 3
+    assert data1d[1] == 2
 
-    vector = unfreeze(vector)
+    data1d = unfreeze(data1d)
 
-    assert not is_frozen(vector)
-    vector[1] = 3
-    assert vector[1] == 3
-
-
-def test_array1d() -> None:
-    check_vector(be_array1d(np.zeros(10)))
-    check_vector(pd.Series(np.zeros(10)))
+    assert not is_frozen(data1d)
+    data1d[1] = 3
+    assert data1d[1] == 3
 
 
-def check_grid(grid: Grid) -> None:
-    assert not is_frozen(grid)
-    grid[1, 1] = 1
-    assert grid[1, 1] == 1
+def test_data1d() -> None:
+    check_data1d(be_vector(np.zeros(10)))
+    check_data1d(pd.Series(np.zeros(10)))
 
-    grid = freeze(grid)
-    assert is_frozen(grid)
+
+def check_matrix(matrix: Matrix) -> None:
+    assert not is_frozen(matrix)
+    matrix[1, 1] = 1
+    assert matrix[1, 1] == 1
+
+    matrix = freeze(matrix)
+    assert is_frozen(matrix)
     with expect_raise("assignment destination is read-only"):
-        grid[1, 1] = 2
-    assert grid[1, 1] == 1
+        matrix[1, 1] = 2
+    assert matrix[1, 1] == 1
 
-    with unfrozen(grid) as melted:
+    with unfrozen(matrix) as melted:
         assert not is_frozen(melted)
         melted[1, 1] = 2
 
-    assert is_frozen(grid)
-    assert grid[1, 1] == 2
+    assert is_frozen(matrix)
+    assert matrix[1, 1] == 2
     with expect_raise("assignment destination is read-only"):
-        grid[1, 1] = 3
-    assert grid[1, 1] == 2
+        matrix[1, 1] = 3
+    assert matrix[1, 1] == 2
 
-    grid = unfreeze(grid)
+    matrix = unfreeze(matrix)
 
-    assert not is_frozen(grid)
-    grid[1, 1] = 3
-    assert grid[1, 1] == 3
+    assert not is_frozen(matrix)
+    matrix[1, 1] = 3
+    assert matrix[1, 1] == 3
 
 
-def test_grid() -> None:
-    check_grid(be_array2d(np.zeros((10, 10))))
-
-    data = np.zeros((10, 10))
-    data[1, 1] = -1
-    check_grid(sp.csr_matrix(data))
+def test_matrix() -> None:
+    check_matrix(be_dense(np.zeros((10, 10))))
 
     data = np.zeros((10, 10))
     data[1, 1] = -1
-    check_grid(sp.csc_matrix(data))
+    check_matrix(sp.csr_matrix(data))
+
+    data = np.zeros((10, 10))
+    data[1, 1] = -1
+    check_matrix(sp.csc_matrix(data))
 
 
 def test_frame() -> None:

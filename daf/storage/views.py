@@ -14,6 +14,9 @@ from __future__ import annotations
 from typing import Any
 from typing import Collection
 from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -24,121 +27,152 @@ import pandas as pd  # type: ignore
 from ..typing import ENTRIES_DTYPES
 from ..typing import ROW_MAJOR
 from ..typing import STR_DTYPE
-from ..typing import Array1D
-from ..typing import Data2D
-from ..typing import Grid
-from ..typing import as_array1d
-from ..typing import as_grid
+from ..typing import AnyData
+from ..typing import Known1D
+from ..typing import Known2D
+from ..typing import Matrix
+from ..typing import Vector
 from ..typing import as_layout
+from ..typing import as_matrix
+from ..typing import as_vector
 from ..typing import assert_data
+from ..typing import data_description
 from ..typing import freeze
-from ..typing import is_array1d
-from ..typing import is_dtype
+from ..typing import has_dtype
 from ..typing import optimize
 from . import interface as _interface
 from . import memory as _memory
 
 # pylint: enable=duplicate-code
 
-__all__ = ["DataView", "AxisView", "StorageView"]
+# pylint: disable=protected-access
 
-#: Describe how to expose an axis of some wrapped `.StorageReader` from a `.StorageView`:
-#:
-#: * By default, axes are passed as-is. But this can be changed by setting ``hide_implicit`` to ``True``, in which
-#:   case, by default axes are hidden.
-#:
-#: * If the ``AxisView`` is ``None``, the axis is explicitly hidden, together with all data that is based on it.
-#:
-#: * If the ``AxisView`` is a string, the axis is exposed under this new name. For example, when viewing data for
-#:   copying into ``AnnData``, one axis needs to be exposed as ``obs`` and another as ``vars``.
-#:
-#: * If the ``AxisView`` is an `.Array1D`, then the axis is sliced:
-#:
-#:   * An array of strings contains the names of the entries to expose.
-#:   * An array of integers contains the indices of the entries to expose.
-#:   * An array of Booleans contains a mask of the entries to expose.
-#:
-#:   .. note::
-#:
-#:      The order of the string or integer entries is significant as it controls the order of the entries in the exposed
-#:      axis. Slicing using a Boolean mask keeps the original entries order.
-#:
-#: * If the ``AxisView`` is a tuple of a string and an array, the axis is both renamed and sliced as above.
-AxisView = Union[None, str, Array1D, Tuple[str, Array1D]]
+__all__ = ["AxisView", "StorageView"]
 
-#: Describe how to expose data of some wrapped `.StorageReader` from a `.StorageView`:
-#:
-#:  * By default, all data is passed as-is, as long as the axes it is based on (if any) are exposed. If the axes were
-#:    renamed, the data is exposed using the new axes names. Setting ``hide_implicit`` to ``True`` changes the
-#:    default to hide data by default.
-#:
-#:  * If the ``DataView`` is ``None``, the data is explicitly hidden, even if the axes it is based on are exposed.
-#:
-#:  * If the ``DataView`` is a string, it is exposed under this new name (which should not contain the axes names(s)).
-#:
-#: .. note::
-#:
-#:    For 2D data, specify only one of the two ``foo,bar;baz`` and ``bar,foo;baz`` names, and it will automatically also
-#:    apply to its transpose.
-DataView = Optional[str]
+
+class AxisView(NamedTuple):
+    """
+    Describe how to expose an axis of some base `.StorageReader` from a `.StorageView`:
+    """
+
+    #: The name to expose the axis as, or ``None`` to keep the same name.
+    name: Optional[str] = None
+
+    #: Which entries of the axis to expose (how to slice the axis).
+    #:
+    #: * If ``None``, expose all the entries (no slicing).
+    #: * A vector of strings contains the names of the entries to expose.
+    #: * A vector of integers contains the indices of the entries to expose.
+    #: * A vector of Booleans contains a mask of the entries to expose.
+    entries: Optional[AnyData] = None
+
+    #: Whether to create new data for the axis which tracks the index of each entry in the base data. If ``None``, no
+    #: such data is created. Otherwise, ``axis;name`` will be created and will contain the integer index of each exposed
+    #: axis entry in the original base data.
+    track: Optional[str] = None
+
+    #: If creating new data to track the axis entry indices, whether to overwrite existing data of the same name.
+    overwrite: bool = False
+
+
+class AxisFullView(NamedTuple):
+    """
+    Internal full representation of how an axis is exposed.
+    """
+
+    #: The exposed name (which may be the same as the base axis name).
+    exposed_name: str
+
+    #: The base name (which may be the same as the exposed axis name).
+    base_name: str
+
+    #: If slicing, the indices of the exposed entries.
+    entry_indices: Optional[Vector]
+
+    #: If not ``None``, the simple name of the data exposing the axis entry indices.
+    track: Optional[str]
+
+    #: If ``track`` is not ``None``, whether to overwrite existing data of the same name.
+    overwrite: bool
 
 
 class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instance-attributes
     """
-    A read-only view of some other `.StorageReader`.
+    A read-only view of some ``base`` `.StorageReader`.
+
+    If the ``name`` starts with ``.``, it is appended to the base name. If it ends with ``#`` we append the object id to
+    it to make it unique.
 
     A view is defined by describing how to expose each *existing* axis or data, that is, the keys to the ``axes`` and
-    ``data`` dictionaries are the names in the wrapped storage, **not** the exposed names of the view.
+    ``data`` dictionaries are the names in the base storage, **not** the exposed names of the storage view.
+
+    For 2D data, specify only one of the two ``foo,bar;baz`` and ``bar,foo;baz`` names, and it will automatically also
+    apply to its transpose.
+
+    If the explicit of some axis or data is ``None``, than that axis or data are hidden. If an axis or some data is not
+    listed, then by default it is exposed as is; if ``hide_implicit``, it is hidden. Hiding an axis hides all the data
+    based on that axis.
+
+    If the value of some axis or data is a string, it is the simple name to use to expose the data or axis.
+
+    If the value of an axis is the entries of the axis to expose, it will be sliced (using the same name).
+
+    If the value of an axis is an `.AxisView`, it describes in detail how to expose the axis.
 
     By default, sliced data is stored in a ``cache`` using `.MemoryStorage`. To disable caching, specify a `.NO_STORAGE`
     value for it.
 
     .. note::
 
-        Do **not** modify the wrapped storage after creating a view. Modifications may or may not be visible in the
-        view, causing subtle problems.
+        Do **not** modify the base storage after creating a view. Modifications may or may not be visible in the view,
+        causing subtle problems.
     """
 
     def __init__(
         self,
-        storage: _interface.StorageReader,
+        base: _interface.StorageReader,
         *,
-        axes: Optional[Dict[str, AxisView]] = None,
-        data: Optional[Dict[str, DataView]] = None,
-        name: Optional[str] = None,
+        axes: Optional[Mapping[str, Union[None, str, AnyData, AxisView]]] = None,
+        data: Optional[Mapping[str, Optional[str]]] = None,
+        name: str = ".view#",
         cache: Optional[_interface.StorageWriter] = None,
         hide_implicit: bool = False,
     ) -> None:
+        if name.endswith("#"):
+            name += str(id(self))
+        if name.startswith("."):
+            name = base.name + name
+
         super().__init__(name=name)
 
-        #: The wrapped storage.
-        self.storage = storage
+        #: The base storage.
+        self.base = base
 
         #: Cached storage for sliced data.
-        self.cache = cache or _memory.MemoryStorage(name=f"{self.name}.cache")
+        self.cache = cache or _memory.MemoryStorage(name=self.name + ".cache")
 
-        # How to expose each of the axes of the wrapped storage.
-        self._wrapped_axis_views: Dict[str, Optional[str]] = {}
+        # How to expose each of the axes of the base storage.
+        self._base_axis_views: Dict[str, Optional[AxisFullView]] = {}
 
-        # How to expose each of the data of the wrapped storage.
-        self._wrapped_data_views: Dict[str, Optional[str]] = {}
+        # How to expose each of the items of the base storage.
+        self._base_item_views: Dict[str, Optional[str]] = {}
 
-        # How to expose each of the vectors of the wrapped storage.
-        self._wrapped_array1d_views: Dict[str, Optional[str]] = {}
+        # How to expose each of the vectors of the base storage.
+        self._base_data1d_views: Dict[str, Optional[str]] = {}
 
-        #: How to expose each of the 2D data of the wrapped storage.
-        self._wrapped_data2d_views: Dict[str, Optional[str]] = {}
+        #: How to expose each of the 2D data of the base storage.
+        self._base_data2d_views: Dict[str, Optional[str]] = {}
 
-        # Map each exposed axis back to a wrapped storage axis.
-        self._exposed_axes: Dict[str, Tuple[str, Optional[Array1D]]] = {}
+        # Map each exposed axis back to a base storage axis.
+        self._exposed_axis_views: Dict[str, AxisFullView] = {}
 
-        # Map each exposed datum back to a wrapped storage datum.
-        self._exposed_data: Dict[str, str] = {}
+        # Map each exposed item back to a base storage item.
+        self._exposed_items: Dict[str, str] = {}
 
-        # Map each exposed vector back to a wrapped storage vector.
-        self._exposed_array1d: Dict[str, Dict[str, str]] = {}
+        # Map each exposed vector back to a base storage vector.
+        self._exposed_data1d: Dict[str, Dict[str, Union[str, Vector]]] = {}
 
-        # Map each exposed 2D data back to a wrapped storage vector.
+        # Map each exposed 2D data back to a base storage vector.
         self._exposed_data2d: Dict[Tuple[str, str], Dict[str, str]] = {}
 
         axes = axes or {}
@@ -150,297 +184,413 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
 
         self._collect_data(hide_implicit)
 
-        self._init_array1d()
-        self._collect_array1d(hide_implicit)
+        self._init_data1d()
+        self._collect_data1d(hide_implicit)
+        self._collect_track()
 
         self._init_data2d()
         self._collect_data2d(hide_implicit)
 
-    def _verify_axes(self, axes: Dict[str, AxisView]) -> None:
+    def _verify_axes(self, axes: Mapping[str, Union[None, str, AnyData, AxisView]]) -> None:
         for axis in axes:
-            assert self.storage.has_axis(
-                axis
-            ), f"missing the axis: {axis} in the storage: {self.storage.name} for the view: {self.name}"
+            assert self.base._has_axis(axis), (
+                f"missing the axis: {axis} "
+                f"in the base storage: {self.base.name} "
+                f"for the storage view: {self.name}"
+            )
 
-    def _collect_axes(self, axes: Dict[str, AxisView], hide_implicit: bool) -> None:
-        for wrapped_axis in self.storage.axis_names():
-            entries: Optional[Array1D] = None
-            axis_view = axes.get(wrapped_axis, None if hide_implicit else wrapped_axis)
-            if axis_view is None:
-                exposed_axis = None
-            elif isinstance(axis_view, str):
-                exposed_axis = axis_view
-            elif isinstance(axis_view, tuple):
-                exposed_axis, entries = axis_view
-                assert isinstance(exposed_axis, str), (
-                    f"invalid view for the axis: {wrapped_axis} "
-                    f"of the storage: {self.storage.name} "
-                    f"for the view: {self.name}"
-                )
+    def _collect_axes(self, axes: Mapping[str, Union[None, str, AnyData, AxisView]], hide_implicit: bool) -> None:
+        for base_axis in self.base._axis_names():
+            axis_view_data = axes.get(base_axis, None if hide_implicit else base_axis)
+            axis_view: Optional[AxisView]
+            if isinstance(axis_view_data, (AxisView, type(None))):
+                axis_view = axis_view_data
+            elif isinstance(axis_view_data, str):
+                axis_view = AxisView(name=axis_view_data)
             else:
-                exposed_axis = wrapped_axis
-                entries = axis_view
+                axis_view = AxisView(entries=axis_view_data)
 
-            if entries is not None:
-                assert_data(is_array1d(entries, dtype=ENTRIES_DTYPES), "1D numpy array", entries, None)
+            if axis_view is None:
+                self._base_axis_views[base_axis] = None
+                continue
 
-                if is_dtype(entries.dtype, "bool"):
-                    entries = np.where(entries)[0]
-                    assert entries is not None
-                elif is_dtype(entries.dtype, STR_DTYPE):
-                    entries = as_array1d(
+            exposed_axis = axis_view.name or base_axis
+
+            entry_indices: Optional[Vector] = None
+            if axis_view is not None and axis_view.entries is not None:
+                entries_array = as_vector(axis_view.entries)
+                assert_data(has_dtype(entries_array, ENTRIES_DTYPES), "any 1D data", entries_array)
+
+                if has_dtype(entries_array, "bool"):
+                    entry_indices = np.where(entries_array)[0]
+                    assert entry_indices is not None
+                elif has_dtype(entries_array, STR_DTYPE):
+                    entry_indices = as_vector(
                         pd.Series(
-                            np.arange(self.storage.axis_size(wrapped_axis)),
-                            index=self.storage.axis_entries(wrapped_axis),
-                        )[entries]
+                            np.arange(self.base._axis_size(base_axis)),
+                            index=self.base._axis_entries(base_axis),
+                        )[entries_array]
                     )
                 else:
-                    entries = entries.copy()
+                    entry_indices = entries_array.copy()
+                entry_indices = freeze(entry_indices)
 
-            self._wrapped_axis_views[wrapped_axis] = exposed_axis
-            if exposed_axis is not None:
-                assert exposed_axis not in self._exposed_axes, (
-                    f"both the axis: {self._exposed_axes[exposed_axis][0]} "
-                    f"and the axis: {wrapped_axis} "
-                    f"of the storage: {self.storage.name} "
-                    f"are exposed as the same axis: {exposed_axis} "
-                    f"of the view: {self.name}"
-                )
-                self._exposed_axes[exposed_axis] = (wrapped_axis, entries)
+            axis_full_view = AxisFullView(
+                exposed_name=exposed_axis,
+                base_name=base_axis,
+                entry_indices=entry_indices,
+                track=axis_view.track,
+                overwrite=axis_view.overwrite,
+            )
+            self._exposed_axis_views[exposed_axis] = axis_full_view
+            self._base_axis_views[base_axis] = axis_full_view
 
     def _collect_cache_axes(self) -> None:
-        for axis, (wrapped_name, wrapped_indices) in self._exposed_axes.items():
-            entries = self.storage.axis_entries(wrapped_name)
-            if wrapped_indices is not None:
-                entries = entries[wrapped_indices]
-            self.cache.create_axis(axis, freeze(entries))
+        for exposed_axis, axis_full_view in self._exposed_axis_views.items():
+            entries = as_vector(self.base._axis_entries(axis_full_view.base_name))
+            if axis_full_view.entry_indices is not None:
+                entries = entries[axis_full_view.entry_indices]
+            self.cache.create_axis(exposed_axis, freeze(optimize(entries)))
 
-    def _collect_views(self, data: Dict[str, DataView]) -> None:
-        for wrapped_data, data_view in data.items():
-            assert self._collect_view(
-                wrapped_data, data_view
-            ), f"missing the data: {wrapped_data} in the storage: {self.storage.name} for the view: {self.name}"
+    def _collect_views(self, data: Mapping[str, Optional[str]]) -> None:
+        for base_data, data_view in data.items():
+            assert self._collect_view(base_data, data_view), (
+                f"missing the data: {base_data} "
+                f"in the base storage: {self.base.name} "
+                f"for the storage view: {self.name} "
+            )
 
-    def _collect_view(self, wrapped_data: str, data_view: DataView) -> bool:
-        if ";" not in wrapped_data:
-            self._wrapped_data_views[wrapped_data] = data_view
-            return self.storage.has_datum(wrapped_data)
+    def _collect_view(self, base_data: str, data_view: Optional[str]) -> bool:
+        if ";" not in base_data:
+            self._base_item_views[base_data] = data_view
+            return self.base._has_item(base_data)
 
-        axes, name = wrapped_data.split(";")
+        axes, name = base_data.split(";")
 
         if "," not in axes:
-            self._wrapped_array1d_views[wrapped_data] = data_view
-            return self.storage.has_array1d(wrapped_data)
+            self._base_data1d_views[base_data] = data_view
+            return self.base._has_data1d(axes, base_data)
 
-        self._wrapped_data2d_views[wrapped_data] = data_view
+        self._base_data2d_views[base_data] = data_view
         rows_axis, columns_axis = axes.split(",")
         transposed_data = f"{columns_axis},{rows_axis};{name}"
-        if transposed_data not in self._wrapped_data2d_views:
-            self._wrapped_data2d_views[transposed_data] = data_view
+        if transposed_data not in self._base_data2d_views:
+            self._base_data2d_views[transposed_data] = data_view
         else:
-            transposed_view = self._wrapped_data2d_views[transposed_data]
+            transposed_view = self._base_data2d_views[transposed_data]
             assert transposed_view == data_view, (
-                f"conflicting 2D data views: {wrapped_data} => {data_view} "
+                f"conflicting 2D data views: {base_data} => {data_view} "
                 f"and: {transposed_data} => {transposed_view} "
-                f"for the storage: {self.storage.name} "
-                f"for the view: {self.name}"
+                f"for the base storage: {self.base.name} "
+                f"for the storage view: {self.name} "
             )
-        return self.storage.has_data2d(wrapped_data)
+        return self.base._has_data2d((rows_axis, columns_axis), base_data)
 
     def _collect_data(self, hide_implicit: bool) -> None:
-        for wrapped_data in self.storage.datum_names():
-            exposed_data = self._wrapped_data_views.get(wrapped_data, None if hide_implicit else wrapped_data)
-            self._wrapped_data_views[wrapped_data] = exposed_data
+        for base_data in self.base._item_names():
+            exposed_data = self._base_item_views.get(base_data, None if hide_implicit else base_data)
+            self._base_item_views[base_data] = exposed_data
             if exposed_data is not None:
-                assert exposed_data not in self._exposed_data, (
-                    f"both the datum: {self._exposed_data[exposed_data]} "
-                    f"and the datum: {wrapped_data} "
-                    f"of the storage: {self.storage.name} "
-                    f"are exposed as the same datum: {exposed_data} "
-                    f"of the view: {self.name}"
+                assert exposed_data not in self._exposed_items, (
+                    f"both the item: {self._exposed_items[exposed_data]} "
+                    f"and the item: {base_data} "
+                    f"of the base storage: {self.base.name} "
+                    f"are exposed as the same item: {exposed_data} "
+                    f"of the storage view: {self.name}"
                 )
-                self._exposed_data[exposed_data] = wrapped_data
+                self._exposed_items[exposed_data] = base_data
 
-    def _init_array1d(self) -> None:
-        for exposed_axis in self._exposed_axes:
-            self._exposed_array1d[exposed_axis] = {}
+    def _init_data1d(self) -> None:
+        for exposed_axis in self._exposed_axis_views:
+            self._exposed_data1d[exposed_axis] = {}
 
-    def _collect_array1d(self, hide_implicit: bool) -> None:
-        for wrapped_axis in self.storage.axis_names():
-            exposed_axis = self.exposed_axis(wrapped_axis)
+    def _collect_data1d(self, hide_implicit: bool) -> None:
+        for base_axis in self.base._axis_names():
+            exposed_axis = self.exposed_axis(base_axis)
             if exposed_axis is None:
                 continue
 
-            _exposed_array1d = self._exposed_array1d[exposed_axis]
+            _exposed_data1d = self._exposed_data1d[exposed_axis]
 
-            for wrapped_data in self.storage.array1d_names(wrapped_axis):
+            for base_data in self.base._data1d_names(base_axis):
                 exposed_data: Optional[str]
 
-                name = wrapped_data.split(";")[1]
-                data_view = self._wrapped_array1d_views.get(wrapped_data, None if hide_implicit else name)
+                name = _interface.extract_name(base_data)
+                data_view = self._base_data1d_views.get(base_data, None if hide_implicit else name)
                 if data_view is None:
                     exposed_data = None
                 else:
                     exposed_data = f"{exposed_axis};{data_view}"
 
-                self._wrapped_array1d_views[wrapped_data] = exposed_data
+                self._base_data1d_views[base_data] = exposed_data
                 if exposed_data is not None:
-                    assert exposed_data not in _exposed_array1d, (
-                        f"both the 1D data: {_exposed_array1d[exposed_data]} "
-                        f"and the 1D data: {wrapped_data} "
-                        f"of the storage: {self.storage.name} "
+                    assert exposed_data not in _exposed_data1d, (
+                        f"both the 1D data: {_exposed_data1d[exposed_data]} "
+                        f"and the 1D data: {base_data} "
+                        f"of the base storage: {self.base.name} "
                         f"are exposed as the same 1D data: {exposed_data} "
-                        f"of the view: {self.name}"
+                        f"of the storage view: {self.name}"
                     )
-                    _exposed_array1d[exposed_data] = wrapped_data
+                    _exposed_data1d[exposed_data] = base_data
+
+    def _collect_track(self) -> None:
+        for base_axis, axis_full_view in self._base_axis_views.items():
+            if axis_full_view is None or axis_full_view.track is None:
+                continue
+
+            exposed_axis = axis_full_view.exposed_name
+            exposed_name = f"{exposed_axis};{axis_full_view.track}"
+            exposed_data1d = self._exposed_data1d[exposed_axis]
+
+            assert axis_full_view.overwrite or exposed_name not in exposed_data1d, (
+                f"both the 1D data: {exposed_data1d[exposed_name]} "
+                f"and the tracked entry indices of the axis: {base_axis} "
+                f"are exposed as the same 1D data: {exposed_name} "
+                f"of the storage view: {self.name}"
+                f"of the base view: {self.base.name}"
+            )
+
+            self._base_data1d_views[base_axis + ";"] = exposed_name
+            entry_indices = axis_full_view.entry_indices
+            exposed_data1d[exposed_name] = (
+                np.arange(self.base.axis_size(base_axis)) if entry_indices is None else entry_indices
+            )
 
     def _init_data2d(self) -> None:
-        for exposed_rows_axis in self._exposed_axes:
-            for exposed_columns_axis in self._exposed_axes:
+        for exposed_rows_axis in self._exposed_axis_views:
+            for exposed_columns_axis in self._exposed_axis_views:
                 self._exposed_data2d[(exposed_rows_axis, exposed_columns_axis)] = {}
 
     def _collect_data2d(self, hide_implicit: bool) -> None:
-        for wrapped_rows_axis in self.storage.axis_names():
-            exposed_rows_axis = self.exposed_axis(wrapped_rows_axis)
+        for base_rows_axis in self.base._axis_names():
+            exposed_rows_axis = self.exposed_axis(base_rows_axis)
             if exposed_rows_axis is None:
                 continue
 
-            for wrapped_columns_axis in self.storage.axis_names():
-                exposed_columns_axis = self.exposed_axis(wrapped_columns_axis)
+            for base_columns_axis in self.base._axis_names():
+                exposed_columns_axis = self.exposed_axis(base_columns_axis)
                 if exposed_columns_axis is None:
                     continue
 
                 exposed_data2d = self._exposed_data2d[(exposed_rows_axis, exposed_columns_axis)]
 
-                for wrapped_data in self.storage.data2d_names((wrapped_rows_axis, wrapped_columns_axis)):
+                for base_data in self.base._data2d_names((base_rows_axis, base_columns_axis)):
                     exposed_data: Optional[str]
 
-                    name = wrapped_data.split(";")[1]
-                    data_view = self._wrapped_data2d_views.get(wrapped_data, None if hide_implicit else name)
+                    name = _interface.extract_name(base_data)
+                    data_view = self._base_data2d_views.get(base_data, None if hide_implicit else name)
                     if data_view is None:
                         exposed_data = None
                     else:
                         exposed_data = f"{exposed_rows_axis},{exposed_columns_axis};{data_view}"
 
-                    self._wrapped_data2d_views[wrapped_data] = exposed_data
+                    self._base_data2d_views[base_data] = exposed_data
                     if exposed_data is not None:
                         assert exposed_data not in exposed_data2d, (
-                            f"both the 2D data: {self._exposed_data[exposed_data]} "
-                            f"and the 2D data: {wrapped_data} "
-                            f"of the storage: {self.storage.name} "
+                            f"both the 2D data: {self._exposed_items[exposed_data]} "
+                            f"and the 2D data: {base_data} "
+                            f"of the base storage: {self.base.name} "
                             f"are exposed as the same 2D data: {exposed_data} "
-                            f"of the view: {self.name}"
+                            f"of the storage view: {self.name}"
                         )
-                        exposed_data2d[exposed_data] = wrapped_data
+                        exposed_data2d[exposed_data] = base_data
 
-    def exposed_axis(self, wrapped_axis: str) -> Optional[str]:
-        """
-        Given the name of an ``wrapped_axis`` in the wrapped `.StorageReader`, return the
-        name it is exposed as in the view, or ``None`` if it is hidden.
-        """
-        assert self.storage.has_axis(wrapped_axis), f"missing axis: {wrapped_axis} in the storage: {self.storage.name}"
-        return self._wrapped_axis_views[wrapped_axis]
+    def _self_description(self, self_description: Dict, *, detail: bool) -> None:
+        self_description["cache"] = self.cache.name
+        self_description["base"] = self.base.name
 
-    def exposed_datum(self, wrapped_datum: str) -> Optional[str]:
-        """
-        Given the name of an ``wrapped_datum`` in the wrapped `.StorageReader`, return the name it is exposed as in the
-        view, or ``None`` if it is hidden.
-        """
-        assert self.storage.has_datum(
-            wrapped_datum
-        ), f"missing datum: {wrapped_datum} in the storage: {self.storage.name}"
-        return self._wrapped_data_views[wrapped_datum]
+    def _axes_description(self, *, detail: bool) -> Dict:
+        axes: Dict = {}
 
-    def exposed_array1d(self, wrapped_array1d: str) -> Optional[str]:
-        """
-        Given the name of an ``wrapped_array1d`` in the wrapped `.StorageReader`, return the name it is exposed as in
-        the view, or ``None`` if it is hidden.
-        """
-        assert self.storage.has_array1d(
-            wrapped_array1d
-        ), f"missing 1D data: {wrapped_array1d} in the storage: {self.storage.name}"
-        return self._wrapped_array1d_views[wrapped_array1d]
+        for axis in sorted(self._axis_names()):
+            axis_full_view = self._exposed_axis_views[axis]
+            if axis_full_view.entry_indices is None:
+                description = "all " + str(self._axis_size(axis)) + " entries of " + self.base_axis(axis)
+            else:
+                exposed_size = len(axis_full_view.entry_indices)
+                base_size = self.base._axis_size(axis_full_view.base_name)
+                percent = exposed_size * 100 / base_size
+                description = (
+                    str(exposed_size)
+                    + " out of "
+                    + str(base_size)
+                    + " entries of "
+                    + str(self.base_axis(axis))
+                    + f" ({percent:.2f}%)"
+                )
 
-    def exposed_data2d(self, wrapped_data2d: str) -> Optional[str]:
-        """
-        Given the name of an ``wrapped_data2d`` in the wrapped `.StorageReader`, return the name it is exposed as in the
-        view, or ``None`` if it is hidden.
-        """
-        assert self.storage.has_data2d(
-            wrapped_data2d
-        ), f"missing 2D data: {wrapped_data2d} in the storage: {self.storage.name}"
-        return self._wrapped_data2d_views[wrapped_data2d]
+            if detail:
+                description += " in " + data_description(self._axis_entries(axis))
+            axes[axis] = description
 
-    def wrapped_axis(self, exposed_axis: str) -> str:
-        """
-        Given the name of an ``exposed_axis`` (which must exist), return its name in the wrapped `.StorageReader`.
-        """
-        assert self.has_axis(exposed_axis), f"missing axis: {exposed_axis} in the storage: {self.name}"
-        return self._exposed_axes[exposed_axis][0]
+        return axes
 
-    def wrapped_datum(self, exposed_datum: str) -> str:
-        """
-        Given the name of an ``exposed_datum`` (which must exist), return its name in the wrapped `.StorageReader`.
-        """
-        assert self.has_datum(exposed_datum), f"missing datum: {exposed_datum} in the storage: {self.name}"
-        return self._exposed_data[exposed_datum]
+    def _data_description(self, *, detail: bool) -> Union[Dict, List[str]]:
+        data: Dict = {}
 
-    def wrapped_array1d(self, exposed_array1d: str) -> str:
-        """
-        Given the name of an ``exposed_array1d`` (which must exist), return its name in the wrapped `.StorageReader`.
-        """
-        assert self.has_array1d(exposed_array1d), f"missing 1D data: {exposed_array1d} in the storage: {self.name}"
-        axis = _interface.extract_1d_axis(exposed_array1d)
-        return self._exposed_array1d[axis][exposed_array1d]
+        for name in sorted(self._item_names()):
+            description = "from " + self.base_item(name)
+            if detail:
+                description += " in " + data_description(self._get_item(name))
+            data[name] = description
 
-    def wrapped_data2d(self, exposed_data2d: str) -> str:
+        axes = sorted(self._axis_names())
+
+        for axis in axes:
+            for name in sorted(self._data1d_names(axis)):
+                description = "from " + self.base_data1d(name)
+                if detail:
+                    description += " in " + data_description(self._get_data1d(axis, name))
+                data[name] = description
+
+        for rows_axis in axes:
+            for columns_axis in axes:
+                for name in sorted(self._data2d_names((rows_axis, columns_axis))):
+                    description = "from " + self.base_data2d(name)
+                    if detail:
+                        description += " in " + data_description(self._get_data2d((rows_axis, columns_axis), name))
+                    data[name] = description
+
+        return data
+
+    def _deep_description(self, description: Dict, self_description: Dict, *, detail: bool) -> None:
+        self.cache.description(deep=True, detail=detail, description=description)
+        self.base.description(deep=True, detail=detail, description=description)
+
+    def axis_slice_indices(self, exposed_axis: str) -> Optional[Vector]:
         """
-        Given the name of an ``exposed_data2d`` (which must exist), return its name in the wrapped `.StorageReader`.
+        Return the original indices of the entries of the ``exposed_axis``, or ``None`` if the base axis was not
+        sliced.
         """
-        assert self.has_data2d(exposed_data2d), f"missing 2D data: {exposed_data2d} in the storage: {self.name}"
+        assert self._has_axis(exposed_axis), f"missing axis: {exposed_axis} in the base storage: {self.name}"
+        return self._exposed_axis_views[exposed_axis].entry_indices
+
+    def exposed_axis(self, base_axis: str) -> Optional[str]:
+        """
+        Given the ``base_axis`` in the base `.StorageReader`, return the name it is exposed as in the view, or ``None``
+        if it is hidden.
+        """
+        assert self.base._has_axis(base_axis), f"missing axis: {base_axis} in the base storage: {self.base.name}"
+        axis_full_view = self._base_axis_views[base_axis]
+        if axis_full_view is None:
+            return None
+        return axis_full_view.exposed_name
+
+    def exposed_item(self, base_item: str) -> Optional[str]:
+        """
+        Given the name of a ``base_item`` in the base `.StorageReader`, return the name it is exposed as in the view,
+        or ``None`` if it is hidden.
+        """
+        assert self.base._has_item(base_item), f"missing item: {base_item} in the base storage: {self.base.name}"
+        return self._base_item_views[base_item]
+
+    def exposed_data1d(self, base_data1d: str) -> Optional[str]:
+        """
+        Given the name of an ``base_data1d`` in the base `.StorageReader`, return the name it is exposed as in the view,
+        or ``None`` if it is hidden.
+
+        The exposed name of tracked entry indices of an axis, if any, are available using ``axis;`` as the
+        ``base_data1d`` name.
+        """
+        exposed_data1d = self._base_data1d_views.get(base_data1d)
+        assert exposed_data1d is not None or self.base.has_data1d(
+            base_data1d
+        ), f"missing 1D data: {base_data1d} in the base storage: {self.base.name}"
+        return exposed_data1d
+
+    def exposed_data2d(self, base_data2d: str) -> Optional[str]:
+        """
+        Given the name of an ``base_data2d`` in the base `.StorageReader`, return the name it is exposed as in the view,
+        or ``None`` if it is hidden.
+        """
+        assert self.base.has_data2d(
+            base_data2d
+        ), f"missing 2D data: {base_data2d} in the base storage: {self.base.name}"
+        return self._base_data2d_views[base_data2d]
+
+    def base_axis(self, exposed_axis: str) -> str:
+        """
+        Given the name of an ``exposed_axis`` (which must exist), return its name in the base `.StorageReader`.
+        """
+        assert self._has_axis(exposed_axis), f"missing axis: {exposed_axis} in the base storage: {self.name}"
+        return self._exposed_axis_views[exposed_axis].base_name
+
+    def base_item(self, exposed_item: str) -> str:
+        """
+        Given the name of an ``exposed_item`` (which must exist), return its name in the base `.StorageReader`.
+        """
+        assert self._has_item(exposed_item), f"missing item: {exposed_item} in the base storage: {self.name}"
+        return self._exposed_items[exposed_item]
+
+    def base_data1d(self, exposed_data1d: str) -> str:
+        """
+        Given the name of an ``exposed_data1d`` (which must exist), return its name in the base `.StorageReader`.
+
+        The base name of tracked entry indices of an axis is reported as ``axis;``.
+        """
+        axis = _interface.extract_1d_axis(exposed_data1d)
+        assert self._has_data1d(
+            axis, exposed_data1d
+        ), f"missing 1D data: {exposed_data1d} in the base storage: {self.name}"
+        base_data1d = self._exposed_data1d[axis][exposed_data1d]
+        if isinstance(base_data1d, str):
+            return base_data1d
+        return self._exposed_axis_views[axis].base_name + ";"
+
+    def base_data2d(self, exposed_data2d: str) -> str:
+        """
+        Given the name of an ``exposed_data2d`` (which must exist), return its name in the base `.StorageReader`.
+        """
         axes = _interface.extract_2d_axes(exposed_data2d)
+        assert self._has_data2d(
+            axes, exposed_data2d
+        ), f"missing 2D data: {exposed_data2d} in the base storage: {self.name}"
         return self._exposed_data2d[axes][exposed_data2d]
 
-    def _datum_names(self) -> Collection[str]:
-        return self._exposed_data.keys()
+    def _item_names(self) -> Collection[str]:
+        return self._exposed_items.keys()
 
-    def _has_datum(self, name: str) -> bool:
-        return name in self._exposed_data
+    def _has_item(self, name: str) -> bool:
+        return name in self._exposed_items
 
-    def _get_datum(self, name: str) -> Any:
-        return self.storage.get_datum(self._exposed_data[name])
+    def _get_item(self, name: str) -> Any:
+        return self.base.get_item(self._exposed_items[name])
 
     def _axis_names(self) -> Collection[str]:
-        return self._exposed_axes.keys()
+        return self._exposed_axis_views.keys()
 
     def _has_axis(self, axis: str) -> bool:
-        return axis in self._exposed_axes
+        return axis in self._exposed_axis_views
 
     def _axis_size(self, axis: str) -> int:
-        return self.cache.axis_size(axis)
+        return self.cache._axis_size(axis)
 
-    def _axis_entries(self, axis: str) -> Array1D:
-        return self.cache.axis_entries(axis)
+    def _axis_entries(self, axis: str) -> Known1D:
+        return self.cache._axis_entries(axis)
 
-    def _array1d_names(self, axis: str) -> Collection[str]:
-        return self._exposed_array1d[axis].keys()
+    def _data1d_names(self, axis: str) -> Collection[str]:
+        return self._exposed_data1d[axis].keys()
 
-    def _has_array1d(self, axis: str, name: str) -> bool:
-        return name in self._exposed_array1d[axis]
+    def _has_data1d(self, axis: str, name: str) -> bool:
+        return name in self._exposed_data1d[axis]
 
-    def _get_array1d(self, axis: str, name: str) -> Array1D:
-        if self.cache.has_array1d(name):
-            return self.cache.get_array1d(name)
+    def _get_data1d(self, axis: str, name: str) -> Known1D:
+        if self.cache._has_data1d(axis, name):
+            return self.cache._get_data1d(axis, name)
 
-        array1d = self.storage.get_array1d(self._exposed_array1d[axis][name])
+        base_data1d = self._exposed_data1d[axis][name]
+        if not isinstance(base_data1d, str):
+            return base_data1d
 
-        wrapped_entries = self._exposed_axes[axis][1]
-        if wrapped_entries is None:
-            return array1d
+        data1d = self.base.get_data1d(base_data1d)
 
-        array1d = array1d[wrapped_entries]
-        self.cache.set_array1d(name, freeze(array1d))
-        return array1d
+        base_entries = self._exposed_axis_views[axis].entry_indices
+        if base_entries is None:
+            return data1d
+
+        vector = freeze(optimize(as_vector(data1d)[base_entries]))
+        self.cache._set_vector(axis, name, vector)
+        return vector
 
     def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:
         return self._exposed_data2d[axes].keys()
@@ -448,26 +598,26 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
     def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
         return name in self._exposed_data2d[axes].keys()
 
-    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Data2D:
-        if self.cache.has_data2d(name):
-            return self.cache.get_data2d(name)
+    def _get_data2d(self, axes: Tuple[str, str], name: str) -> Known2D:
+        if self.cache._has_data2d(axes, name):
+            return self.cache._get_data2d(axes, name)
 
-        data2d = self.storage.get_data2d(self._exposed_data2d[axes][name])
-        grid: Optional[Grid] = None
+        data2d = self.base.get_data2d(self._exposed_data2d[axes][name])
+        matrix: Optional[Matrix] = None
 
-        wrapped_column_entries = self._exposed_axes[axes[1]][1]
-        if wrapped_column_entries is not None:
-            grid = as_grid(data2d)
-            grid = grid[:, wrapped_column_entries]
+        base_column_entries = self._exposed_axis_views[axes[1]].entry_indices
+        if base_column_entries is not None:
+            matrix = as_matrix(data2d)
+            matrix = matrix[:, base_column_entries]
 
-        wrapped_row_entries = self._exposed_axes[axes[0]][1]
-        if wrapped_row_entries is not None:
-            grid = grid or as_grid(data2d)
-            grid = grid[wrapped_row_entries, :]
+        base_row_entries = self._exposed_axis_views[axes[0]].entry_indices
+        if base_row_entries is not None:
+            matrix = matrix or as_matrix(data2d)
+            matrix = matrix[base_row_entries, :]
 
-        if grid is None:
+        if matrix is None:
             return data2d
 
-        grid = optimize(as_layout(grid, ROW_MAJOR))
-        self.cache.set_grid(name, freeze(grid))
-        return grid
+        matrix = freeze(optimize(as_layout(matrix, ROW_MAJOR)))
+        self.cache._set_matrix(axes, name, matrix)
+        return matrix

@@ -5,6 +5,7 @@ API
 
 .. toctree::
 
-  typing
+  access
   storage
+  typing
   genindex

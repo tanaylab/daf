@@ -1,13 +1,14 @@
 """
-The types here describe 2D data where all the elements have the same data type, inside a ``pandas.DataFrame``, which can
-be obtained from ``daf`` storage.
+The types here describe 2D data inside a ``pandas.DataFrame``, where all the elements have the same data type, which can
+be fetched from ``daf`` storage.
 
 Logically and operationally this is a distinct data type from a generic data frame where each column has a different
 data type (that is, a "real" data frame). Since ``pandas`` does not make this distinction, even if/when it provides
 ``mypy`` annotations, we'd still need to set up the types here (similar to the problem with ``numpy.ndarray``).
 
 In theory it should have been possible to store sparse data inside a ``pandas.DataFrame``, but in practice this fails in
-svarious ways, so ``daf`` only stores such frames if they contain dense (that is, `.Array2D`) data.
+various ways, so **don't**. When fetching data from ``daf``, frames will alway contain dense (``numpy.ndarray`` 2D)
+data.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -15,7 +16,6 @@ svarious ways, so ``daf`` only stores such frames if they contain dense (that is
 from __future__ import annotations
 
 from typing import Any
-from typing import Collection
 from typing import NewType
 from typing import Optional
 from typing import Union
@@ -25,11 +25,11 @@ try:
 except ImportError:
     pass  # Older python versions.
 
-import numpy as np
 import pandas as pd  # type: ignore
 
-from . import array2d as _array2d
+from . import dense as _dense
 from . import descriptions as _descriptions
+from . import dtypes as _dtypes
 from . import fake_pandas as _fake_pandas  # pylint: disable=unused-import
 from . import layouts as _layouts
 
@@ -47,11 +47,11 @@ __all__ = [
     "be_frame_in_columns",
 ]
 
-#: 2-dimensional ``pandas.DataFrame`` with homogeneous data elements, in row-major layout.
-FrameInRows = NewType("FrameInRows", _fake_pandas.PandasFrame)
+#: A 2D ``pandas.DataFrame`` with homogeneous data elements, in row-major layout.
+FrameInRows = NewType("FrameInRows", _fake_pandas.DataFrame)
 
 
-def is_frame_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[FrameInRows]:
+def is_frame_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[FrameInRows]:
     """
     Check whether some ``data`` is a `.FrameInRows`, optionally only of some ``dtype``.
 
@@ -60,22 +60,22 @@ def is_frame_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] 
     return is_frame(data, dtype=dtype, layout=_layouts.ROW_MAJOR)
 
 
-def be_frame_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> FrameInRows:
+def be_frame_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> FrameInRows:
     """
     Assert that some ``data`` is a `.FrameInRows`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_frame_in_rows(data, dtype=dtype), "row-major pandas.DataFrame", data, dtype)
+    _descriptions.assert_data(is_frame_in_rows(data, dtype=dtype), "row-major pandas.DataFrame", data, dtype=dtype)
     return data
 
 
-#: 2-dimensional ``pandas.DataFrame`` with homogeneous data elements, in column-major layout.
-FrameInColumns = NewType("FrameInColumns", _fake_pandas.PandasFrame)
+#: A 2D ``pandas.DataFrame`` with homogeneous data elements, in column-major layout.
+FrameInColumns = NewType("FrameInColumns", _fake_pandas.DataFrame)
 
 
-def is_frame_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[FrameInColumns]:
+def is_frame_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[FrameInColumns]:
     """
     Check whether some ``data`` is a `.FrameInColumns`, optionally only of some ``dtype``.
 
@@ -84,23 +84,25 @@ def is_frame_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]
     return is_frame(data, dtype=dtype, layout=_layouts.COLUMN_MAJOR)
 
 
-def be_frame_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> FrameInColumns:
+def be_frame_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> FrameInColumns:
     """
     Assert that some ``data`` is a `.FrameInColumns`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_frame_in_columns(data, dtype=dtype), "column-major pandas.DataFrame", data, dtype)
+    _descriptions.assert_data(
+        is_frame_in_columns(data, dtype=dtype), "column-major pandas.DataFrame", data, dtype=dtype
+    )
     return data
 
 
-#: 2-dimensional ``pandas.DataFrame`` with homogeneous data elements, in any-major layout.
+#: A 2D ``pandas.DataFrame`` with homogeneous data elements, in any-major layout.
 Frame = Union[FrameInRows, FrameInColumns]
 
 
 def is_frame(
-    data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> TypeGuard[Frame]:
     """
     Check whether some ``data`` is a `.Frame`, optionally only of some ``dtype``, optionally only of some ``layout``.
@@ -109,14 +111,12 @@ def is_frame(
     """
     return (
         isinstance(data, pd.DataFrame)
-        and len(np.unique(data.dtypes)) == 1
-        and _array2d.is_array2d(data.values, dtype=dtype, layout=layout)
+        and len(set(data.dtypes)) == 1
+        and _dense.is_dense(data.values, dtype=dtype, layout=layout)
     )
 
 
-def be_frame(
-    data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
-) -> Frame:
+def be_frame(data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None) -> Frame:
     """
     Assert that some ``data`` is a `.Frame` optionally only of some ``dtype``, optionally only of some ``layout``, and
     return it as such for ``mypy``.
@@ -125,6 +125,6 @@ def be_frame(
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
     _descriptions.assert_data(
-        is_frame(data, dtype=dtype, layout=layout), f"{layout.name} pandas.DataFrame", data, dtype
+        is_frame(data, dtype=dtype, layout=layout), f"{layout.name} pandas.DataFrame", data, dtype=dtype
     )
     return data

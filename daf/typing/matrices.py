@@ -1,35 +1,20 @@
 """
-In contrast to 1D data, 2D data can be represented in too many data types and formats. In ``daf`` we only allow storing
-a restricted set of types. These were chosen to cover "most" needs while minimizing the burden on the code (to pick
-different code paths for the different types).
+The types here describe 2D data without names (that is, not in a ``pandas.DataFrame``), which is how 2D data is stored
+in ``daf``. Currently there are only two such types:
 
-* `.Array2D` is a two-dimensional ``numpy.ndarray``.
+* `.Dense` is a 2D ``numpy.ndarray`` matrix.
+* `.Sparse` is a compressed sparse matrix (either ``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``).
 
-* `.Sparse` is a compressed sparse matrix (``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``).
-
-* `.Frame` is a ``pandas.DataFrame`` which contains an ``daf.typing.array2d.Array2D`` of a single element type, with
-  indices of names for the rows and the columns.
-
-In addition, we provide the following 2D data union types:
-
-* `.Grid` is a union of `.Array2D` and `.Sparse`, that is, plain data without names.
-
-* `.Dense` is a union of `.Array2D` and `.Frame`, that is, dense data without compression.
-
-* `.Matrix`, defined here, is the most general 2D data, a union of all the above.
-
-Since layout of 2D data is crucial for performance and impacts code paths, each of the above types can be suffixed with
-``InRows`` or ``InColumns`` to indicate that it is stored in `.ROW_MAJOR` or `.COLUMN_MAJOR` layout. This *matters* as
-performing computations on the wrong layout will be *drastically* inefficient for non-trivial sizes; see the `.layouts`
-module for details, and `.matrix_copy` for a safe way to copy 2D data while preserving its layout.
+The `.Matrix` type annotations is their union, that is, allows for "any" 2D data without names. While this isn't very
+useful to directly perform operation on, it is very useful as the return type of accessing 2D data stored in ``daf``, as
+the caller has no control over whether the data was stored as sparse, and forcing it to be dense would not be practical
+for large data sets.
 
 .. note::
 
-    It seems that ``pandas`` isn't reliable when it comes to the 2D layout of frames of strings; it tends to force them
-    to be in `.COLUMN_MAJOR` layout. At least this happens in some ``pandas`` versions - this doesn't seem to be
-    documented well (or at all). You are therefore advised not to try to use `.ROW_MAJOR` frames of strings, unless you
-    are willing to deal with the subtle undocumented incompatibilities between different ``pandas`` versions. The layout
-    of frames of numbers seems to work as expected across all versions, though.
+    The `.Matrix` type should be only be directly used in computations with **great care**, as some operations are
+    subtly different for ``numpy`` 2D arrays and ``scipy.sparse`` compressed matrices. It is typically better to use one
+    of the concrete types instead.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
@@ -37,7 +22,6 @@ module for details, and `.matrix_copy` for a safe way to copy 2D data while pres
 from __future__ import annotations
 
 from typing import Any
-from typing import Collection
 from typing import Optional
 from typing import Union
 from typing import overload
@@ -47,16 +31,18 @@ try:
 except ImportError:
     pass  # Older python versions.
 
-import numpy as np
 import pandas as pd  # type: ignore
 import scipy.sparse as sp  # type: ignore
 
-from . import array2d as _array2d
+from . import dense as _dense
 from . import descriptions as _descriptions
 from . import dtypes as _dtypes
+from . import fake_pandas as _fake_pandas
+from . import fake_sparse as _fake_sparse
 from . import frames as _frames
 from . import layouts as _layouts
 from . import sparse as _sparse
+from . import unions as _unions
 
 # pylint: enable=duplicate-code,cyclic-import
 
@@ -64,170 +50,160 @@ __all__ = [
     "Matrix",
     "is_matrix",
     "be_matrix",
+    "as_matrix",
     "MatrixInRows",
     "is_matrix_in_rows",
     "be_matrix_in_rows",
     "MatrixInColumns",
     "is_matrix_in_columns",
     "be_matrix_in_columns",
-    "matrix_copy",
 ]
 
-#: Any 2D data in `.ROW_MAJOR` layout.
-MatrixInRows = Union["_array2d.ArrayInRows", _sparse.SparseInRows, _frames.FrameInRows]
+#: Any 2D data in `.ROW_MAJOR` layout, without names.
+MatrixInRows = Union[_dense.DenseInRows, _sparse.SparseInRows]
 
 
-def is_matrix_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> TypeGuard[MatrixInRows]:
+def is_matrix_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[MatrixInRows]:
     """
     Assert that some ``data`` is a `.MatrixInRows`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return (
-        _array2d.is_array_in_rows(data, dtype=dtype)
-        or _sparse.is_sparse_in_rows(data, dtype=dtype)
-        or _frames.is_frame_in_rows(data, dtype=dtype)
-    )
+    return _dense.is_dense_in_rows(data, dtype=dtype) or _sparse.is_sparse_in_rows(data, dtype=dtype)
 
 
-def be_matrix_in_rows(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixInRows:
+def be_matrix_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> MatrixInRows:
     """
     Assert that some ``data`` is a `.MatrixInRows`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_matrix_in_rows(data, dtype=dtype), "row-major matrix", data, dtype)
+    _descriptions.assert_data(is_matrix_in_rows(data, dtype=dtype), "row-major matrix", data, dtype=dtype)
     return data
 
 
-#: Any 2D data in `.COLUMN_MAJOR` layout.
-MatrixInColumns = Union["_array2d.ArrayInColumns", _sparse.SparseInColumns, _frames.FrameInColumns]
+#: Any 2D data in `.COLUMN_MAJOR` layout, without names.
+MatrixInColumns = Union[_dense.DenseInColumns, _sparse.SparseInColumns]
 
 
-def is_matrix_in_columns(
-    data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None
-) -> TypeGuard[MatrixInColumns]:
+def is_matrix_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[MatrixInColumns]:
     """
     Assert that some ``data`` is a `.MatrixInColumns`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return (
-        _array2d.is_array_in_columns(data, dtype=dtype)
-        or _sparse.is_sparse_in_columns(data, dtype=dtype)
-        or _frames.is_frame_in_columns(data, dtype=dtype)
-    )
+    return _dense.is_dense_in_columns(data, dtype=dtype) or _sparse.is_sparse_in_columns(data, dtype=dtype)
 
 
-def be_matrix_in_columns(data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None) -> MatrixInColumns:
+def be_matrix_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> MatrixInColumns:
     """
     Assert that some ``data`` is a `.MatrixInColumns`, optionally only of some ``dtype``, and return it as such for
     ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_matrix_in_columns(data, dtype=dtype), "column-major matrix", data, dtype)
+    _descriptions.assert_data(is_matrix_in_columns(data, dtype=dtype), "column-major matrix", data, dtype=dtype)
     return data
 
 
-#: Any 2D data.
-Matrix = Union["_array2d.Array2D", _sparse.Sparse, _frames.Frame]
+#: Any 2D data, in either `.ROW_MAJOR` or `.COLUMN_MAJOR` layout, without names.
+#:
+#: .. note::
+#:
+#:  This is **not** to be confused with the deprecated ``numpy.matrix`` type which must never be used.
+Matrix = Union[_dense.Dense, _sparse.Sparse]
 
 
 def is_matrix(
-    data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> TypeGuard[Matrix]:
     """
-    Assert that some ``data`` is a `.Matrix`, optionally only of some ``dtype``, optionally of some ``layout``, and
+    Assert that some ``data`` is a `.Matrix`, optionally only of some ``dtype``, optionally only of some ``layout``, and
     return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return (
-        _array2d.is_array2d(data, dtype=dtype, layout=layout)
-        or _sparse.is_sparse(data, dtype=dtype, layout=layout)
-        or _frames.is_frame(data, dtype=dtype, layout=layout)
-    )
+    return _dense.is_dense(data, dtype=dtype, layout=layout) or _sparse.is_sparse(data, dtype=dtype, layout=layout)
 
 
 def be_matrix(
-    data: Any, *, dtype: Optional[Union[str, Collection[str]]] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
 ) -> Matrix:
     """
-    Assert that some ``data`` is a `.Matrix`, optionally only of some ``dtype``, optionally of some ``layout``, and
+    Assert that some ``data`` is a `.Matrix`, optionally only of some ``dtype``, optionally only of some ``layout``, and
     return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
-    _descriptions.assert_data(is_matrix(data, dtype=dtype, layout=layout), f"{layout.name} matrix", data, dtype)
+    _descriptions.assert_data(is_matrix(data, dtype=dtype, layout=layout), f"{layout.name} matrix", data, dtype=dtype)
     return data
 
 
 @overload
-def matrix_copy(data: _array2d.ArrayInRows) -> _array2d.ArrayInRows:
+def as_matrix(data: _dense.DenseInRows, *, force_copy: bool = False) -> _dense.DenseInRows:
     ...
 
 
 @overload
-def matrix_copy(data: _array2d.ArrayInColumns) -> _array2d.ArrayInColumns:
+def as_matrix(data: _dense.DenseInColumns, *, force_copy: bool = False) -> _dense.DenseInColumns:
     ...
 
 
 @overload
-def matrix_copy(data: _sparse.SparseInRows) -> _sparse.SparseInRows:
+def as_matrix(data: _sparse.SparseInRows, *, force_copy: bool = False) -> _sparse.SparseInRows:
     ...
 
 
 @overload
-def matrix_copy(data: _sparse.SparseInColumns) -> _sparse.SparseInColumns:
+def as_matrix(data: _sparse.SparseInColumns, *, force_copy: bool = False) -> _sparse.SparseInColumns:
     ...
 
 
 @overload
-def matrix_copy(data: _frames.FrameInRows) -> _frames.FrameInRows:
+def as_matrix(data: _fake_sparse.spmatrix, *, force_copy: bool = False) -> _sparse.Sparse:
     ...
 
 
 @overload
-def matrix_copy(data: _frames.FrameInColumns) -> _frames.FrameInColumns:
+def as_matrix(data: _frames.FrameInRows, *, force_copy: bool = False) -> _dense.DenseInRows:
     ...
 
 
-def matrix_copy(data: Matrix) -> Matrix:
+@overload
+def as_matrix(data: _frames.FrameInColumns, *, force_copy: bool = False) -> _dense.DenseInColumns:
+    ...
+
+
+@overload
+def as_matrix(data: _fake_pandas.DataFrame, *, force_copy: bool = False) -> _dense.Dense:
+    ...
+
+
+@overload
+def as_matrix(data: _unions.AnyData, *, force_copy: bool = False) -> Matrix:
+    ...
+
+
+def as_matrix(data: _unions.AnyData, *, force_copy: bool = False) -> Matrix:
     """
-    Create a copy of a matrix.
+    Access the internal 2D matrix, if possible; otherwise, or if ``force_copy``, return a copy of the 2D data as a
+    ``numpy`` array.
 
-    All the matrix data types (``numpy.ndarray``, ``scipy.sparse``, ``pandas.DataFrame``) have a ``copy()`` method, so
-    you would think one can just write ``matrix.copy()`` and be done and that is *almost* true except that in their
-    infinite wisdom ``numpy`` will always create the copy in `.ROW_MAJOR` layout, and ``pandas`` will always create the
-    copy in `.COLUMN_MAJOR` layout, because "reasons". In fact in some (older) versions of ``pandas``/``numpy``, it
-    seems this isn't even possible to achieve a `.ROW_MAJOR` frame of strings.
-
-    The code here will give you a proper copy of the data in the same layout as the original. Sigh.
+    If the input is a ``pandas.DataFrame``, this will only work if all the data in the frame has the same type.
     """
-    if isinstance(data, np.ndarray):
-        array2d_copy: _array2d.Array2D = np.array(data)  # type: ignore
-        for layout in (_layouts.ROW_MAJOR, _layouts.COLUMN_MAJOR):
-            assert layout.is_layout_of(array2d_copy) == layout.is_layout_of(data)
-        return array2d_copy
+    # In case someone sneaks a sparse matrix into a frame, which doesn't really work, but be nice...
+    if isinstance(data, pd.DataFrame):
+        data = data.values
 
-    if isinstance(data, pd.DataFrame) and isinstance(data.values, np.ndarray):
-        values_copy: _array2d.Array2D = matrix_copy(data.values)  # type: ignore
-        frame_copy = pd.DataFrame(values_copy, index=data.index, columns=data.columns)
-        # For ``object`` data, older ``pandas`` insists on column-major order no matter what.
-        # This means we have needless duplicated the array above, since ``pandas`` will re-copy (and re-layout) it.
-        # Since newer ``pandas`` seems to be doing the right thing, we keep the code above. Sigh.
-        if not _dtypes.is_dtype(data.values.dtype, _dtypes.STR_DTYPE):
-            for layout in (_layouts.ROW_MAJOR, _layouts.COLUMN_MAJOR):
-                assert layout.is_layout_of(frame_copy.values) == layout.is_layout_of(data.values)  # type: ignore
-        return frame_copy
+    if isinstance(data, sp.spmatrix):
+        if not isinstance(data, _layouts._ANY_MAJOR.sparse_class):  # pylint: disable=protected-access
+            return _layouts.ROW_MAJOR.sparse_class(data)
+        if force_copy:
+            return data.copy()
+        return data
 
-    # This will keep non-optimal (e.g. COO data) as non-optimal.
-    # Otherwise we'd have called this ``as_matrix`` with a ``force_copy`` instead of ``matrix_copy``.
-    # However ``matrix_copy`` seems more useful in practice.
-    _descriptions.assert_data(isinstance(data, sp.spmatrix), "matrix", data, None)
-    return data.copy()
+    return _dense.as_dense(data, force_copy=force_copy)

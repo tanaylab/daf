@@ -1,8 +1,9 @@
 """
-``scypy.sparse`` doesn't provide type annotations. We don't try to overcome this here, but we do want to allow for
-saying "this is a sparse matrix in CSR format", at least as an option. To do this we need to use ``typing.Annotate``
-which requires the base class to be known. As a workaround we define fake sparse matrix and use it instead. To shut
-``mypy`` up we need to populate them with all the public interface of the real classes.
+The ``scypy.sparse`` package doesn't provide type annotations. This means anywhere we use ``sparse.scipy.spmatrix``,
+``sparse.scipy.csr_matrix`` or ``sparse.scipy.csc_matrix``, they becomes ``Any``, which poisons any ``Union`` using the
+type to become ``Any`` as well, making ``mypy`` type checking useless. As a workaround we define fake `.spmatrix` and
+`.cs_matrix` and use them instead. To shut ``mypy`` up we need to populate it with all the public interface of the real
+``scipy.sparse`` classes. Sigh.
 
 .. todo::
 
@@ -13,11 +14,10 @@ which requires the base class to be known. As a workaround we define fake sparse
 
 from __future__ import annotations
 
-from abc import ABC
 from typing import Any
 from typing import Tuple
 
-from . import array1d as _array1d
+from . import vectors as _vectors
 
 # pylint: enable=duplicate-code,cyclic-import
 
@@ -25,21 +25,16 @@ from . import array1d as _array1d
 # pylint: disable=too-many-public-methods,too-many-lines
 
 
-__all__ = ["SparseMatrix"]
+__all__ = ["spmatrix", "cs_matrix"]
 
 
-class SparseMatrix(ABC):
+class spmatrix:
     """
     Fake class for ``mypy``.
     """
 
-    data: _array1d.Array1D
     dtype: Any
     format: str
-    has_canonical_format: bool
-    has_sorted_indices: bool
-    indices: _array1d.Array1D
-    indptr: _array1d.Array1D
     maxprint: Any
     ndim: int
     nnz: int
@@ -332,3 +327,15 @@ class SparseMatrix(ABC):
 
     def __truediv__(self, *args: Any, **kwargs: Any) -> Any:
         ...
+
+
+class cs_matrix(spmatrix):
+    """
+    Fake class for ``mypy``.
+    """
+
+    data: _vectors.Vector
+    indices: _vectors.Vector
+    indptr: _vectors.Vector
+    has_canonical_format: bool
+    has_sorted_indices: bool
