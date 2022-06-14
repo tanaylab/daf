@@ -57,7 +57,7 @@ def data_description(data: Any) -> str:
     return f"{data.__class__.__module__}.{data.__class__.__qualname__}{suffix}"
 
 
-def _ndarray_description(data: np.ndarray) -> str:  # pylint: disable=too-many-return-statements
+def _ndarray_description(data: np.ndarray) -> str:  # pylint: disable=too-many-return-statements,too-many-branches
     if str(data.dtype) == "bool":
         true = np.sum(data)
         if true == data.size:
@@ -102,7 +102,10 @@ def _ndarray_description(data: np.ndarray) -> str:  # pylint: disable=too-many-r
             )
         return f"{frozen}none-major numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}{suffix}"
 
-    return f"{frozen}{data.ndim}D numpy.ndarray of {data.shape[0]}x{data.shape[1]} of {data.dtype}{suffix}"
+    shape = "x".join([str(size) for size in data.shape])
+    if shape == "":
+        shape = "none"
+    return f"{frozen}{data.ndim}D numpy.ndarray of {shape} of {data.dtype}{suffix}"
 
 
 def _series_description(data: _fake_pandas.Series) -> str:

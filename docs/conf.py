@@ -81,7 +81,8 @@ nitpicky = True
 nitpick_ignore = [
     ('py:class', 'abc.ABC'),
     ('py:class', 'anndata._core.anndata.AnnData'),
-    ('py:class', 'daf.access.CALLABLE'),
+    ('py:class', 'daf.access.filters.Reformat'),
+    ('py:class', 'daf.access.writers.CALLABLE'),
     ('py:class', 'daf.storage.memory._MemoryReader'),
     ('py:class', 'daf.typing.frame.FrameInColumns'),
     ('py:class', 'daf.typing.frame.FrameInRows'),

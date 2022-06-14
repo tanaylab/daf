@@ -192,6 +192,12 @@ def as_dense(data: _unions.AnyData, *, force_copy: bool = False) -> Dense:
 
     This will convert ``pandas`` strings (even if categorical) to proper ``numpy`` strings.
     """
+    if isinstance(data, sp.csr_matrix):
+        return data.toarray(order="C")
+
+    if isinstance(data, sp.csc_matrix):
+        return data.toarray(order="F")
+
     if isinstance(data, sp.spmatrix):
         return data.toarray()
 

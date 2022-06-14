@@ -1,5 +1,5 @@
 """
-Test ``daf.storage.access``.
+Test ``daf.access.readers`` and ``daf.access.writers``.
 """
 
 from textwrap import dedent
@@ -220,7 +220,7 @@ def row_sums(data: DafWriter, *, overwrite: bool = False) -> None:  # pylint: di
         detail=True,
         expected="""
             test.daf.adapter#<id>.tests.test_access.row_sums#<id>:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 column: frozen 1D numpy.ndarray of 3 of <U5
                 row: frozen 1D numpy.ndarray of 2 of <U5
@@ -304,7 +304,7 @@ def test_computation_call() -> None:
         data,
         expected="""
         test.daf:
-          class: daf.access.DafWriter
+          class: daf.access.writers.DafWriter
           axes:
             cell: 2 entries
             gene: 3 entries
@@ -322,7 +322,7 @@ def test_computation_call() -> None:
             work,
             expected="""
                 test.daf.adapter#<id>:
-                  class: daf.access.DafWriter
+                  class: daf.access.writers.DafWriter
                   axes:
                     column: 3 entries
                     row: 2 entries
@@ -336,7 +336,7 @@ def test_computation_call() -> None:
         data,
         expected="""
             test.daf:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 cell: 2 entries
                 gene: 3 entries
@@ -381,7 +381,7 @@ def cluster_cells(data: DafWriter, *, overwrite: bool = False) -> None:  # pylin
         data,
         expected="""
             test.daf.adapter#<id>.tests.test_access.cluster_cells#<id>:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 cell: 3 entries
                 cluster: 2 entries
@@ -412,7 +412,7 @@ def test_computation_back() -> None:
         data,
         expected="""
             test.daf:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 gene: 3 entries
                 profile: 3 entries
@@ -437,7 +437,7 @@ def test_computation_back() -> None:
         data,
         expected="""
             test.daf:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 gene: 3 entries
                 profile: 3 entries
@@ -472,7 +472,7 @@ def row_sum_absolute(data: DafWriter, *, overwrite: bool = False) -> None:  # py
         data,
         expected="""
             test.daf.adapter#<id>.tests.test_access.row_sum_absolute#<id>:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 column: 2 entries
                 row: 2 entries
@@ -507,7 +507,7 @@ def test_computation_slice_dense() -> None:
         data,
         expected="""
         test.daf:
-          class: daf.access.DafWriter
+          class: daf.access.writers.DafWriter
           axes:
             cell: 2 entries
             gene: 3 entries
@@ -525,7 +525,7 @@ def test_computation_slice_dense() -> None:
             work,
             expected="""
                 test.daf.adapter#<id>:
-                  class: daf.access.DafWriter
+                  class: daf.access.writers.DafWriter
                   axes:
                     column: 2 entries
                     row: 2 entries
@@ -539,7 +539,7 @@ def test_computation_slice_dense() -> None:
         data,
         expected="""
             test.daf:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 cell: 2 entries
                 gene: 3 entries
@@ -573,7 +573,7 @@ def test_computation_slice_sparse() -> None:
         data,
         expected="""
         test.daf:
-          class: daf.access.DafWriter
+          class: daf.access.writers.DafWriter
           axes:
             cell: 2 entries
             gene: 3 entries
@@ -591,7 +591,7 @@ def test_computation_slice_sparse() -> None:
             work,
             expected="""
                 test.daf.adapter#<id>:
-                  class: daf.access.DafWriter
+                  class: daf.access.writers.DafWriter
                   axes:
                     column: 2 entries
                     row: 2 entries
@@ -605,7 +605,7 @@ def test_computation_slice_sparse() -> None:
         data,
         expected="""
             test.daf:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 cell: 2 entries
                 gene: 3 entries
@@ -639,7 +639,7 @@ def test_computation_slice_very_sparse() -> None:
         data,
         expected="""
         test.daf:
-          class: daf.access.DafWriter
+          class: daf.access.writers.DafWriter
           axes:
             cell: 2 entries
             gene: 3 entries
@@ -657,7 +657,7 @@ def test_computation_slice_very_sparse() -> None:
             work,
             expected="""
                 test.daf.adapter#<id>:
-                  class: daf.access.DafWriter
+                  class: daf.access.writers.DafWriter
                   axes:
                     column: 2 entries
                     row: 2 entries
@@ -671,7 +671,7 @@ def test_computation_slice_very_sparse() -> None:
         data,
         expected="""
             test.daf:
-              class: daf.access.DafWriter
+              class: daf.access.writers.DafWriter
               axes:
                 cell: 2 entries
                 gene: 3 entries

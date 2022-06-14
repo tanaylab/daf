@@ -125,20 +125,20 @@ def test_as_layout() -> None:
     csr_matrix = be_sparse(sp.random(10, 20, density=0.5, format="csr"))
     assert has_layout(csr_matrix, ROW_MAJOR)
 
-    row_major = be_dense(csr_matrix.toarray())
+    row_major = be_dense(csr_matrix.toarray(order="C"))
     assert has_layout(csr_matrix, ROW_MAJOR)
-    assert np.allclose(row_major, csr_matrix.toarray())
+    assert np.allclose(row_major, csr_matrix.toarray(order="C"))
 
     assert id(as_layout(csr_matrix, ROW_MAJOR)) == id(csr_matrix)
     copied_csr_matrix = as_layout(csr_matrix, ROW_MAJOR, force_copy=True)
     assert isinstance(copied_csr_matrix, sp.csr_matrix)
     assert id(copied_csr_matrix) != id(csr_matrix)
-    assert np.allclose(copied_csr_matrix.toarray(), row_major)
+    assert np.allclose(copied_csr_matrix.toarray(order="C"), row_major)
 
     csc_matrix = as_layout(csr_matrix, COLUMN_MAJOR)
     assert isinstance(csc_matrix, sp.csc_matrix)
     assert has_layout(csc_matrix, COLUMN_MAJOR)
-    assert np.allclose(csc_matrix.toarray(), row_major)
+    assert np.allclose(csc_matrix.toarray(order="F"), row_major)
 
     assert id(as_layout(row_major, ROW_MAJOR)) == id(row_major)
     copied_row_major = as_layout(row_major, ROW_MAJOR, force_copy=True)
@@ -175,12 +175,12 @@ def test_as_layout() -> None:
     csr_matrix = as_layout(non_major, ROW_MAJOR)
     assert isinstance(csr_matrix, sp.csr_matrix)
     assert has_layout(csr_matrix, ROW_MAJOR)
-    assert np.allclose(row_major, csr_matrix.toarray())
+    assert np.allclose(row_major, csr_matrix.toarray(order="C"))
 
     csc_matrix = as_layout(non_major, COLUMN_MAJOR)
     assert isinstance(csc_matrix, sp.csc_matrix)
     assert has_layout(csc_matrix, COLUMN_MAJOR)
-    assert np.allclose(row_major, csc_matrix.toarray())
+    assert np.allclose(row_major, csc_matrix.toarray(order="F"))
 
 
 def test_big_as_layout() -> None:
