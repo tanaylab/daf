@@ -155,6 +155,18 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         If ``description`` is provided, collect the result into it. This allows collecting multiple data set
         descriptions into a single overall system state description.
+
+        An example output (without ``detail`` or ``deep``) of a data set with just per-cell-per-gene UMIs:
+
+        .. code:: yaml
+
+            test.daf:
+              class: daf.access.writers.DafWriter
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - cell,gene;UMIs
         """
         description = description or {}
         if self.name in description:

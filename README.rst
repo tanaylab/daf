@@ -156,8 +156,10 @@ Usage
     cells_umis_sum = data.get_vector("cell,gene;UMIs|Sum")
 
     #: Slice the data to look only at cells with a high number of UMIs and significant.
-    strong_data = \
-        daf.daf_view(data, axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask))
+    strong_data = daf.daf_view(
+        data,
+        axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask)
+    )
 
 See the `documentation <https://daf.readthedocs.io/en/latest/?badge=latest>`_ for the full API details.
 
