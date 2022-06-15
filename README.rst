@@ -66,13 +66,14 @@ place.
 
 When it comes to storage, ``daf`` makes it as easy as possible to write adapters to allow storing the data in your
 favorite format; in particular, ``daf`` supports ``AnnData`` (or a set of ``AnnData``) as a storage format, which in
-turn allows the data to be stored in various disk file formats such as ``h5ad``.
+turn allows the data to be stored in various disk file formats such as ``h5ad``. Since ``h5ad`` is restricted by the
+``AnnData`` data model, we also allow directly storing ``daf`` data in an ``h5fs`` file in a more efficient way (that
+is, in ``h5df`` files).
 
-That said, we find the use of complex single-file formats such as ``h5ad`` to be sub-optimal. In effect they try to
-replicate a file system, but offer only some of its functionality. For example, you need special APIs to list the
-content of the file, or copy or delete just parts of it. It is impossible find out which parts have been changed when,
-and most implementations do not support memory-mapping the data, which causes a huge performance hit for large data
-sets.
+That said, we find the use of complex single-file formats such as ``h5fs`` to be sub-optimal in many cases. In effect
+they try to replicate a file system, but offer only some of its functionality. For example, you need special APIs to
+list the content of the file, copy or delete just parts of it, find out which parts have been changed when, and most
+implementations do not support memory-mapping the data, which causes a large performance hit for large data sets.
 
 Therefore, as an option, ``daf`` also supports a simple "files" storage format where every "annotation" is a separate
 file (in a trivial format) inside a single directory. This allows for efficient memory-mapping of files, using standard
@@ -82,15 +83,17 @@ archive. This may actually be more efficient as this allows compressing the data
 archiving. Besides, due to the limitations of ``AnnData``, one has to send multiple files for a complete data set
 anyway.
 
-In addition ``daf`` also provides a simple in-memory storage format, which means we can avoid using ``AnnData``
-altogether when we so choose. It is also possible to create views of ``daf`` data (slicing, renaming and hiding axes
-and/or specific annotations), and to copy ``daf`` data from one data set to another (e.g., from a view of an in-memory
-data set into an ``AnnData`` data set for writing it into an ``h5ad`` file).
+Finally, ``daf`` also provides a simple in-memory storage format, which is a lightweight container optimized for ``daf``
+data access (similar to an in-memory ``AnnData`` object).
+
+It is possible to create views of ``daf`` data (slicing, renaming and hiding axes and/or specific annotations), and to
+copy ``daf`` data from one data set to another (e.g., from a view of an in-memory data set into an ``AnnData`` data set
+for exporting it into an ``h5ad`` file).
 
 Finally, the ``daf`` package also provides some convenience functionality out of the box, such as caching derived data
-(different layouts of the same data, sums along axes, conversion of UMIs to fractions, etc.). It is possible to disable
-such caching (recomputing the derived data every time it is requested), or direct the cache to an arbitrary storage
-format (e.g., keep the derived data cache in-memory on top of a disk-based data set, which is a common usage pattern).
+(different layouts of the same data, sums or other computations along axes, etc.). It is possible to disable such
+caching (recomputing the derived data every time it is requested), or direct the cache to an arbitrary storage format
+(e.g., keep the derived data cache in-memory on top of a disk-based data set, which is a common usage pattern).
 
 It is assumed that ``daf`` data will be processed in a single machine, that is, ``daf`` does not try to address the
 issues of a distributed cluster of servers working on a shared data set. Today's servers (as of 2022) can get very big
@@ -99,8 +102,8 @@ memory mapped files are a great help here). In addition, if using the "files" st
 servers access the same ``daf`` directory, each computing a different independent additional annotation (e.g., one
 server searching for doublets while another is searching for gene modules), and as long as only one server writes each
 new "annotation", this should work fine (one can do even better by writing more complex code). This is another example
-of how simple files make it easy to provide functionality which is impossible (or very difficult) to achieve using a
-complex single-file format such as ``h5ad``.
+of how simple files make it easy to provide functionality which is very difficult to achieve using a complex single-file
+format such as ``h5fs``.
 
 The bottom line is that ``daf`` provides a convenient abstraction layer above any "reasonable" storage format, allowing
 efficient computation and/or visualization code to naturally access and/or write the data it needs, even for
