@@ -11,8 +11,8 @@ features are:
 
 * Support both in-memory and persistent data storage of "any" format (given an adapter implementation).
 
-* Out of the box, allow storing the data in memory, in ``AnnData`` objects, or as a collection of simple memory-mapped
-  files.
+* Out of the box, allow storing the data in memory, in ``AnnData`` objects, inside an ``H5FS`` file, or as a collection
+  of simple memory-mapped files in a directory.
 
 * The data model is based on (1) some axes with named entries, (2) 1-D data indexed by a single axis, (3) 2-D
   data indexed by a pair of axes, and also (4) 0-D data items (anything not tied to some axis).
