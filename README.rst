@@ -11,7 +11,7 @@ are:
 
 * Support both in-memory and persistent data storage of "any" format (given an adapter implementation).
 
-* Out of the box, allow storing the data in memory, in ``AnnData`` object (e.g., using ``h5ad`` files), directly inside
+* Out of the box, allow storing the data in memory, in ``AnnData`` objects (e.g., using ``h5ad`` files), directly inside
   `H5FS <https://hdfgroup.org/>`_ files (using `h5py <https://www.h5py.org/>`_), or as a collection of simple
   memory-mapped files in a directory.
 
