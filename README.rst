@@ -111,8 +111,6 @@ Usage
 .. code-block:: python
 
     import daf
-    import numpy as np
-    import scipy.sparse as sp
 
     # Open an existing DAF storage in the "files" format.
     data = daf.DafReader(daf.FilesReader("..."))
@@ -133,11 +131,11 @@ Usage
     umis_matrix = data.get_matrix("cell,gene;UMIs")
 
     if daf.is_dense(umis_matrix):
-        # Umis matrix is dense (2D numpy array).
+        # Umis matrix is dense (2D numpy.ndarray).
         ...
     else:
         assert daf.is_sparse(umis_matrix)
-        # Umis matrix is sparse (sp.csr_matrix).
+        # Umis matrix is sparse (scipy.sparse.csr_matrix).
         ...
 
     # Get a Pandas data frame with homogeneous elements by two axes and a name.
@@ -156,8 +154,7 @@ Usage
     cells_umis_sum = data.get_vector("cell,gene;UMIs|Sum")
 
     #: Slice to include cells with a high number of UMIs and significant genes.
-    strong_data = daf.view(
-        data,
+    strong_data = data.view(
         axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask)
     )
 
