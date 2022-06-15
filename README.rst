@@ -1,8 +1,8 @@
 DAF 0.1.0-dev.1 - Data in Axes in Formats
 =========================================
 
-.. image:: https://dafpy.readthedocs.io/en/latest/
-    :target: https://readthedocs.org/projects/dafpy/badge/?version=latest
+.. image:: https://readthedocs.org/projects/dafpy/badge/?version=latest
+    :target: https://dafpy.readthedocs.io/en/latest/
     :alt: Documentation Status
 
 The daf package provides a uniform generic interface for accessing 1D and 2D data arranged along some set of axes. This
