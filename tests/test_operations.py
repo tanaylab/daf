@@ -1,47 +1,45 @@
 """
-Test ``daf.access.filters``.
+Test ``daf.access.operations``.
 """
 
 import numpy as np
 import scipy.sparse as sp  # type: ignore
 
-from daf.access.filters import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from daf.access.operations import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from daf.typing import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 # pylint: disable=missing-function-docstring
 
 
 def check_element_wise(
-    filter: ElementWise,  # pylint: disable=redefined-builtin
-    *,
-    canonical: str,
-    input_dense: np.ndarray,
-    expected_output: np.ndarray
+    element_wise: ElementWise, *, canonical: str, input_dense: np.ndarray, expected_output: np.ndarray
 ) -> None:
-    assert filter.canonical == canonical
+    assert element_wise.canonical == canonical
 
     input_vector = input_dense[0, :]
     expected_vector = expected_output[0, :]
-    actual_vector = filter.vector_to_vector(input_vector)
+    actual_vector = element_wise.vector_to_vector(input_vector)
     assert actual_vector.dtype == expected_vector.dtype
     assert np.allclose(actual_vector, expected_vector)
 
-    if filter.sparsifies:
+    if element_wise.sparsifies:
         actual_output = be_dense_in_rows(
-            be_sparse_in_rows(filter.dense_to_sparse(be_dense_in_rows(input_dense))).toarray(order="C")
+            be_sparse_in_rows(element_wise.dense_to_sparse(be_dense_in_rows(input_dense))).toarray(order="C")
         )
     else:
         actual_output = be_dense_in_rows(np.empty(expected_output.shape, dtype=expected_output.dtype))
-        filter.dense_to_dense(be_dense_in_rows(input_dense), be_dense_in_rows(actual_output))
+        element_wise.dense_to_dense(be_dense_in_rows(input_dense), be_dense_in_rows(actual_output))
     assert actual_output.dtype == expected_output.dtype
     assert np.allclose(actual_output, expected_output)
 
     input_sparse = sp.csr_matrix(input_dense)
-    if filter.densifies:
+    if element_wise.densifies:
         actual_output = be_dense_in_rows(np.empty(expected_output.shape, dtype=expected_output.dtype))
-        filter.sparse_to_dense(input_sparse, be_dense_in_rows(actual_output))
+        element_wise.sparse_to_dense(input_sparse, be_dense_in_rows(actual_output))
     else:
-        actual_output = be_dense_in_rows(be_sparse_in_rows(filter.sparse_to_sparse(input_sparse)).toarray(order="C"))
+        actual_output = be_dense_in_rows(
+            be_sparse_in_rows(element_wise.sparse_to_sparse(input_sparse)).toarray(order="C")
+        )
     assert actual_output.dtype == expected_output.dtype
     assert np.allclose(actual_output, expected_output)
 
@@ -149,24 +147,20 @@ def test_significant() -> None:
 
 
 def check_reduction(
-    filter: Reduction,  # pylint: disable=redefined-builtin
-    *,
-    canonical: str,
-    input_dense: np.ndarray,
-    expected_output: np.ndarray
+    reduction: Reduction, *, canonical: str, input_dense: np.ndarray, expected_output: np.ndarray
 ) -> None:
-    assert filter.canonical == canonical
+    assert reduction.canonical == canonical
 
     input_vector = input_dense[0, :]
     expected_scalar = expected_output[0]
-    actual_scalar = filter.vector_to_scalar(input_vector)
+    actual_scalar = reduction.vector_to_scalar(input_vector)
     assert np.allclose(actual_scalar, expected_scalar)
 
-    actual_output = filter.dense_to_vector(be_dense_in_rows(input_dense))
+    actual_output = reduction.dense_to_vector(be_dense_in_rows(input_dense))
     assert actual_output.dtype == expected_output.dtype
     assert np.allclose(actual_output, expected_output)
 
-    actual_output = filter.sparse_to_vector(sp.csr_matrix(input_dense))
+    actual_output = reduction.sparse_to_vector(sp.csr_matrix(input_dense))
     assert actual_output.dtype == expected_output.dtype
     assert np.allclose(actual_output, expected_output)
 

@@ -37,23 +37,28 @@ __all__ = [
 Vector = NewType("Vector", np.ndarray)
 
 
-def is_vector(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[Vector]:
+def is_vector(data: Any, *, dtype: Optional[_dtypes.DTypes] = None, size: Optional[int] = None) -> TypeGuard[Vector]:
     """
-    Check whether some ``data`` is a `.Vector`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a `.Vector`, optionally only of some ``dtype``, optionally only of some ``size``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return isinstance(data, np.ndarray) and data.ndim == 1 and _dtypes.has_dtype(data, dtype)
+    return (
+        isinstance(data, np.ndarray)
+        and (size is None or data.size == size)
+        and data.ndim == 1
+        and _dtypes.has_dtype(data, dtype)
+    )
 
 
-def be_vector(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> Vector:
+def be_vector(data: Any, *, dtype: Optional[_dtypes.DTypes] = None, size: Optional[int] = None) -> Vector:
     """
-    Assert that some ``data`` is a `.Vector`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is a `.Vector`, optionally only of some ``dtype``, optionally only of some ``size``, and
+    return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_vector(data, dtype=dtype), "1D numpy.ndarray", data, dtype=dtype)
+    _descriptions.assert_data(is_vector(data, dtype=dtype, size=size), "1D numpy.ndarray", data, dtype=dtype, size=size)
     return data
 
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Any
 from typing import NewType
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 try:
@@ -51,23 +52,30 @@ __all__ = [
 FrameInRows = NewType("FrameInRows", _fake_pandas.DataFrame)
 
 
-def is_frame_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[FrameInRows]:
+def is_frame_in_rows(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> TypeGuard[FrameInRows]:
     """
-    Check whether some ``data`` is a `.FrameInRows`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a `.FrameInRows`, optionally only of some ``dtype``, optionally only of some
+    ``shape``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return is_frame(data, dtype=dtype, layout=_layouts.ROW_MAJOR)
+    return is_frame(data, dtype=dtype, shape=shape, layout=_layouts.ROW_MAJOR)
 
 
-def be_frame_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> FrameInRows:
+def be_frame_in_rows(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> FrameInRows:
     """
-    Assert that some ``data`` is a `.FrameInRows`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is a `.FrameInRows`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_frame_in_rows(data, dtype=dtype), "row-major pandas.DataFrame", data, dtype=dtype)
+    _descriptions.assert_data(
+        is_frame_in_rows(data, dtype=dtype, shape=shape), "row-major pandas.DataFrame", data, dtype=dtype, shape=shape
+    )
     return data
 
 
@@ -75,24 +83,33 @@ def be_frame_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> Fr
 FrameInColumns = NewType("FrameInColumns", _fake_pandas.DataFrame)
 
 
-def is_frame_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[FrameInColumns]:
+def is_frame_in_columns(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> TypeGuard[FrameInColumns]:
     """
-    Check whether some ``data`` is a `.FrameInColumns`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a `.FrameInColumns`, optionally only of some ``dtype``, optionally only of some
+    ``shape``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return is_frame(data, dtype=dtype, layout=_layouts.COLUMN_MAJOR)
+    return is_frame(data, dtype=dtype, shape=shape, layout=_layouts.COLUMN_MAJOR)
 
 
-def be_frame_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> FrameInColumns:
+def be_frame_in_columns(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> FrameInColumns:
     """
-    Assert that some ``data`` is a `.FrameInColumns`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is a `.FrameInColumns`, optionally only of some ``dtype``, optionally only of some
+    ``shape``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     _descriptions.assert_data(
-        is_frame_in_columns(data, dtype=dtype), "column-major pandas.DataFrame", data, dtype=dtype
+        is_frame_in_columns(data, dtype=dtype, shape=shape),
+        "column-major pandas.DataFrame",
+        data,
+        dtype=dtype,
+        shape=shape,
     )
     return data
 
@@ -102,29 +119,44 @@ Frame = Union[FrameInRows, FrameInColumns]
 
 
 def is_frame(
-    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any,
+    *,
+    dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
+    layout: Optional[_layouts.AnyMajor] = None,
 ) -> TypeGuard[Frame]:
     """
-    Check whether some ``data`` is a `.Frame`, optionally only of some ``dtype``, optionally only of some ``layout``.
+    Check whether some ``data`` is a `.Frame`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    optionally only of some ``layout``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     return (
         isinstance(data, pd.DataFrame)
         and len(set(data.dtypes)) == 1
-        and _dense.is_dense(data.values, dtype=dtype, layout=layout)
+        and _dense.is_dense(data.values, dtype=dtype, shape=shape, layout=layout)
     )
 
 
-def be_frame(data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None) -> Frame:
+def be_frame(
+    data: Any,
+    *,
+    dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
+    layout: Optional[_layouts.AnyMajor] = None,
+) -> Frame:
     """
-    Assert that some ``data`` is a `.Frame` optionally only of some ``dtype``, optionally only of some ``layout``, and
-    return it as such for ``mypy``.
+    Assert that some ``data`` is a `.Frame` optionally only of some ``dtype``, optionally only of some ``shape``,
+    optionally only of some ``layout``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
     _descriptions.assert_data(
-        is_frame(data, dtype=dtype, layout=layout), f"{layout.name} pandas.DataFrame", data, dtype=dtype
+        is_frame(data, dtype=dtype, shape=shape, layout=layout),
+        f"{layout.name} pandas.DataFrame",
+        data,
+        dtype=dtype,
+        shape=shape,
     )
     return data

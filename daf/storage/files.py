@@ -478,10 +478,9 @@ class FilesWriter(FilesReader, _interface.StorageWriter):
 
     @contextmanager
     def _create_dense_in_rows(
-        self, axes: Tuple[str, str], name: str, dtype: DType
+        self, name: str, *, axes: Tuple[str, str], shape: Tuple[int, int], dtype: DType
     ) -> Generator[DenseInRows, None, None]:
         path = f"{self.path}/{name}"
-        shape = (self.axis_size(axes[0]), self.axis_size(axes[1]))
         _memory_mapping.create_memory_mapped_array(path, shape, dtype)
         dense = be_dense_in_rows(_memory_mapping.open_memory_mapped_array(path, "r+"))
         yield dense

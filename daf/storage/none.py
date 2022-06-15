@@ -18,12 +18,15 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import numpy as np
+
 from ..typing import DenseInRows
 from ..typing import DType
 from ..typing import Known1D
 from ..typing import Known2D
 from ..typing import MatrixInRows
 from ..typing import Vector
+from ..typing import be_dense_in_rows
 from . import interface as _interface
 
 # pylint: enable=duplicate-code,cyclic-import
@@ -150,9 +153,9 @@ class NoStorage(_interface.StorageWriter):  # pylint: disable=too-many-public-me
 
     @contextmanager
     def _create_dense_in_rows(
-        self, axes: Tuple[str, str], name: str, dtype: DType
+        self, name: str, *, axes: Tuple[str, str], shape: Tuple[int, int], dtype: DType
     ) -> Generator[DenseInRows, None, None]:
-        assert False, "never happens"
+        yield be_dense_in_rows(np.empty(shape, dtype=dtype))
 
 
 #: Storage used to specify not caching sliced or derived data.

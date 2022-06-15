@@ -30,14 +30,17 @@ __all__ = [
 ]
 
 
-def is_series(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[_fake_pandas.Series]:
+def is_series(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, size: Optional[int] = None
+) -> TypeGuard[_fake_pandas.Series]:
     """
-    Check whether some ``data`` is a `.Series`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a `.Series`, optionally only of some ``dtype``, optionally of some ``size``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     return (
         isinstance(data, pd.Series)
+        and (size is None or len(data) == size)
         and (
             (isinstance(data.values, np.ndarray) and data.values.ndim == 1) or str(data.dtype) in ("string", "category")
         )
@@ -45,11 +48,12 @@ def is_series(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard
     )
 
 
-def be_series(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> _fake_pandas.Series:
+def be_series(data: Any, *, dtype: Optional[_dtypes.DTypes] = None, size: Optional[int] = None) -> _fake_pandas.Series:
     """
-    Assert that some ``data`` is a `.Series`, optionally only of some ``dtype``, and return it as such for ``mypy``.
+    Assert that some ``data`` is a `.Series`, optionally only of some ``dtype``, optionally of some ``size``, and return
+    it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_series(data, dtype=dtype), "pandas.Series", data, dtype=dtype)
+    _descriptions.assert_data(is_series(data, dtype=dtype, size=size), "pandas.Series", data, dtype=dtype, size=size)
     return data

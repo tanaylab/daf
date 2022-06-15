@@ -686,3 +686,161 @@ def test_computation_slice_very_sparse() -> None:
     assert fast_all_close(
         data.get_matrix("cell,gene;absolute"), sp.csr_matrix([[0, 10, 0], [190, 10, 0]], dtype="float32")
     )
+
+
+def test_pipeline() -> None:
+    data = DafWriter(MemoryStorage(name="test"), name=".daf")
+
+    cell_names = as_vector(["cell0", "cell1"])
+    data.create_axis("cell", cell_names)
+
+    gene_names = as_vector(["gene0", "gene1", "gene2"])
+    data.create_axis("gene", gene_names)
+
+    data.set_data1d("cell;age", np.array([1, 2], dtype="uint8"))
+
+    data.set_data2d("cell,gene;UMIs", [[85, 10, 5], [170, 20, 10]])
+    data.set_data2d("cell,gene;ratios", sp.csr_matrix([[0.25, 0.5, 1], [4, 2, 0]]))
+    data.set_data2d("cell,gene;folds", sp.csr_matrix([[-2.0, -1.0, 0], [2, 1, 0]]))
+
+    expect_description(
+        data,
+        deep=True,
+        expected="""
+        test.daf:
+          class: daf.access.writers.DafWriter
+          axes:
+            cell: 2 entries
+            gene: 3 entries
+          data:
+          - cell;age
+          - cell,gene;UMIs
+          - cell,gene;folds
+          - cell,gene;ratios
+          chain: test.daf.chain
+          derived: test.daf.derived
+          storage: test
+          base: test.as_reader
+        test.daf.chain:
+          class: daf.storage.chains.StorageChain
+          chain:
+          - test.daf.derived
+          - test
+          axes:
+            cell: 2 entries
+            gene: 3 entries
+          data:
+          - cell;age
+          - cell,gene;UMIs
+          - cell,gene;folds
+          - cell,gene;ratios
+        test.daf.derived:
+          class: daf.storage.memory.MemoryStorage
+          axes:
+            cell: 2 entries
+            gene: 3 entries
+          data: []
+        test:
+          class: daf.storage.memory.MemoryStorage
+          axes:
+            cell: 2 entries
+            gene: 3 entries
+          data:
+          - cell;age
+          - cell,gene;UMIs
+          - cell,gene;folds
+          - cell,gene;ratios
+        """,
+    )
+
+    for _ in range(2):
+        assert list(data.get_vector("cell;age|Abs")) == [1, 2]
+        assert data.get_item("cell;age|Mean") == 1.5
+        assert list(data.get_vector("cell;age|Clip,min=0.5,max=1.5")) == [1, 1.5]
+
+        assert list(data.get_vector("cell,gene;UMIs|!Sum")) == [100, 200]
+        assert fast_all_close(data.get_matrix("cell,gene;UMIs|!Abs"), np.array([[85, 10, 5], [170, 20, 10]]))
+        assert fast_all_close(
+            data.get_matrix("cell,gene;folds|!Densify|Abs"),
+            np.array([[2, 1, 0], [2, 1, 0]]),
+        )
+        assert fast_all_close(
+            data.get_matrix("cell,gene;folds|Significant,low=1.25,high=1.75"),
+            sp.csr_matrix([[-2, 0, 0], [2, 0, 0]]),
+        )
+        assert fast_all_close(
+            data.get_matrix("cell,gene;folds|!Densify|Significant,low=1.25,high=1.75"),
+            sp.csr_matrix([[-2, 0, 0], [2, 0, 0]]),
+        )
+        assert fast_all_close(
+            data.get_matrix("cell,gene;folds|Significant,low=1.25,high=1.75|Densify"),
+            np.array([[-2, 0, 0], [2, 0, 0]]),
+        )
+
+    expect_description(
+        data,
+        deep=True,
+        expected="""
+        test.daf:
+          class: daf.access.writers.DafWriter
+          axes:
+            cell: 2 entries
+            gene: 3 entries
+          data:
+          - cell,age|Mean,dtype=float32
+          - cell;age
+          - cell;age|Clip,min=0.5,max=1.5,dtype=float32
+          - cell,gene;UMIs
+          - cell,gene;folds
+          - cell,gene;folds|Densify,dtype=float64|Abs,dtype=float64
+          - cell,gene;folds|Densify,dtype=float64|Significant,low=1.25,high=1.75,abs=True,dtype=float64
+          - cell,gene;folds|Significant,low=1.25,high=1.75,abs=True,dtype=float64
+          - cell,gene;folds|Significant,low=1.25,high=1.75,abs=True,dtype=float64|Densify,dtype=float64
+          - cell,gene;ratios
+          chain: test.daf.chain
+          derived: test.daf.derived
+          storage: test
+          base: test.as_reader
+        test.daf.chain:
+          class: daf.storage.chains.StorageChain
+          chain:
+          - test.daf.derived
+          - test
+          axes:
+            cell: 2 entries
+            gene: 3 entries
+          data:
+          - cell,age|Mean,dtype=float32
+          - cell;age
+          - cell;age|Clip,min=0.5,max=1.5,dtype=float32
+          - cell,gene;UMIs
+          - cell,gene;folds
+          - cell,gene;folds|Densify,dtype=float64|Abs,dtype=float64
+          - cell,gene;folds|Densify,dtype=float64|Significant,low=1.25,high=1.75,abs=True,dtype=float64
+          - cell,gene;folds|Significant,low=1.25,high=1.75,abs=True,dtype=float64
+          - cell,gene;folds|Significant,low=1.25,high=1.75,abs=True,dtype=float64|Densify,dtype=float64
+          - cell,gene;ratios
+        test.daf.derived:
+          class: daf.storage.memory.MemoryStorage
+          axes:
+            cell: 2 entries
+            gene: 3 entries
+          data:
+          - cell,age|Mean,dtype=float32
+          - cell;age|Clip,min=0.5,max=1.5,dtype=float32
+          - cell,gene;folds|Densify,dtype=float64|Abs,dtype=float64
+          - cell,gene;folds|Densify,dtype=float64|Significant,low=1.25,high=1.75,abs=True,dtype=float64
+          - cell,gene;folds|Significant,low=1.25,high=1.75,abs=True,dtype=float64
+          - cell,gene;folds|Significant,low=1.25,high=1.75,abs=True,dtype=float64|Densify,dtype=float64
+        test:
+          class: daf.storage.memory.MemoryStorage
+          axes:
+            cell: 2 entries
+            gene: 3 entries
+          data:
+          - cell;age
+          - cell,gene;UMIs
+          - cell,gene;folds
+          - cell,gene;ratios
+        """,
+    )

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from typing import Any
 from typing import Optional
+from typing import Tuple
 from typing import Union
 from typing import overload
 
@@ -64,24 +65,32 @@ __all__ = [
 MatrixInRows = Union[_dense.DenseInRows, _sparse.SparseInRows]
 
 
-def is_matrix_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[MatrixInRows]:
+def is_matrix_in_rows(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> TypeGuard[MatrixInRows]:
     """
-    Assert that some ``data`` is a `.MatrixInRows`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is a `.MatrixInRows`, optionally only of some ``dtype``, optionally only of some
+    ``shape``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return _dense.is_dense_in_rows(data, dtype=dtype) or _sparse.is_sparse_in_rows(data, dtype=dtype)
+    return _dense.is_dense_in_rows(data, dtype=dtype, shape=shape) or _sparse.is_sparse_in_rows(
+        data, dtype=dtype, shape=shape
+    )
 
 
-def be_matrix_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> MatrixInRows:
+def be_matrix_in_rows(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> MatrixInRows:
     """
-    Assert that some ``data`` is a `.MatrixInRows`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is a `.MatrixInRows`, optionally only of some ``dtype``, optionally only of some
+    ``shape``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_matrix_in_rows(data, dtype=dtype), "row-major matrix", data, dtype=dtype)
+    _descriptions.assert_data(
+        is_matrix_in_rows(data, dtype=dtype, shape=shape), "row-major matrix", data, dtype=dtype, shape=shape
+    )
     return data
 
 
@@ -89,24 +98,32 @@ def be_matrix_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> M
 MatrixInColumns = Union[_dense.DenseInColumns, _sparse.SparseInColumns]
 
 
-def is_matrix_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[MatrixInColumns]:
+def is_matrix_in_columns(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> TypeGuard[MatrixInColumns]:
     """
-    Assert that some ``data`` is a `.MatrixInColumns`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is a `.MatrixInColumns`, optionally only of some ``dtype``, optionally only of some
+    ``shape``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return _dense.is_dense_in_columns(data, dtype=dtype) or _sparse.is_sparse_in_columns(data, dtype=dtype)
+    return _dense.is_dense_in_columns(data, dtype=dtype, shape=shape) or _sparse.is_sparse_in_columns(
+        data, dtype=dtype, shape=shape
+    )
 
 
-def be_matrix_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> MatrixInColumns:
+def be_matrix_in_columns(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> MatrixInColumns:
     """
-    Assert that some ``data`` is a `.MatrixInColumns`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is a `.MatrixInColumns`, optionally only of some ``dtype``, optionally only of some
+    ``shape``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_matrix_in_columns(data, dtype=dtype), "column-major matrix", data, dtype=dtype)
+    _descriptions.assert_data(
+        is_matrix_in_columns(data, dtype=dtype, shape=shape), "column-major matrix", data, dtype=dtype, shape=shape
+    )
     return data
 
 
@@ -119,28 +136,50 @@ Matrix = Union[_dense.Dense, _sparse.Sparse]
 
 
 def is_matrix(
-    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any,
+    *,
+    dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
+    layout: Optional[_layouts.AnyMajor] = None,
 ) -> TypeGuard[Matrix]:
     """
-    Assert that some ``data`` is a `.Matrix`, optionally only of some ``dtype``, optionally only of some ``layout``, and
-    return it as such for ``mypy``.
+    Assert that some ``data`` is a `.Matrix`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    optionally only of some ``layout``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return _dense.is_dense(data, dtype=dtype, layout=layout) or _sparse.is_sparse(data, dtype=dtype, layout=layout)
+    return _dense.is_dense(data, dtype=dtype, shape=shape, layout=layout) or _sparse.is_sparse(
+        data, dtype=dtype, shape=shape, layout=layout
+    )
 
 
 def be_matrix(
-    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any,
+    *,
+    dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
+    layout: Optional[_layouts.AnyMajor] = None,
 ) -> Matrix:
     """
-    Assert that some ``data`` is a `.Matrix`, optionally only of some ``dtype``, optionally only of some ``layout``, and
-    return it as such for ``mypy``.
+    Assert that some ``data`` is a `.Matrix`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    optionally only of some ``layout``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
-    _descriptions.assert_data(is_matrix(data, dtype=dtype, layout=layout), f"{layout.name} matrix", data, dtype=dtype)
+
+    # pylint: disable=duplicate-code
+
+    _descriptions.assert_data(
+        is_matrix(data, dtype=dtype, shape=shape, layout=layout),
+        f"{layout.name} matrix",
+        data,
+        dtype=dtype,
+        shape=shape,
+    )
+
+    # pylint: enable=duplicate-code
+
     return data
 
 

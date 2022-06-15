@@ -14,6 +14,7 @@ from __future__ import annotations
 from typing import Any
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 try:
@@ -71,22 +72,25 @@ __all__ = [
 Proper1D = Union["_vectors.Vector", _fake_pandas.Series]
 
 
-def is_proper1d(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[Proper1D]:
+def is_proper1d(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, size: Optional[int] = None
+) -> TypeGuard[Proper1D]:
     """
-    Assert that some ``data`` is `.Proper1D`.
+    Assert that some ``data`` is `.Proper1D`,, optionally only of some ``dtype``, optionally only of some ``size``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return _vectors.is_vector(data, dtype=dtype) or _series.is_series(data, dtype=dtype)
+    return _vectors.is_vector(data, dtype=dtype, size=size) or _series.is_series(data, dtype=dtype, size=size)
 
 
-def be_proper1d(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> Proper1D:
+def be_proper1d(data: Any, *, dtype: Optional[_dtypes.DTypes] = None, size: Optional[int] = None) -> Proper1D:
     """
-    Assert that some ``data`` is `.Proper1D`, optionally only of some ``dtype``, and return it as such for ``mypy``.
+    Assert that some ``data`` is `.Proper1D`, optionally only of some ``dtype``, optionally only of some ``size``, and
+    return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_proper1d(data, dtype=dtype), "proper 1D data", data, dtype=dtype)
+    _descriptions.assert_data(is_proper1d(data, dtype=dtype, size=size), "proper 1D data", data, dtype=dtype, size=size)
     return data
 
 
@@ -94,27 +98,37 @@ def be_proper1d(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> Proper1
 ProperInRows = Union["_dense.DenseInRows", _sparse.SparseInRows, _frames.FrameInRows]
 
 
-def is_proper_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[ProperInRows]:
+def is_proper_in_rows(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> TypeGuard[ProperInRows]:
     """
     Assert that some ``data`` is `.ProperInRows`.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     return (
-        _dense.is_dense_in_rows(data, dtype=dtype)
-        or _sparse.is_sparse_in_rows(data, dtype=dtype)
-        or _frames.is_frame_in_rows(data, dtype=dtype)
+        _dense.is_dense_in_rows(data, dtype=dtype, shape=shape)
+        or _sparse.is_sparse_in_rows(data, dtype=dtype, shape=shape)
+        or _frames.is_frame_in_rows(data, dtype=dtype, shape=shape)
     )
 
 
-def be_proper_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> ProperInRows:
+def be_proper_in_rows(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> ProperInRows:
     """
-    Assert that some ``data`` is `.ProperInRows`, optionally only of some ``dtype``, and return it as such for ``mypy``.
+    Assert that some ``data`` is `.ProperInRows`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     _descriptions.assert_data(
-        is_proper_in_rows(data, dtype=dtype), "proper data", data, dtype=dtype, layout=_layouts.ROW_MAJOR
+        is_proper_in_rows(data, dtype=dtype, shape=shape),
+        "proper data",
+        data,
+        dtype=dtype,
+        shape=shape,
+        layout=_layouts.ROW_MAJOR,
     )
     return data
 
@@ -123,28 +137,38 @@ def be_proper_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> P
 ProperInColumns = Union["_dense.DenseInColumns", _sparse.SparseInColumns, _frames.FrameInColumns]
 
 
-def is_proper_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[ProperInColumns]:
+def is_proper_in_columns(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> TypeGuard[ProperInColumns]:
     """
-    Assert that some ``data`` is `.ProperInColumns`, optionally only of some ``dtype``.
+    Assert that some ``data`` is `.ProperInColumns`, optionally only of some ``dtype``, optionally only of some
+    ``shape``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     return (
-        _dense.is_dense_in_columns(data, dtype=dtype)
-        or _sparse.is_sparse_in_columns(data, dtype=dtype)
-        or _frames.is_frame_in_columns(data, dtype=dtype)
+        _dense.is_dense_in_columns(data, dtype=dtype, shape=shape)
+        or _sparse.is_sparse_in_columns(data, dtype=dtype, shape=shape)
+        or _frames.is_frame_in_columns(data, dtype=dtype, shape=shape)
     )
 
 
-def be_proper_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> ProperInColumns:
+def be_proper_in_columns(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> ProperInColumns:
     """
-    Assert that some ``data`` is `.ProperInColumns`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is `.ProperInColumns`, optionally only of some ``dtype``, optionally only of some
+    ``shape``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     _descriptions.assert_data(
-        is_proper_in_columns(data, dtype=dtype), "proper data", data, dtype=dtype, layout=_layouts.COLUMN_MAJOR
+        is_proper_in_columns(data, dtype=dtype, shape=shape),
+        "proper data",
+        data,
+        dtype=dtype,
+        shape=shape,
+        layout=_layouts.COLUMN_MAJOR,
     )
     return data
 
@@ -154,31 +178,41 @@ Proper2D = Union[ProperInRows, ProperInColumns]
 
 
 def is_proper2d(
-    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any,
+    *,
+    dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
+    layout: Optional[_layouts.AnyMajor] = None,
 ) -> TypeGuard[Proper2D]:
     """
-    Assert that some ``data`` is `.Proper2D`, optionally only of some ``dtype``, optionally optionally only of a
-    specific ``layout``.
+    Assert that some ``data`` is `.Proper2D`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    optionally optionally only of a specific ``layout``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     return (
-        _dense.is_dense(data, dtype=dtype, layout=layout)
-        or _sparse.is_sparse(data, dtype=dtype, layout=layout)
-        or _frames.is_frame(data, dtype=dtype, layout=layout)
+        _dense.is_dense(data, dtype=dtype, shape=shape, layout=layout)
+        or _sparse.is_sparse(data, dtype=dtype, shape=shape, layout=layout)
+        or _frames.is_frame(data, dtype=dtype, shape=shape, layout=layout)
     )
 
 
 def be_proper2d(
-    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any,
+    *,
+    dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
+    layout: Optional[_layouts.AnyMajor] = None,
 ) -> Proper2D:
     """
-    Assert that some ``data`` is `.Proper2D`, optionally only of some ``dtype``, optionally optionally only of a
-    specific ``layout``, and return it as such for ``mypy``.
+    Assert that some ``data`` is `.Proper2D`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    optionally optionally only of a specific ``layout``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_proper2d(data, dtype=dtype, layout=layout), "proper 2D data", data, dtype=dtype)
+    _descriptions.assert_data(
+        is_proper2d(data, dtype=dtype, shape=shape, layout=layout), "proper 2D data", data, dtype=dtype, shape=shape
+    )
     return data
 
 

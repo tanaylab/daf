@@ -1,5 +1,5 @@
 """
-Filters whose results can be cached in ``daf`` data sets.
+Operations whose results can be cached in ``daf`` data sets.
 
 There are some operations that apply to 1D and 2D data, that are commonly used, so it makes sense to cache their results
 instead of computing them every time from scratch. A trivial example is the sum of the values in each row of a matrix,
@@ -26,7 +26,6 @@ from abc import abstractmethod
 from typing import Any
 from typing import Dict
 from typing import Optional
-from typing import Tuple
 
 import numpy as np
 import scipy.sparse as sp  # type: ignore
@@ -44,7 +43,7 @@ from ..typing import is_dtype
 
 
 __all__ = [
-    "element_wise",
+    "operation",
     "Abs",
     "Floor",
     "Round",
@@ -54,39 +53,38 @@ __all__ = [
     "Densify",
     "Sparsify",
     "Significant",
-    "reduction",
     "Sum",
     "Min",
     "Max",
     "Mean",
     "Var",
     "Std",
+    "Operation",
+    "ElementWise",
+    "Reduction",
     "parse_float_parameter",
     "parse_int_parameter",
     "parse_bool_parameter",
     "float_dtype_for",
-    "Filter",
-    "ElementWise",
-    "Reduction",
 ]
 
 
-class Filter(ABC):  # pylint: disable=too-few-public-methods
+class Operation(ABC):  # pylint: disable=too-few-public-methods
     """
-    Common functionality for all filters.
+    Common functionality for all operations.
 
     When a user writes ``...|Operation,parameter=value,...``, this is converted to creating an instance of a sub-class
     of this base class, passing it all the parameter values as keyword arguments, with the addition of a
     ``_input_dtype`` keyword parameter.
 
-    The sub-class then calls ``super().__init__(...)`` to initialize itself as `.Filter`. It can decide on the value of
-    the following parameters based on the ``_input_dtype`` as well as user-provided parameters, if any:
+    The sub-class then calls ``super().__init__(...)`` to initialize itself as `.Operation`. It can decide on the value
+    of the following parameters based on the ``_input_dtype`` as well as user-provided parameters, if any:
     """
 
-    # The registered filters.
-    _registry: Dict[str, Tuple[str, type]] = {}
+    # The registered operations.
+    _registry: Dict[str, type] = {}
 
-    def __init__(self, *, dtype: Optional[str] = None, canonical: Optional[str] = None, nop: bool = False) -> None:
+    def __init__(self, *, dtype: str, canonical: Optional[str] = None) -> None:
         #: Normally the output ``dtype`` would be the same as the ``_input_dtype``, but sometimes it needs to be
         #: different (e.g. `.Mean` will generate floating point results for integer data). It is expected that all
         #: sub-classes will allow the user to specify an optional explicit ``dtype`` parameter to override this.
@@ -106,29 +104,30 @@ class Filter(ABC):  # pylint: disable=too-few-public-methods
         #: automatically added to the ``canonical`` parameters string.
         self.canonical = canonical
 
-        #: If ``nop``, the sub-class indicates the whole operation is a no-op. In this case we just directly use the
-        #: input data as the output data, unless this is an `.ElementWise` operation that ``densifies`` or
-        #: ``sparsifies`` the data.
-        self.nop = nop
 
-    @staticmethod
-    def register(kind: str, klass: type) -> None:
-        """
-        Register a ``klass`` as a ``kind`` or filter.
+def operation(klass: type) -> type:
+    """
+    Mark a class as implementing a `.Operation` step in a pipeline.
 
-        The ``kind`` should be one of ``element_wise`` or ``reduction``.
-        """
-        assert kind in ("element_wise", "reduction")
-        conflict = Filter._registry.get(klass.__name__)
-        assert conflict is None, (
-            f"ambiguous filter: {klass.__name__} "
-            f"could be either the {conflict[0]} {conflict[1].__module__}.{conflict[1].__qualname__} "
-            f"or the {kind} {klass.__module__}.{klass.__qualname__}"
-        )
-        Filter._registry[klass.__name__] = (kind, klass)
+    The class should inherit from either `.Reduction` or `.ElementWise`. The point of the annotation is to register the
+    class in the list of known operations, so it would be available for use in ``...|OperationName...``.
+
+    For simplicity we register the operation under the (unqualified) class name and assert there are no ambiguities.
+    """
+    assert (
+        ElementWise in klass.mro() or Reduction in klass.mro()
+    ), f"the class: {klass.__module__}.{klass.__qualname__} is not a valid daf.Operation"
+    conflict = Operation._registry.get(klass.__name__)  # pylint: disable=protected-access
+    assert conflict is None, (
+        f"ambiguous operation: {klass.__name__} "
+        f"could be either {conflict.__module__}.{conflict.__qualname__} "
+        f"or {klass.__module__}.{klass.__qualname__}"
+    )
+    Operation._registry[klass.__name__] = klass  # pylint: disable=protected-access
+    return klass
 
 
-class ElementWise(Filter):
+class ElementWise(Operation):
     """
     Describe an element-wise operation (e.g., absolute value).
 
@@ -146,11 +145,11 @@ class ElementWise(Filter):
         *,
         densifies: bool,
         sparsifies: bool,
-        dtype: Optional[str] = None,
+        dtype: str,
         canonical: Optional[str] = None,
         nop: bool = False,
     ) -> None:
-        super().__init__(dtype=dtype, canonical=canonical, nop=nop)
+        super().__init__(dtype=dtype, canonical=canonical)
 
         #: Whether the result of the operation on a `.Sparse` input matrix will be `.Dense`. This determines whether
         #: `.ElementWise.sparse_to_sparse` or `.ElementWise.sparse_to_dense` will be called when the input is `.Sparse`.
@@ -159,6 +158,11 @@ class ElementWise(Filter):
         #: Whether the result of the operation on a `.Dense` input matrix will be `.Sparse`. This determines whether
         #: `.ElementWise.dense_to_dense` or `.ElementWise.dense_to_sparse` will be called when the input is `.Dense`.
         self.sparsifies = sparsifies
+
+        #: If ``nop``, the sub-class indicates the whole operation is a no-op. In this case we just directly use the
+        #: input data as the output data, unless this is an `.ElementWise` operation that ``densifies`` or
+        #: ``sparsifies`` the data.
+        self.nop = nop
 
     def vector_to_vector(self, input_vector: Vector) -> Vector:
         """
@@ -183,7 +187,7 @@ class ElementWise(Filter):
         """
         output_dense = np.empty(input_dense.shape, dtype=self.dtype)
         self._ndarray_to_ndarray(input_dense, output_dense)
-        return sp.csr_matrix(output_dense)
+        return sp.csr_matrix(output_dense, shape=input_dense.shape)
 
     def sparse_to_dense(self, input_sparse: SparseInRows, output_dense: DenseInRows) -> None:
         """
@@ -203,7 +207,7 @@ class ElementWise(Filter):
         """
         output_data = np.empty(input_sparse.data.size, dtype=self.dtype)
         self._ndarray_to_ndarray(input_sparse.data, output_data)
-        return sp.csr_matrix((output_data, input_sparse.indices, input_sparse.indptr))
+        return sp.csr_matrix((output_data, input_sparse.indices, input_sparse.indptr), shape=input_sparse.shape)
 
     @abstractmethod
     def _ndarray_to_ndarray(self, input_ndarray: np.ndarray, output_ndarray: np.ndarray) -> None:
@@ -212,22 +216,10 @@ class ElementWise(Filter):
         """
 
 
-def element_wise(klass: type) -> type:
-    """
-    Mark a class as implementing an `.ElementWise` operation.
-
-    The class should inherit from `.ElementWise` (though in theory it need not to, as long as it implements the same
-    interface). The point of the annotation is to register the class in the list of known operations, so it would be
-    available for use in ``...|OperationName...``.
-    """
-    Filter.register("element_wise", klass)
-    return klass
-
-
-@element_wise
+@operation
 class Abs(ElementWise):
     """
-    A filter that converts each value to its absolute value.
+    An operation that converts each value to its absolute value.
 
     **Optional Parameters:**
 
@@ -244,10 +236,10 @@ class Abs(ElementWise):
         np.abs(input_ndarray, out=output_ndarray, casting="same_kind")
 
 
-@element_wise
+@operation
 class Floor(ElementWise):
     """
-    A filter that converts each value to the largest integer no bigger than the value.
+    An operation that converts each value to the largest integer no bigger than the value.
 
     **Optional Parameters:**
 
@@ -264,10 +256,10 @@ class Floor(ElementWise):
         np.floor(input_ndarray, out=output_ndarray, casting="unsafe")
 
 
-@element_wise
+@operation
 class Round(ElementWise):
     """
-    A filter that converts each value to the nearest integer.
+    An operation that converts each value to the nearest integer.
 
     **Optional Parameters:**
 
@@ -284,10 +276,10 @@ class Round(ElementWise):
         np.rint(input_ndarray, out=output_ndarray, casting="unsafe")
 
 
-@element_wise
+@operation
 class Ceil(ElementWise):
     """
-    A filter that converts each value to the lowest integer no smaller than the value.
+    An operation that converts each value to the lowest integer no smaller than the value.
 
     **Optional Parameters:**
 
@@ -304,10 +296,10 @@ class Ceil(ElementWise):
         np.ceil(input_ndarray, out=output_ndarray, casting="unsafe")
 
 
-@element_wise
+@operation
 class Clip(ElementWise):
     """
-    A filter that converts each value to the lowest integer no smaller than the value.
+    An operation that converts each value to the lowest integer no smaller than the value.
 
     **Required Parameters:**
 
@@ -320,7 +312,9 @@ class Clip(ElementWise):
     **Optional Parameters:**
 
     ``dtype``
-        The data type of the output. By default, we use the same data type as the input.
+        The data type of the output. By default, we use the same data type as the input. However, if either of ``min``
+        or ``max`` are floating point numbers, we use ``float32`` if the input data type is up to 32 bits and
+        ``float64`` otherwise.
     """
 
     def __init__(
@@ -331,10 +325,13 @@ class Clip(ElementWise):
         min: str,  # pylint: disable=redefined-builtin
         max: str,  # pylint: disable=redefined-builtin
     ) -> None:
-        self._min = parse_float_parameter(min, "parameter: min of the filter: Clip")
-        self._max = parse_float_parameter(max, "parameter: max of the filter: Clip")
+        self._min = parse_float_parameter(min, "parameter: min of the operation: Clip")
+        self._max = parse_float_parameter(max, "parameter: max of the operation: Clip")
         assert self._min < self._max, f"empty allowed values Clip range [ {self._min} .. {self._max} ]"
-        dtype = dtype or _input_dtype
+        if isinstance(self._min, float) or isinstance(self._max, float):
+            dtype = dtype or float_dtype_for(_input_dtype)
+        else:
+            dtype = dtype or _input_dtype
         canonical = f"min={self._min},max={self._max}"
         super().__init__(densifies=False, sparsifies=False, dtype=dtype, canonical=canonical)
 
@@ -342,10 +339,10 @@ class Clip(ElementWise):
         np.clip(input_ndarray, self._min, self._max, out=output_ndarray, casting="same_kind")
 
 
-@element_wise
+@operation
 class Log(ElementWise):
     """
-    A filter that converts each value to its ``log``.
+    An operation that converts each value to its ``log``.
 
     **Required Parameters:**
 
@@ -363,9 +360,9 @@ class Log(ElementWise):
     """
 
     def __init__(self, *, _input_dtype: str, dtype: Optional[str] = None, base: str, factor: str) -> None:
-        self._base = None if base == "e" else parse_float_parameter(base, "parameter: base of the filter: Log")
-        assert self._base is None or self._base > 0, f"negative base: {self._base} for Log filter"
-        self._factor = parse_float_parameter(factor, "parameter: factor of the filter: Log")
+        self._base = None if base == "e" else parse_float_parameter(base, "parameter: base of the operation: Log")
+        assert self._base is None or self._base > 0, f"negative base: {self._base} for the operation: Log"
+        self._factor = parse_float_parameter(factor, "parameter: factor of the operation: Log")
         dtype = dtype or float_dtype_for(_input_dtype)
         canonical = f"base={self._base or 'e'},factor={self._factor}"
         super().__init__(densifies=True, sparsifies=False, dtype=dtype, canonical=canonical)
@@ -392,7 +389,7 @@ class Log(ElementWise):
 
 class Reformat(ElementWise):
     """
-    A filter that converts between `.Sparse` and `.Dense` matrices.
+    An operation that converts between `.Sparse` and `.Dense` matrices.
 
     **Optional Parameters:**
 
@@ -424,10 +421,10 @@ class Reformat(ElementWise):
         assert False, "never happens"
 
 
-@element_wise
+@operation
 class Densify(Reformat):
     """
-    A filter that converts `.Sparse` matrices to `.Dense`.
+    An operation that converts `.Sparse` matrices to `.Dense`.
 
     **Optional Parameters:**
 
@@ -439,10 +436,10 @@ class Densify(Reformat):
         super().__init__(_input_dtype=_input_dtype, dtype=dtype, densifies=True, sparsifies=False)
 
 
-@element_wise
+@operation
 class Sparsify(Reformat):
     """
-    A filter that converts `.Dense` matrices to `.Sparse`.
+    An operation that converts `.Dense` matrices to `.Sparse`.
 
     **Optional Parameters:**
 
@@ -454,10 +451,10 @@ class Sparsify(Reformat):
         super().__init__(_input_dtype=_input_dtype, dtype=dtype, densifies=False, sparsifies=True)
 
 
-@element_wise
+@operation
 class Significant(ElementWise):
     """
-    A filter that converts any data to sparse format, preserving only the significant values.
+    An operation that converts any data to sparse format, preserving only the significant values.
 
     **Required Parameters:**
 
@@ -492,9 +489,9 @@ class Significant(ElementWise):
         high: str,
         abs: str = "True",  # pylint: disable=redefined-builtin
     ) -> None:
-        self._abs = parse_bool_parameter(abs, "parameter: abs of the filter: Significant")
-        self._low = parse_float_parameter(low, "parameter: low of the filter: Significant")
-        self._high = parse_float_parameter(high, "parameter: high of the filter: Significant")
+        self._abs = parse_bool_parameter(abs, "parameter: abs of the operation: Significant")
+        self._low = parse_float_parameter(low, "parameter: low of the operation: Significant")
+        self._high = parse_float_parameter(high, "parameter: high of the operation: Significant")
         assert self._low <= self._high, f"Significant low: {self._low} is above high: {self._high}"
         dtype = dtype or _input_dtype
         canonical = f"low={self._low},high={self._high},abs={self._abs}"
@@ -568,7 +565,7 @@ class Significant(ElementWise):
         assert False, "never happens"
 
 
-class Reduction(Filter):
+class Reduction(Operation):
     """
     Describe a reduction operation (e.g., sum).
 
@@ -597,24 +594,10 @@ class Reduction(Filter):
         """
 
 
-def reduction(klass: type) -> type:
-    """
-    Mark a class as implementing a `.Reduction` operation.
-
-    The class should inherit from `.Reduction` (though in theory it need not to, as long as it implements the same
-    interface). The point of the annotation is to register the class in the list of known operations, so it would be
-    available for use in ``...|OperationName...``.
-
-    For simplicity we register the operation under the (unqualified) class name and assert there are no ambiguities.
-    """
-    Filter.register("reduction", klass)
-    return klass
-
-
-@reduction
+@operation
 class Sum(Reduction):
     """
-    A filter that sums all the values, assuming there are no ``None`` (that is, ``NaN``) values in the data.
+    An operation that sums all the values, assuming there are no ``None`` (that is, ``NaN``) values in the data.
 
     **Optional Parameters:**
 
@@ -645,10 +628,10 @@ class Sum(Reduction):
         return as_vector(input_sparse.sum(axis=1, dtype=self.dtype))
 
 
-@reduction
+@operation
 class Min(Reduction):
     """
-    A filter that returns the minimal value, assuming there are no ``None`` (that is, ``NaN``) values in the data.
+    An operation that returns the minimal value, assuming there are no ``None`` (that is, ``NaN``) values in the data.
     """
 
     def __init__(self, *, _input_dtype: str) -> None:
@@ -673,10 +656,10 @@ class Min(Reduction):
         return as_vector(input_sparse.min(axis=1))
 
 
-@reduction
+@operation
 class Max(Reduction):
     """
-    A filter that returns the maximal value, assuming there are no ``None`` (that is, ``NaN``) values in the data.
+    An operation that returns the maximal value, assuming there are no ``None`` (that is, ``NaN``) values in the data.
     """
 
     def __init__(self, *, _input_dtype: str) -> None:
@@ -701,10 +684,10 @@ class Max(Reduction):
         return as_vector(input_sparse.max(axis=1))
 
 
-@reduction
+@operation
 class Mean(Reduction):
     """
-    A filter that returns the mean value, assuming there are no ``None`` (that is, ``NaN``) values in the data.
+    An operation that returns the mean value, assuming there are no ``None`` (that is, ``NaN``) values in the data.
 
     **Optional Parameters:**
 
@@ -735,11 +718,11 @@ class Mean(Reduction):
         return as_vector(input_sparse.mean(axis=1, dtype=self.dtype))
 
 
-@reduction
+@operation
 class Var(Reduction):
     """
-    A filter that returns the variance of the values, assuming there are no ``None`` (that is, ``NaN``) values in the
-    data.
+    An operation that returns the variance of the values, assuming there are no ``None`` (that is, ``NaN``) values in
+    the data.
 
     **Optional Parameters:**
 
@@ -775,7 +758,9 @@ class Var(Reduction):
         squared_nnz_data = input_sparse.data.copy()
         squared_nnz_data *= squared_nnz_data  # type: ignore
 
-        squared_sparse = sp.csr_matrix((squared_nnz_data, input_sparse.indices, input_sparse.indptr))
+        squared_sparse = sp.csr_matrix(
+            (squared_nnz_data, input_sparse.indices, input_sparse.indptr), shape=input_sparse.shape
+        )
         sum_of_squared_values_in_rows = as_vector(squared_sparse.sum(axis=1, dtype=self.dtype))
 
         variance = squared_sum_of_values_in_rows
@@ -786,11 +771,11 @@ class Var(Reduction):
         return variance
 
 
-@reduction
+@operation
 class Std(Var):
     """
-    A filter that returns the standard deviation of the values, assuming there are no ``None`` (that is, ``NaN``) values
-    in the data.
+    An operation that returns the standard deviation of the values, assuming there are no ``None`` (that is, ``NaN``)
+    values in the data.
 
     **Optional Parameters:**
 
@@ -857,7 +842,7 @@ def parse_bool_parameter(text: str, description: str) -> bool:
     raise ValueError(f"invalid boolean value: {text} for the {description}")
 
 
-def float_dtype_for(dtype: str) -> Optional[str]:
+def float_dtype_for(dtype: str) -> str:
     """
     Given an input ``dtype``, return a reasonable output dtype for operations with floating point output.
     """

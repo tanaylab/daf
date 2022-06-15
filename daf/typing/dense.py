@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Any
 from typing import NewType
 from typing import Optional
+from typing import Tuple
 from typing import Union
 from typing import overload
 
@@ -55,23 +56,30 @@ __all__ = [
 DenseInRows = NewType("DenseInRows", np.ndarray)
 
 
-def is_dense_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[DenseInRows]:
+def is_dense_in_rows(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> TypeGuard[DenseInRows]:
     """
-    Check whether some ``data`` is a `.DenseInRows`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a `.DenseInRows`, optionally only of some ``dtype``, optionally only of some
+    ``shape``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return is_dense(data, dtype=dtype, layout=_layouts.ROW_MAJOR)
+    return is_dense(data, dtype=dtype, shape=shape, layout=_layouts.ROW_MAJOR)
 
 
-def be_dense_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> DenseInRows:
+def be_dense_in_rows(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> DenseInRows:
     """
-    Assert that some ``data`` is a `.DenseInRows`, optionally only of some ``dtype``, and return it as such for
-    ``mypy``.
+    Assert that some ``data`` is a `.DenseInRows`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_dense_in_rows(data, dtype=dtype), "row-major numpy.ndarray", data, dtype=dtype)
+    _descriptions.assert_data(
+        is_dense_in_rows(data, dtype=dtype, shape=shape), "row-major numpy.ndarray", data, dtype=dtype, shape=shape
+    )
     return data
 
 
@@ -79,23 +87,34 @@ def be_dense_in_rows(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> De
 DenseInColumns = NewType("DenseInColumns", np.ndarray)
 
 
-def is_dense_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> TypeGuard[DenseInColumns]:
+def is_dense_in_columns(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> TypeGuard[DenseInColumns]:
     """
-    Check whether some ``data`` is a `.DenseInColumns`, optionally only of some ``dtype``.
+    Check whether some ``data`` is a `.DenseInColumns`, optionally only of some ``dtype``, optionally only of some
+    ``shape``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    return is_dense(data, dtype=dtype, layout=_layouts.COLUMN_MAJOR)
+    return is_dense(data, dtype=dtype, shape=shape, layout=_layouts.COLUMN_MAJOR)
 
 
-def be_dense_in_columns(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> DenseInColumns:
+def be_dense_in_columns(
+    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, shape: Optional[Tuple[int, int]] = None
+) -> DenseInColumns:
     """
-    Assert that some ``data`` is a `.DenseInColumns`, optionally only of some ``dtype``, and return it as such
-    for ``mypy``.
+    Assert that some ``data`` is a `.DenseInColumns`, optionally only of some ``dtype``, optionally only of some
+    ``shape``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
-    _descriptions.assert_data(is_dense_in_columns(data, dtype=dtype), "column-major numpy.ndarray", data, dtype=dtype)
+    _descriptions.assert_data(
+        is_dense_in_columns(data, dtype=dtype, shape=shape),
+        "column-major numpy.ndarray",
+        data,
+        dtype=dtype,
+        shape=shape,
+    )
     return data
 
 
@@ -104,16 +123,22 @@ Dense = Union[DenseInRows, DenseInColumns]
 
 
 def is_dense(
-    data: Any, *, dtype: Optional[_dtypes.DTypes] = None, layout: Optional[_layouts.AnyMajor] = None
+    data: Any,
+    *,
+    dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
+    layout: Optional[_layouts.AnyMajor] = None,
 ) -> TypeGuard[Dense]:
     """
-    Check whether some ``data`` is a `.Dense`, optionally only of some ``dtype``, optionally only of some ``layout``.
+    Check whether some ``data`` is a `.Dense`, optionally only of some ``dtype``, optionally only of some ``shape``,
+    optionally only of some ``layout``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
     return (
         isinstance(data, np.ndarray)
+        and (shape is None or data.shape == shape)
         and data.ndim == 2
         and not isinstance(data, np.matrix)
         and _dtypes.has_dtype(data, dtype)
@@ -125,18 +150,29 @@ def be_dense(
     data: Any,
     *,
     dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
     layout: Optional[_layouts.AnyMajor] = None,
 ) -> Dense:
     """
-    Assert that some ``data`` is a `.Dense` optionally only of some ``dtype``, optionally only of of a specific
-    ``layout``, and return it as such for ``mypy``.
+    Assert that some ``data`` is a `.Dense` optionally only of some ``dtype``, optionally only of some ``shape``,
+    optionally only of of a specific ``layout``, and return it as such for ``mypy``.
 
     By default, checks that the data type is one of `.ALL_DTYPES`.
     """
     layout = layout or _layouts._ANY_MAJOR  # pylint: disable=protected-access
+
+    # pylint: disable=duplicate-code
+
     _descriptions.assert_data(
-        is_dense(data, dtype=dtype, layout=layout), f"{layout.name} numpy.ndarray", data, dtype=dtype
+        is_dense(data, dtype=dtype, shape=shape, layout=layout),
+        f"{layout.name} numpy.ndarray",
+        data,
+        dtype=dtype,
+        shape=shape,
     )
+
+    # pylint: enable=duplicate-code
+
     return data
 
 

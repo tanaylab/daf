@@ -152,8 +152,8 @@ Usage
     # Access the mask of significant genes in the frame as a Pandas series.
     significant_genes_mask = genes_masks["significant"]
 
-    # Get (and cache) the total sum of UMIs per cell, so repeated requests will not re-compute it.
-    cells_umis_sum = data.get_vector("cell,gene;UMIs|RowsSum")
+    # Get the total sum of UMIs per cell (and cache it so repeated requests will not re-compute it).
+    cells_umis_sum = data.get_vector("cell,gene;UMIs|Sum")
 
     #: Slice the data to look only at cells with a high number of UMIs and significant.
     strong_data = \

@@ -553,17 +553,17 @@ class StorageWriter(StorageReader):
             axes, name
         ), f"refuse to overwrite the 2D data: {name} in the storage: {self.name}"
 
-        with self._create_dense_in_rows(extract_2d_axes(name), name, dtype) as dense:
+        shape = (self._axis_size(axes[0]), self._axis_size(axes[1]))
+        with self._create_dense_in_rows(name, axes=axes, shape=shape, dtype=dtype) as dense:
             yield dense
 
     @contextmanager
     def _create_dense_in_rows(
-        self, axes: Tuple[str, str], name: str, dtype: DType
+        self, name: str, *, axes: Tuple[str, str], shape: Tuple[int, int], dtype: DType
     ) -> Generator[DenseInRows, None, None]:
-        shape = (self._axis_size(axes[0]), self._axis_size(axes[1]))
         dense = be_dense_in_rows(np.empty(shape, dtype=dtype), dtype=dtype)
         yield dense
-        self._set_matrix(axes, name, freeze(dense))
+        self._set_matrix(axes, name, freeze(optimize(dense)))
 
 
 def extract_name(name: str) -> str:

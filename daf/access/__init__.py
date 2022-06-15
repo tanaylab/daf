@@ -58,6 +58,6 @@ Accessing data in ``daf`` is based on string names in the following format(s):
     various problems; in particular, do **not** use ``,``, ``;``, ``=`` or ``|`` characters in simple names.
 """
 
-from .filters import *
+from .operations import *
 from .readers import *
 from .writers import *

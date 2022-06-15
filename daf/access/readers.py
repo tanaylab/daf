@@ -14,6 +14,7 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import numpy as np
 import pandas as pd  # type: ignore
 
 from ..storage import AxisView
@@ -32,14 +33,20 @@ from ..typing import FrameInRows
 from ..typing import MatrixInRows
 from ..typing import Series
 from ..typing import Vector
-from ..typing import as_dense
 from ..typing import as_layout
 from ..typing import as_matrix
 from ..typing import as_vector
+from ..typing import be_dense_in_rows
 from ..typing import be_matrix_in_rows
+from ..typing import be_sparse_in_rows
+from ..typing import be_vector
 from ..typing import freeze
+from ..typing import is_dense_in_rows
 from ..typing import is_matrix_in_rows
+from ..typing import is_sparse_in_rows
+from ..typing import is_vector
 from ..typing import optimize
+from . import operations as _operations
 
 # pylint: enable=duplicate-code
 
@@ -50,6 +57,28 @@ __all__ = [
 
 
 # pylint: disable=protected-access
+
+
+class PipelineState:  # pylint: disable=too-few-public-methods
+    """
+    State while evaluating an operations pipeline.
+    """
+
+    def __init__(self, data: Any, ndim: int, axes: Tuple[str, str], source_name: str) -> None:
+        #: The data we have computed so far.
+        self.data = data
+
+        #: The number of dimensions in the data.
+        self.ndim = ndim
+
+        #: The original 2D axes. For 1D data, only the 1st axis is meaningful.
+        self.axes = axes
+
+        #: The pipeline so far (for error messages).
+        self.pipeline = source_name
+
+        #: The canonical name of the data.
+        self.canonical = source_name
 
 
 class DafReader:  # pylint: disable=too-many-public-methods
@@ -189,7 +218,18 @@ class DafReader:  # pylint: disable=too-many-public-methods
     def get_item(self, name: str) -> Any:
         """
         Access a 0D data item from the data set (which must exist) by its ``name``.
+
+        If the ``name`` contains ``|``, than it should be in the format ``axis;name|operation|operation|...`` or
+        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
+        ``Name,param=value,...``. Since we are getting a 0D data item, the pipeline should contain `.Reduction`
+        operation(s) that convert the raw input data all the way down to a scalar, e.g. ``axis;name|Sum`` or
+        ``rows_axis,columns_axis;name|Sum|Sum``. Any 1D/2D data computed by the pipeline will be cached in the
+        ``derived`` storage so it would not have to be re-computed if used in a following ``get_...`` call. You can
+        disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific
+        operation by using ``|!Name,...`` instead of ``|Name,...``.
         """
+        if "|" in name:
+            return self._get_pipeline(name, 0)
         assert self.has_item(name), f"missing item: {name} in the data set: {self.name}"
         return self.chain._get_item(name)
 
@@ -241,7 +281,18 @@ class DafReader:  # pylint: disable=too-many-public-methods
         Get the ``name`` 1D data (which must exist) as a `.Vector`.
 
         The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
+
+        If the ``name`` contains ``|``, than it should be in the format ``axis;name|operation|operation|...`` or
+        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
+        ``Name,param=value,...``. Since we are getting a 1D data item, if the ``name`` starts with a 2D data name, one
+        of the operations should be a `.Reduction` converts its input down to a vector of one entry per row of its
+        input, e.g. ``rows_axis,columns_axis;name|Sum`` is equivalent to R's ``rowSums``. Any 1D/2D data computed by the
+        pipeline will be cached in the ``derived`` storage so it would not have to be re-computed if used in a following
+        ``get_...`` call. You can disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the
+        constructor, or for a specific operation by using ``|!Name,...`` instead of ``|Name,...``.
         """
+        if "|" in name:
+            return be_vector(self._get_pipeline(name, 1))
         axis = extract_1d_axis(name)
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         assert self.has_data1d(name), f"missing 1D data: {name} in the data set: {self.name}"
@@ -253,14 +304,25 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
 
-        The ``axis`` entries will form the index of the series.
+        If the ``name`` contains ``|``, than it should be in the format ``axis;name|operation|operation|...`` or
+        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
+        ``Name,param=value,...``. Since we are getting a 1D data item, if the ``name`` starts with a 2D data name, one
+        of the operations should be a `.Reduction` converts its input down to a vector of one entry per row of its
+        input, e.g. ``rows_axis,columns_axis;name|Sum`` is equivalent to R's ``rowSums``. Any 1D/2D data computed by the
+        pipeline will be cached in the ``derived`` storage so it would not have to be re-computed if used in a following
+        ``get_...`` call. You can disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the
+        constructor, or for a specific operation by using ``|!Name,...`` instead of ``|Name,...``.
+
+        The ``axis`` entries will form the index of the series; if getting a pipeline, starting with 2D data, the index
+        of the series will be the entries of the ``rows_axis``.
         """
-        axis = extract_1d_axis(name)
-        assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
-        assert self.has_data1d(name), f"missing 1D data: {name} in the data set: {self.name}"
-        return freeze(
-            optimize(pd.Series(self.chain._get_data1d(axis, name), index=self.axis_entries(extract_1d_axis(name))))
-        )
+        vector = self.get_vector(name)
+        if "|" in name:
+            axis = name.split("|")[0].split(";")[0].split(",")[0]
+        else:
+            axis = extract_1d_axis(name)
+        index = self.axis_entries(axis)
+        return freeze(optimize(pd.Series(vector, index=index)))
 
     def data2d_names(self, axes: Union[str, Tuple[str, str]]) -> Collection[str]:
         """
@@ -297,6 +359,14 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
 
+        If the ``name`` contains ``|``, than it should be in the format
+        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
+        ``Name,param=value,...``. Since we are getting a 2D data item, all the operations must be `.ElementWise`
+        operations. Any 2D data computed by the pipeline will be cached in the ``derived`` storage so it would not have
+        to be re-computed if used in a following ``get_...`` call. You can disable this globally by speciying a
+        `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific operation by using ``|!Name,...``
+        instead of ``|Name,...``.
+
         The data will always be returned in `.ROW_MAJOR` order, that is, either as a ``numpy`` `.DenseInRows` or as a
         ``scipy.sparse`` `.SparseInRows`, depending on how it is stored. The caller is responsible for distinguishing
         between these two cases (e.g. using `.is_sparse` and/or `.is_dense`) to pick a code path for processing the
@@ -304,6 +374,8 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         If this required us to re-layout the raw stored data, we cache the result in the ``derived`` storage.
         """
+        if "|" in name:
+            return be_matrix_in_rows(self._get_pipeline(name, 2))
         axes = extract_2d_axes(name)
         assert self.has_axis(axes[0]), f"missing axis: {axes[0]} in the data set: {self.name}"
         assert self.has_axis(axes[1]), f"missing axis: {axes[1]} in the data set: {self.name}"
@@ -337,29 +409,32 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
 
+        If the ``name`` contains ``|``, than it should be in the format
+        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
+        ``Name,param=value,...``. Since we are getting a 2D data item, all the operation must be `.ElementWise`
+        operations. Any 2D data computed by the pipeline will be cached in the ``derived`` storage so it would not have
+        to be re-computed if used in a following ``get_...`` call. You can disable this globally by speciying a
+        `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific operation by using ``|!Name,...``
+        instead of ``|Name,...``.
+
         The data will always be returned in `.ROW_MAJOR` order as a ``numpy`` `.DenseInRows`. Due to ``pandas``
         limitations, if the data is stored as a ``scipy.sparse.spmatrix``, it will be converted to a dense ``numpy`` 2D
-        array.
+        array, which will be cached in ``derived``, as if the ``name`` was suffixed by ``|`` `.Densify`. If you wish to
+        disable this caching, explicitly add ``|!Densify`` to the name.
 
         .. note::
 
-          This should be restricted to cases where the data is known to be "not too big". For example, it would be a
-          **bad** idea to ask for a frame of the UMIs of all genes of all cells in a data set with ~2M cells and ~30K
-          genes, forcing a dense representation with a size of ~240GB, which is ~40 times the "mere" ~6GB needed to
-          represent the sparse data.
-
-        .. todo::
-
-            Cache the dense version of sparse data.
+          This (and using `.Densify` in general) should be restricted to cases where the data is known to be "not too
+          big". For example, it would be a **bad** idea to ask for a frame of the UMIs of all genes of all cells in a
+          data set with ~2M cells and ~30K genes, forcing a dense representation with a size of ~240GB, which is ~40
+          times the "mere" ~6GB needed to represent the sparse data.
         """
+        name += "|Densify"
+        dense = be_dense_in_rows(self.get_matrix(name))
         axes = extract_2d_axes(name)
-        assert self.has_axis(axes[0]), f"missing axis: {axes[0]} in the data set: {self.name}"
-        assert self.has_axis(axes[1]), f"missing axis: {axes[1]} in the data set: {self.name}"
-        assert self.has_data2d(name), f"missing 2D data: {name} in the data set: {self.name}"
-
-        frame = pd.DataFrame(
-            as_dense(self.get_matrix(name)), index=self.axis_entries(axes[0]), columns=self.axis_entries(axes[1])
-        )
+        index = self.axis_entries(axes[0])
+        columns = self.axis_entries(axes[1])
+        frame = pd.DataFrame(dense, index=index, columns=columns)
         frame.index.name = axes[0]
         frame.columns.name = axes[1]
         return freeze(optimize(frame))
@@ -368,18 +443,15 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Get an arbitrary collection of 1D data for the same ``axis`` as ``columns`` of a ``pandas.DataFrame``.
 
-        The specified ``columns`` names should only be the simple name of each column. These will be used as the column
-        names of the frame, and the axis entries will be used as the index of the frame.
+        The specified ``columns`` names should only be the simple name of each column (possibly followed by
+        ``|operation|operation...`` to invoke a pipeline of `.ElementWise` operations). These names will be used as the
+        column names of the frame, and the axis entries will be used as the index of the frame.
 
         The returned data will always be in `.COLUMN_MAJOR` order.
         """
-        assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
-        for name in columns:
-            assert self.has_data1d(f"{axis};{name}"), f"missing 1D data: {axis};{name} in the data set: {self.name}"
-
-        frame = pd.DataFrame(
-            {column: self.get_vector(f"{axis};{column}") for column in columns}, index=self.axis_entries(axis)
-        )
+        index = self.axis_entries(axis)
+        data = {column: self.get_vector(f"{axis};{column}") for column in columns}
+        frame = pd.DataFrame(data, index=index)
         frame.index.name = axis
         return freeze(optimize(frame))
 
@@ -431,17 +503,227 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         return view
 
+    def _get_pipeline(self, pipeline: str, result_ndim: int) -> Any:
+        step_texts = pipeline.split("|")
+        source_name = step_texts[0]
+        operation_texts = step_texts[1:]
+
+        assert (
+            ";" in source_name
+        ), f"0D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
+
+        pipeline_state: PipelineState
+
+        if "," in source_name:
+            axes = extract_2d_axes(source_name)
+            pipeline_state = PipelineState(
+                data=self.get_matrix(source_name), ndim=2, axes=axes, source_name=source_name
+            )
+        else:
+            axis = extract_1d_axis(source_name)
+            axes = (axis, axis)
+            pipeline_state = PipelineState(
+                data=self.get_vector(source_name), ndim=1, axes=axes, source_name=source_name
+            )
+
+        for operation_text in operation_texts:
+            self._pipeline_step(pipeline_state, operation_text)
+
+        method = ["get_item", "get_vector", "get_matrix"][result_ndim]
+        assert pipeline_state.ndim == result_ndim, (
+            f"got: {pipeline_state.ndim}D data instead of the expected: {result_ndim}D data for the method: {method} "
+            f"from the pipeline: {pipeline} for the data set: {self.name}"
+        )
+
+        return pipeline_state.data
+
+    def _pipeline_step(self, pipeline_state: PipelineState, operation_text: str) -> None:
+        pipeline_state.pipeline += "|" + operation_text
+
+        cache = not operation_text.startswith("!")
+        if not cache:
+            operation_text = operation_text[1:]
+
+        operation_object = self._operation_object(pipeline_state, operation_text)
+        canonical_before = pipeline_state.canonical
+        pipeline_state.canonical += "|" + operation_object.canonical
+
+        if isinstance(operation_object, _operations.Reduction):
+            pipeline_state.canonical = pipeline_state.canonical.replace(";", ",", 1)
+            if pipeline_state.ndim == 2:
+                pipeline_state.canonical = pipeline_state.canonical.replace(",", ";", 1)
+            pipeline_state.ndim -= 1
+
+        if self._fetch_derived(pipeline_state):
+            cache = False
+        elif isinstance(operation_object, _operations.Reduction):
+            DafReader._compute_reduction(pipeline_state, operation_object)
+        else:
+            nop, cache = self._compute_element_wise(pipeline_state, operation_object, cache)
+            if nop:
+                assert not cache
+                pipeline_state.canonical = canonical_before
+
+        if pipeline_state.ndim > 0:
+            pipeline_state.data = freeze(optimize(pipeline_state.data))
+
+        if cache:
+            if pipeline_state.ndim == 2:
+                self.derived.set_matrix(pipeline_state.canonical, be_matrix_in_rows(pipeline_state.data))
+            elif pipeline_state.ndim == 1:
+                self.derived.set_vector(pipeline_state.canonical, be_vector(pipeline_state.data))
+            else:
+                self.derived.set_item(pipeline_state.canonical, pipeline_state.data)
+
+    def _operation_object(
+        self, pipeline_state: PipelineState, operation_text: str
+    ) -> Union[_operations.ElementWise, _operations.Reduction]:
+        operation_parts = operation_text.split(",")
+        operation_name = operation_parts[0]
+        parameters = operation_parts[1:]
+
+        assert pipeline_state.ndim != 0, (
+            f"0D input for the operation: {operation_name} "
+            f"in the pipeline: {pipeline_state.pipeline} for the data set: {self.name}"
+        )
+
+        operation_class = _operations.Operation._registry.get(operation_name)
+        assert operation_class is not None, (
+            f"missing operation: {operation_name} "
+            f"in the pipeline: {pipeline_state.pipeline} for the data set: {self.name}"
+        )
+
+        kwargs: Dict[str, str] = {}
+        for parameter in parameters:
+            parameter_parts = parameter.split("=")
+            assert len(parameter_parts) == 2, (
+                f"invalid operation parameter: {parameter} for the operation: {operation_name} "
+                f"in the pipeline: {pipeline_state.pipeline} for the data set: {self.name}"
+            )
+            kwargs[parameter_parts[0]] = parameter_parts[1]
+
+        operation_object = operation_class(_input_dtype=str(pipeline_state.data.dtype), **kwargs)
+        assert isinstance(operation_object, (_operations.ElementWise, _operations.Reduction))
+        return operation_object
+
+    def _fetch_derived(self, pipeline_state: PipelineState) -> bool:
+        if pipeline_state.ndim == 2 and self.derived.has_data2d(pipeline_state.canonical):
+            pipeline_state.data = as_matrix(self.derived.get_data2d(pipeline_state.canonical))
+            return True
+
+        if pipeline_state.ndim == 1 and self.derived.has_data1d(pipeline_state.canonical):
+            pipeline_state.data = as_vector(self.derived.get_data1d(pipeline_state.canonical))
+            return True
+
+        if pipeline_state.ndim == 0 and self.derived.has_item(pipeline_state.canonical):
+            pipeline_state.data = self.derived.get_item(pipeline_state.canonical)
+            return True
+
+        return False
+
+    @staticmethod
+    def _compute_reduction(pipeline_state: PipelineState, operation_object: _operations.Reduction) -> None:
+        dtype = operation_object.dtype
+        shape = pipeline_state.data.shape
+
+        if is_dense_in_rows(pipeline_state.data):
+            pipeline_state.data = be_vector(
+                operation_object.dense_to_vector(pipeline_state.data), dtype=dtype, size=shape[0]
+            )
+
+        elif is_sparse_in_rows(pipeline_state.data):
+            pipeline_state.data = be_vector(
+                operation_object.sparse_to_vector(pipeline_state.data),
+                dtype=dtype,
+                size=shape[0],
+            )
+
+        else:
+            pipeline_state.data = operation_object.vector_to_scalar(be_vector(pipeline_state.data))
+
+    def _compute_element_wise(  # pylint: disable=too-many-return-statements
+        self, pipeline_state: PipelineState, operation_object: _operations.ElementWise, cache: bool
+    ) -> Tuple[bool, bool]:
+        dtype = operation_object.dtype
+        shape = pipeline_state.data.shape
+
+        if is_dense_in_rows(pipeline_state.data):
+
+            if operation_object.sparsifies:
+                pipeline_state.data = be_sparse_in_rows(
+                    operation_object.dense_to_sparse(pipeline_state.data), dtype=dtype, shape=shape
+                )
+                return False, cache
+
+            if operation_object.nop:
+                return True, False
+
+            if cache:
+                with self.derived._create_dense_in_rows(
+                    pipeline_state.canonical, axes=pipeline_state.axes, dtype=dtype, shape=shape
+                ) as output_data:
+                    operation_object.dense_to_dense(pipeline_state.data, output_data)
+                    pipeline_state.data = output_data
+                return False, False
+
+            output_data = be_dense_in_rows(np.empty(pipeline_state.data.shape, dtype=dtype))
+            operation_object.dense_to_dense(pipeline_state.data, output_data)
+            pipeline_state.data = output_data
+            return False, False
+
+        if is_sparse_in_rows(pipeline_state.data):
+
+            if operation_object.densifies:
+                if cache:
+                    with self.derived._create_dense_in_rows(
+                        pipeline_state.canonical, axes=pipeline_state.axes, dtype=dtype, shape=shape
+                    ) as output_data:
+                        operation_object.sparse_to_dense(pipeline_state.data, output_data)
+                        pipeline_state.data = output_data
+                    return False, False
+
+                output_data = be_dense_in_rows(np.empty(pipeline_state.data.shape, dtype=dtype))
+                operation_object.sparse_to_dense(pipeline_state.data, output_data)
+                pipeline_state.data = output_data
+                return False, False
+
+            if operation_object.nop:
+                return True, False
+
+            pipeline_state.data = be_sparse_in_rows(
+                operation_object.sparse_to_sparse(pipeline_state.data), dtype=dtype, shape=shape
+            )
+            return False, cache
+
+        assert is_vector(pipeline_state.data)
+
+        if operation_object.nop:
+            return True, False
+
+        pipeline_state.data = be_vector(
+            operation_object.vector_to_vector(be_vector(pipeline_state.data)), dtype=dtype, size=shape[0]
+        )
+        return False, cache
+
 
 def transpose_name(name: str) -> str:
     """
     Given a 2D data name ``rows_axis,columns_axis;name`` return the transposed data name
     ``columns_axis,rows_axis;name``.
-    """
-    parts = name.split(";")
-    assert len(parts) == 2, f"invalid 2D data name: {name}"
 
-    axes = parts[0].split(",")
+    .. note::
+
+        This will refuse to transpose pipelined names ``rows_axis,columns_axis;name|operation|...`` as doing so would
+        change the meaning of the name. For example, ``cell,gene;UMIs|Sum`` gives the sum of the UMIs of all the genes
+        in each cell, while ``gene,cell;UMIs|Sum`` gives the sum of the UMIs for all the cells each gene.
+    """
+    assert "|" not in name, f"transposing the pipelined name: {name}"
+
+    name_parts = name.split(";")
+    assert len(name_parts) == 2, f"invalid 2D data name: {name}"
+
+    axes = name_parts[0].split(",")
     assert len(axes) == 2, f"invalid 2D data name: {name}"
 
-    parts[0] = ",".join(reversed(axes))
-    return ";".join(parts)
+    name_parts[0] = ",".join(reversed(axes))
+    return ";".join(name_parts)

@@ -10,6 +10,7 @@ from typing import Any
 from typing import List
 from typing import Optional
 from typing import Set
+from typing import Tuple
 
 import numpy as np
 import pandas as pd  # type: ignore
@@ -195,12 +196,14 @@ def _sparse_description(data: _fake_sparse.spmatrix) -> str:
     )
 
 
-def assert_data(
+def assert_data(  # pylint: disable=too-many-branches
     condition: bool,
     kind: str,
     data: Any,
     *,
     dtype: Optional[_dtypes.DTypes] = None,
+    shape: Optional[Tuple[int, int]] = None,
+    size: Optional[int] = None,
     layout: Optional[_layouts.AnyMajor] = None,
 ) -> None:
     """
@@ -210,29 +213,38 @@ def assert_data(
     if condition:
         return
 
+    expected = ""
     if kind == "pandas.DataFrame":
-        assert False, f"expected: {kind}, got: {data_description(data)}"
+        expected += kind
 
-    if dtype is None or dtype == _dtypes.ALL_DTYPES:
-        dtype = "any reasonable type"
-    elif dtype == _dtypes.INT_DTYPES:
-        dtype = "int"
-    elif dtype == _dtypes.FLOAT_DTYPES:
-        dtype = "float"
-    elif dtype == _dtypes.NUM_DTYPES:
-        dtype = "number"
-    elif dtype == _dtypes.FIXED_DTYPES:
-        dtype = "fixed"
-    elif dtype == _dtypes.ENTRIES_DTYPES:
-        dtype = "entries (bool or int or str)"
-    elif isinstance(dtype, (str, np.dtype)):
-        dtype = str(dtype)
     else:
-        dtype = " or ".join([str(expected_dtype) for expected_dtype in dtype])
+        if layout is not None:
+            expected += layout.name + " "
 
-    if layout is None:
-        layout_prefix = ""
-    else:
-        layout_prefix = layout.name + " "
+        expected += kind
 
-    assert False, f"expected: {layout_prefix}{kind} of {dtype}, got: {data_description(data)}"
+        if shape is not None:
+            expected += f" of {shape[0]}x{shape[1]}"
+
+        if size is not None:
+            expected += " of " + str(size)
+
+        if dtype is None or dtype == _dtypes.ALL_DTYPES:
+            expected += " of any reasonable type"
+        elif dtype == _dtypes.INT_DTYPES:
+            expected += " of int"
+        elif dtype == _dtypes.FLOAT_DTYPES:
+            expected += " of float"
+        elif dtype == _dtypes.NUM_DTYPES:
+            expected += " of number"
+        elif dtype == _dtypes.FIXED_DTYPES:
+            expected += " of fixed"
+        elif dtype == _dtypes.ENTRIES_DTYPES:
+            expected += " of entries (bool or int or str)"
+        elif isinstance(dtype, (str, np.dtype)):
+            expected += " of " + str(dtype)
+        else:
+            expected += " of " + " or ".join([str(expected_dtype) for expected_dtype in dtype])
+
+    got = data_description(data)
+    assert False, f"expected: {expected}, got: {got}"
