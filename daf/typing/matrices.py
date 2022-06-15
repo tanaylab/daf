@@ -2,14 +2,13 @@
 The types here describe 2D data without names (that is, not in a ``pandas.DataFrame``), which is how 2D data is stored
 in ``daf``. Currently there are only two such types:
 
-* `.typing.dense.Dense` is a 2D ``numpy.ndarray`` matrix.
-* `.typing.sparse.Sparse` is a compressed sparse matrix (either ``scipy.sparse.csr_matrix`` or
-  ``scipy.sparse.csc_matrix``).
+* `.Dense` is a 2D ``numpy.ndarray`` matrix.
+* `.Sparse` is a compressed sparse matrix (either ``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``).
 
-The `.Matrix` type annotations is their union, that is, allows for "any" 2D data without names. While this isn't very
-useful to directly perform operation on, it is very useful as the return type of accessing 2D data stored in ``daf``, as
-the caller has no control over whether the data was stored as sparse, and forcing it to be dense would not be practical
-for large data sets.
+The `.Matrix` type annotations is simply their union, that is, allows for "any" 2D data without names. While this isn't
+very useful to directly perform operation on, it is very useful as the return type of fetching 2D data stored in
+``daf``, as the caller has no control over whether the data was stored as sparse, and forcing it to be dense would not
+be practical for large data sets.
 
 .. note::
 

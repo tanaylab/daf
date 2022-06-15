@@ -107,12 +107,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
         #: The storage the ``daf`` data set is based on.
         self.base = base.as_reader()
 
-        #: How to store derived data computed from the storage data, for example, a different layout of 2D data. By
-        #: default this is stored in a `.MemoryStorage` so expensive operations (such as `.as_layout`) will only be
-        #: computed once in the application's lifetime. You can explicitly set this to `.NO_STORAGE` to disable the
-        #: caching, or specify some persistent storage such as `.FilesWriter` to allow the caching to be reused across
-        #: multiple application invocations. You can even set this to be the same as the base storage to have everything
-        #: (base and derived data) be stored in the same place.
+        #: How to store derived data computed from the storage data, for example, an alternate layout of 2D data, of the
+        #: result of a pipeline (e.g. ``cell,gene;UMIs|Sum``). By default this is stored in a `.MemoryStorage` so
+        #: expensive operations (such as `.as_layout`) will only be computed once in the application's lifetime. You can
+        #: explicitly set this to `.NO_STORAGE` to disable the caching, or specify some persistent storage such as
+        #: `.FilesWriter` to allow the caching to be reused across multiple application invocations. You can even set
+        #: this to be the same as the base storage to have everything (base and derived data) be stored in the same
+        #: place.
         self.derived = derived or MemoryStorage(name=self.name + ".derived")
 
         #: A `.StorageChain` to use to actually access the data. This looks first in ``derived`` and then in the

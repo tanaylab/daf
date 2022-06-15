@@ -4,21 +4,23 @@ treat this as a string (e.g. ``bool``, ``float32`` or ``int8``) and be done. Thi
 as long as you stick to explicitly sized types.
 
 Both ``numpy`` and ``pandas`` also allow to store arbitrary data as ``object``. In contrast, ``daf`` does not allow
-storing such arbitrary data as 1D or 2D data elements. However ``dat`` does allow storing strings, which greatly
-complicates the issue. The ``numpy`` data types for representing strings try to deal with the maximal string size
-(presumably for efficiency reasons) with ``dtype`` looking like ``U5`` or ``<U12``. In contrast, ``pandas`` has no
-concept of a string ``dtype`` at all, and just represents it as an ``object``. But to make things interesting,
-``pandas`` also has a ``category`` dtype which it uses to represent strings-out-of-some-limited-set.
-
-Since ``pandas`` uses ``numpy`` internally this results with inconsistent ``dtype`` value for data containing strings.
-Depending on whether you access the internal ``numpy`` data or the wrapper ``pandas`` data, and whether this data was
-created using a ``numpy`` or a ``pandas`` operation, you can get either ``object``, ``category``, or ``U5``, or
-``<U12``, which makes testing for "string-ness" of data basically impossible.
+storing such arbitrary data as 1D or 2D data elements.
 
 .. note::
 
     Do **not** try to store arbitrary objects inside 1D/2D data in ``daf``. There is no practical way to protect against
     this, and things will fail in spectacular and unexpected ways.
+
+That said, ``daf`` does allow storing strings, which greatly complicates the issue. The ``numpy`` data types for
+representing strings try to deal with the maximal string size (presumably for efficiency reasons) with ``dtype`` looking
+like ``U5`` or ``<U12``. In contrast, ``pandas`` has no concept of a string ``dtype`` at all, and just represents it as
+an ``object``. But to make things interesting, ``pandas`` also has a ``category`` dtype which it uses to represent
+strings-out-of-some-limited-set.
+
+Since ``pandas`` uses ``numpy`` internally this results with inconsistent ``dtype`` value for data containing strings.
+Depending on whether you access the internal ``numpy`` data or the wrapper ``pandas`` data, and whether this data was
+created using a ``numpy`` or a ``pandas`` operation, you can get either ``object``, ``category``, or ``U5``, or
+``<U12``, which makes testing for "string-ness" of data basically impossible.
 
 The way ``daf`` deals with this mess is to restrict itself to storing just plain string data and optimistically assume
 that ``object`` means ``str``. We also never store categorical data, only allowing to store plain string data.
@@ -29,11 +31,12 @@ that ``object`` means ``str``. We also never store categorical data, only allowi
     is the index along that axis. The `.optimization` module helps with converting categorical data into plain string
     data.
 
-Some ``daf`` functions take a ``dtype`` (or a collection), e.g. when testing whether some data elements have an
+Some ``daf`` functions take a ``dtype`` (or a collection of them), e.g. when testing whether some data elements have an
 acceptable type. This forces us to introduce a single ``dtype`` to stand for "string", which we have chosen to be ``U``.
 This value has the advantage you can pass it to either ``numpy`` or ``pandas`` when **creating** new data. You can't
 directly **test** for ``dtype == "U"``, of course, but if you pass ``U`` to any ``daf`` function that tests the element
-data type (e.g., `.is_vector`), then the code will do its best to test that the data actually contains strings.
+data type (e.g., `.has_dtype`), then the code will test (to its limited best ability) that the data actually contains
+strings.
 """
 
 # pylint: disable=duplicate-code,cyclic-import

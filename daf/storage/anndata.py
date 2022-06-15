@@ -28,8 +28,9 @@ We use the following scheme to map between ``daf`` data and ``AnnData`` fields:
   appropriate.
 
 * 2D data for either ``obs`` or ``var`` and another axis is stored as a set of 1D annotations in the ``obs`` or ``var``
-  ``AnnData`` fields, one for each axis entry, named ``axis=entry;name``. This makes it slightly less unfriendly to
-  access the data if/when exported to non-``daf`` systems.
+  ``AnnData`` fields, one for each axis entry, named ``other_axis=entry;name``. It is debatable whether this makes it
+  easier or harder to access this data in systems that directly use ``AnnData``, but it is at least "technically
+  correct".
 
 * 2D data where neither axis is ``obs`` or ``var`` is stored in an ``uns`` entry named ``row_axis,column_axis;name``.
 """

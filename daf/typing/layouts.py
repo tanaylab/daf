@@ -270,7 +270,7 @@ def fast_all_close(
 
     * Both values must be 1D (``numpy.ndarray`` or ``pandas.Series``), or
 
-    * Both values must be must be `.typing.sparse.Sparse` matrices, or
+    * Both values must be must be `.Sparse` matrices, or
 
     * Both values must be must be either `.Matrix` or ``pandas.DataFrame``.
 
@@ -284,9 +284,9 @@ def fast_all_close(
 
     .. note::
 
-        When comparing `.typing.sparse.Sparse` matrices, the ``rtol``, ``atol`` and ``equal_nan`` values are only used
-        to compare the non-zero values, after ensuring their structure is identical in both matrices. This requires both
-        matrices to be `.is_optimal`.
+        When comparing `.Sparse` matrices, the ``rtol``, ``atol`` and ``equal_nan`` values are only used to compare the
+        non-zero values, after ensuring their structure is identical in both matrices. This requires both matrices to be
+        `.is_optimal`.
     """
 
     if left.shape != right.shape:
@@ -329,13 +329,14 @@ def fast_all_close(
 #:
 #: By default this is ``1``, that is, we restrict the code to a single thread, as this is the only safe choice. Tempting
 #: though it may be to take over all the CPUs of the machine, this isn't necessarily useful (unless the data is **very**
-#: large), and if ``daf`` is invoked from multiple processes, it would be a disaster.
+#: large), and if ``daf`` is invoked from multiple threads and/or processes, it would be a disaster. Still, using a few
+#: threads gives significant speedups for large data, so feel free to experiment.
 #:
 #: Since ``daf`` sometimes needs to call ``.as_layout`` from its internal code, you can set this to control how many
 #: workers will be used.
 MAX_WORKERS = 1
 
-#: The default size of the block to use in the L1 (two copies should fit w/o thrasing it).
+#: The default size of the block to use in the L1 (two copies should fit w/o trashing it).
 SMALL_BLOCK_SIZE = 12 * 1024
 
 #: The default size of the block to use in the L2 (two copies should fit in it).
@@ -417,14 +418,14 @@ def as_layout(
     large_block_size: Optional[int] = None,
 ) -> _unions.Known2D:
     """
-    Access the 2D data in a specific layout.
+    Get the 2D data in a specific layout.
 
     If ``force_copy``, return a copy even if the data is already in the required layout.
 
     If we need to actually re-layout the data, and it is "large", it may take a long time to do so without
-    parallelization. The code here is able to use multiple threads (at least for `.typing.dense.Dense` data), up to
-    ``max_workers`` Since we might be invoked from within some parallel code, there's no way for the code here to figure
-    out what is the available number of workers we can use, so we default to the only safe value of ``1``.
+    parallelization. The code here is able to use multiple threads (at least for `.Dense` data), up to `.MAX_WORKERS`.
+    Since we might be invoked from within some parallel code, there's no way for the code here to figure out what is the
+    available number of workers we can use, so we default to the only safe value of ``1``.
 
     It turns out that for large dense data it is more efficient to work on the data in blocks that fit a "reasonable" HW
     cache levels. The code here uses a default ``small_block_size`` of 12KB (two copies of this should fit in the L1 w/o

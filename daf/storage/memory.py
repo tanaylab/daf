@@ -5,7 +5,8 @@ This just keeps everything in-memory, similarly to the way an ``AnnData`` object
 object that just keeps references to the data it is given. Unlike ``AnnData`` it allows for efficient storage of
 multiple axes.
 
-This is the "default" storage type you should use unless, you need something specific another storage format provides.
+This is the "default" storage type you should use unless you need something specific another storage format provides
+(typically, disk storage).
 """
 
 # pylint: disable=duplicate-code,cyclic-import

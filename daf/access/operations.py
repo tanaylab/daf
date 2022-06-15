@@ -113,6 +113,24 @@ def operation(klass: type) -> type:
     class in the list of known operations, so it would be available for use in ``...|OperationName...``.
 
     For simplicity we register the operation under the (unqualified) class name and assert there are no ambiguities.
+
+    For example (this is the actual implementation of `.Sum`):
+
+    .. code:: python
+
+        @operation
+        class Sum(Reduction):
+            def __init__(self, *, _input_dtype: str, dtype: Optional[str] = None) -> None:
+                super().__init__(dtype=dtype or _input_dtype)
+
+            def vector_to_scalar(self, input_vector: Vector) -> Any:
+                return input_vector.sum()
+
+            def dense_to_vector(self, input_dense: DenseInRows) -> Vector:
+                return input_dense.sum(axis=1, dtype=self.dtype)
+
+            def sparse_to_vector(self, input_sparse: SparseInRows) -> Vector:
+                return as_vector(input_sparse.sum(axis=1, dtype=self.dtype))
     """
     assert (
         ElementWise in klass.mro() or Reduction in klass.mro()

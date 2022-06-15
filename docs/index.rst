@@ -5,5 +5,5 @@ Daf 0.1.0-dev.1 Documentation
 
   README <readme>
   history
-  API
+  daf API <daf.API>
   TODO

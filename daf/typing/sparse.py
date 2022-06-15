@@ -8,9 +8,9 @@ data.
 
 .. note::
 
-    Other sparse formats (e.g. ``scipy.sparse.coo_matrix``) can't be fetched from ``daf``. This allows ``daf`` to
-    require that all stored data is in either `.ROW_MAJOR` or `.COLUMN_MAJOR` layout, which greatly simplifies the code
-    accessing the data, and also makes it easier to store the data in a consistent way.
+    Other sparse formats (e.g. ``scipy.sparse.coo_matrix``) can't be fetched from ``daf``. This allows ``daf`` to ensure
+    that all fetched data is in either `.ROW_MAJOR` or `.COLUMN_MAJOR` layout, which greatly simplifies the code
+    accessing the data.
 """
 
 # pylint: disable=duplicate-code,cyclic-import

@@ -17,34 +17,40 @@ containers.
 
 To minimize this burden, ``daf`` restricts the data types it stores to very few variants, specifically either using
 row-major or column-major layout for dense matrices and either CSR or CSC format for sparse matrices, as these are the
-most commonly used layouts. This requires only a small number of code paths to ensure efficient computation. See the
+most commonly used layouts. This requires only a small number of code paths to ensure efficient computation. See
 `.layouts` for details on how ``daf`` deals with the layouts of 2D data.
 
-We also have to deal with the data type of the elements of the data (aka "dtype"), which again is only
-*almost* compatible between ``numpy`` and ``pandas``. We don't do it directly using ``mypy`` annotations as it is not
+We also have to deal with the data type of the elements of the data (aka ``dtype``), which again is only
+*mostly* compatible between ``numpy`` and ``pandas``. We don't do it directly using ``mypy`` annotations as it is not
 capable enough to express this without a combinatorical explosion of data types. See `.dtypes` for details on how
 ``daf`` deals with element data types.
 
 We therefore provide here only the minimal ``mypy`` annotations allowing to express the code's intent and select correct
-and efficient code paths, and provide some utilities to at least assert the element data type is as expected. In
-particular, the type annotations only support the restricted subset we allow to store out of the full set of data types
-available in ``numpy``, ``pandas`` and ``scipy.sparse``.
+and efficient code paths, and provide some utilities to at least assert the data types are as expected. In particular,
+the type annotations only support the restricted subset we allow to store out of the full set of data types available in
+``numpy``, ``pandas`` and ``scipy.sparse``.
+
+.. todo::
+
+    Extend ``daf`` to support "masked arrays" for storing nullable integers and nullable Booleans. This requires
+    accompanying each nullable array with a Boolean mask of valid elements, and using the appropriate ``numpy`` and
+    ``pandas`` APIs to deal with this.
 
 In general we provide ``is_...`` functions that test whether some data is of some format (and also works as a ``mypy``
 ``TypeGuard``), ``be_...`` functions that assert that some data is of some format (and return it as such, to make
-``mypy`` effective and happy), and ``as_...`` functions that convert data in specific formats (optionally forcing the
+``mypy`` effective and happy), and ``as_...`` functions that convert data into specific formats (optionally forcing the
 creation of a copy). Additional support functions are provided as needed in the separate sub-modules; the most useful
 are `.as_layout` and `.optimize` which are needed to ensure code is efficient, and `.freeze` which helps protect data
 against accidental in-place modification.
 
 Since ``pandas`` and ``scipy.sparse`` provide no ``mypy`` type annotations (at least as of Python 3.10), we are forced
-to introduce "fake" type annotation for their types in `.fake_pandas` and `.fake_sparse`. Even though ``numpy`` does
+to introduce fake type annotation for their types in `.fake_pandas` and `.fake_sparse`. Even though ``numpy`` does
 provide ``mypy`` type annotations, its use of a catch-all ``numpy.ndarray`` type is not sufficient for capturing the
 code intent. Therefore, in most cases, the results of any computation on the data is effectively ``Any``, which negates
 the usefulness of using ``mypy``, unless ``is...`` and ``be_...`` (and the occasional ``as_...``) are used.
 
-The bottom line is that, as always, type annotations in Python are optional. You can ignore them (which makes sense for
-quick-and-dirty scripts, where correctness and performance are trivial). If you do want to benefit from them (for
+The bottom line is that, as always, type annotations in Python are *optional*. You can ignore them (which makes sense
+for quick-and-dirty scripts, where correctness and performance are trivial). If you do want to benefit from them (for
 serious code), you need to put in the extra work (adding type annotations and a liberal amount of ``be_...`` calls). The
 goal of this module is merely to make it *possible* to do so with the least amount of pain. But even if you do not use
 type annotations at all, the support functions provided here are important for writing safe, efficient code.

@@ -242,6 +242,8 @@ def be_proper(data: Any, *, dtype: Optional[_dtypes.DTypes] = None) -> Proper:
 
 
 #: Any 1D data type that ``daf`` knows about.
+#:
+#: Due to ``numpy.ndarray`` type annotation limitations, we can't use ``mypy`` to ensure this is actually 1D data.
 Known1D = Union[np.ndarray, _fake_pandas.Series]
 
 

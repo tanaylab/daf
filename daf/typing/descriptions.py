@@ -207,8 +207,8 @@ def assert_data(  # pylint: disable=too-many-branches
     layout: Optional[_layouts.AnyMajor] = None,
 ) -> None:
     """
-    Assert that the ``data`` satisfies some ``condition``, which tests it is of some ``kind`` (and optionally ``dtype``
-    and ``layout``), with a friendly message if it fails.
+    Assert that the ``data`` satisfies some ``condition``, which tested it is of some ``kind`` (and optionally ``dtype``
+    and/or ``shape`` and/or ``layout``), with a friendly message if it fails.
     """
     if condition:
         return

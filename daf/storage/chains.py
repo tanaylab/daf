@@ -3,7 +3,8 @@ A chain of storage objects (first one wins).
 
 This serves two purposes. First, it is only a `.StorageReader`, so it protects the wrapped storage objects against
 accidental modification, even if they implement `.StorageWriter` as well. Second, it allows delta-encoding, where data
-in early storage objects enhances or even overrides the data in later objects.
+in early storage objects enhances or even overrides the data in later objects. For example, this is used in `.DafReader`
+to present a unified view of the data in the derived cache and the base storage.
 """
 
 # pylint: disable=duplicate-code,cyclic-import

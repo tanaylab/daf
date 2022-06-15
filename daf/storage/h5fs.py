@@ -10,11 +10,12 @@ a single 1D/2D data array, both allowing for additional arbitrary metadata.
 For maximal flexibility, the code here does not deal with creating or opening the ``h5fs`` file. Instead, given a file
 opened or created using the ``h5py`` package, it allows using an arbitrary group in the file to hold all data for some
 ``daf`` storage. This allows multiple ``daf`` data sets to co-exist in the same ``h5fs`` file; the downside is that
-given an ``h5fs`` file, you need to know the name of the group that contains the data set. Therefore, **by convention**,
-if you name a file ``.h5df``, you are saying that it contains just one ``daf`` data set at the root group of the file
-(that is, viewing the file object as a group). In contrast, if you name the file ``.h5fs``, it may contain "anything",
-and you need to provide additional information such as "the group ``/foo/bar`` contains some ``daf`` data set, the group
-``/foo/baz`` contains another ``daf`` data set, and the group ``/vaz`` contains non-``daf`` data".
+given an ``h5fs`` file, you need to know the name of the group that contains the ``daf`` data set. Therefore, **by
+convention**, if you name a file ``.h5df``, you are saying that it contains just one ``daf`` data set at the root group
+of the file (that is, viewing the file object as a group). In contrast, if you name the file ``.h5fs``, you are saying
+it may contain "anything", and you need to provide additional information such as "the group ``/foo/bar`` contains some
+``daf`` data set, the group ``/foo/baz`` contains another ``daf`` data set, and the group ``/vaz`` contains non-``daf``
+data".
 
 .. note::
 
@@ -42,9 +43,9 @@ A ``daf`` group inside an ``h5fs`` file will contain the following data sets:
     Storing 1D/2D data of strings in ``h5fs`` is built around the concept of a fixed number of bytes per element. This
     requires us to convert all strings to byte arrays before passing them on to ``h5fs`` (and the reverse when accessing
     the data). But ``numpy`` can't encode ``None`` in a byte array; instead it silently converts it to the 6-character
-    string ``'None'``. To work around this, in ``h5fs``, we store the magic string value "\001" to indicate the ``None``
-    value. So do not use this magic string value in arrays of strings you pass to ``daf``, and don't be surprised if you
-    see this value if you access the data directly from ``h5fs``. Sigh.
+    string ``'None'``. To work around this, in ``h5fs``, we store the magic string value ``\\001`` to indicate the
+    ``None`` value. So do **not** use this magic string value in arrays of strings you pass to ``daf``, and don't be
+    surprised if you see this value if you access the data directly from ``h5fs``. Sigh.
 
 * For sparse 2D data, there will be a group ``row_axis,column_axis;name`` which will contain three data sets:
   ``data``, ``indices`` and ``indptr``, needed to construct the sparse ``scipy.sparse.csr_matrix``. The group will have
@@ -76,20 +77,16 @@ There are of course also downsides to this approach:
 
 * Accessing data from ``h5fs`` creates an in-memory copy. To clarify, the ``h5fs`` API does lazily load data only
   when it is accessed, and does allow to only access a slice of the data, but it **will** create an in-memory copy of
-  that slice because "reasons". And when using ``daf`` to access ``h5fs`` data, you can't even ask it for just a slice -
-  ``daf`` always asks for the whole thing (in theory we could do something clever with views - we don't). If you are
-  accessing large data, this will hurt performance; in extreme cases, when the data is bigger than the available RAM,
-  the program will crash.
+  that slice, at least until such time (if any) that https://github.com/h5py/h5py/issues/1607 is resolved.
+
+  When using ``daf`` to access ``h5fs`` data, you can't even ask it for just a slice, since ``daf`` always asks for the
+  whole thing (in theory we could do something clever with views - we don't). If you are accessing large data, this will
+  hurt performance; in extreme cases, when the data is bigger than the available RAM, the program will crash.
 
   If size is an issue for your data, you can use the `.files` storage instead, which **never** creates an in-memory copy
   when accessing data, which is faster, and allows you to access data files larger than the available RAM (thanks to the
   wonders of paged virtual address spaces). You would need to **always** use `.StorageWriter.create_dense_in_rows` to
   create your data, though.
-
-.. todo::
-
-    With sufficient effort, using the low-level ``h5fs`` APIs, it should be possible to use memory-mapping to access
-    large ``h5fs`` data without making in-memory copies, at least when it is not compressed.
 
 .. note::
 

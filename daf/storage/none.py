@@ -1,5 +1,6 @@
 """
-The `.NO_STORAGE` is used to disable caching (e.g., caching sliced data in a `.StorageView`).
+The `.NO_STORAGE` is used to disable caching (e.g., caching sliced data in a `.StorageView`, caching derived data in a
+`.DafReader`).
 
 Creating or setting data inside `.NO_STORAGE` has no effect. Unlike a real storage, it allows querying for names of axes
 that don't exist (since in it, no axes exist).

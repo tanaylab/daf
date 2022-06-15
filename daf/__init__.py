@@ -1,12 +1,6 @@
 """
-This re-exports everything in the sub-modules directly from the ``daf`` module, so, for example, you can write ``from
-daf import MemoryStorage`` or ``daf.MemoryStorage`` instead of the full name ``daf.storage.memory.MemoryStorage``.
-
-.. todo::
-
-    Extend ``daf`` to support "masked arrays" for storing nullable integers and nullable Booleans. This requires
-    accompanying each nullable array with a Boolean mask of valid elements, and using the appropriate ``numpy`` and
-    ``pandas`` APIs to deal with this.
+The top-level ``daf`` module re-exports everything all the sub-modules, so, for example, you can write ``from daf import
+MemoryStorage`` or ``daf.MemoryStorage`` instead of the full name ``daf.storage.memory.MemoryStorage``.
 """
 
 # See https://github.com/jwilk/python-syntax-errors

@@ -1,10 +1,10 @@
 """
-Storage views allow slicing the data, and/or renaming and/or hiding specific axes or data.
+Storage views allow slicing the data and/or renaming and/or hiding specific axes or data.
 
-A view is just a light-weight read-only adapter of some underlying storage; a common idiom (e.g. for exporting a subset
-of the data) is to create a view, then copy its contents into an empty new persistent storage (such as `.FilesWriter`)
-to save just this data to the disk. This is crucial when converting ``daf`` data to ``AnnData``, as ``AnnData`` requires
-specific axes names, and is not capable of dealing with too many axes.
+A view is just a light-weight read-only adapter of some underlying storage; a common idiom for exporting a subset of the
+data is to create a view, then copy its contents into an empty new persistent storage (such as `.FilesWriter`) to save
+just this data to the disk. This is crucial when converting ``daf`` data to ``AnnData``, as ``AnnData`` requires
+specific axes names, and is not capable of "reasonably" dealing with too many axes.
 """
 
 # pylint: disable=duplicate-code

@@ -18,35 +18,36 @@ in files in a directory in the simplest way possible.
 A ``daf`` storage directory will contain the following files:
 
 * A single ``__daf__.yaml`` identifies the directory as containing ``daf`` data. This should contain a mapping with a
-  single key ``version`` whose value must be a sequence of two integers, the major and minor format version numbers, to
+  single ``version`` key whose value must be a sequence of two integers, the major and minor format version numbers, to
   protect against future extensions of the format. . This version of the library will generate ``[1, 0]`` files and will
   accept any files with a major version of ``1``.
 
 * Every 0D data will be stored as a separate ``name.yaml`` file, to maximize human-readability of the data.
 
-* For axes, there will be an ``axis;.csv`` file with a single column with the axis name, containing the unique
+* For axes, there will be an ``axis;.csv`` file with a single column with the axis name header, containing the unique
   names of the entries along the axis.
 
-* For 1D string data, there will be an ``axis;name.csv`` file with two columns, with the axis and the data name
+* For 1D string data, there will be an ``axis;name.csv`` file with two columns, with the axis and the data name header
   (if the name is identical to the axis, we suffix it with ``.value``). Any missing entries will be set to ``None``. The
-  entries may be in any order, but `.FilesWriter` always writes them in the axis order.
+  entries may be in any order, but `.FilesWriter` always writes them in the axis order (skiupping writing of ``None``
+  values).
 
 * For 1D binary data, there will be an ``axis;name.yaml`` file and an ``axis;name.array`` containing the data
   (always in the axis entries order). See `.create_memory_mapped_array` for details in the (trivial) format of these
   files.
 
 * For 2D string data, there will be a ``row_axis,column_axis;name.csv`` file with three columns, with the rows axis,
-  columns axis, and data name (if the axis names are identical we suffix them with ``.row`` and ``.column``, and if the
-  name is identical to either we suffix it with ``.value``). Any missing entries will be set to ``None``. The entries
-  may be in any order, but `.FilesWriter` always writes them in `.ROW_MAJOR` order (skipping writing of ``None``
+  columns axis, and data name header (if the axis names are identical we suffix them with ``.row`` and ``.column``, and
+  if the name is identical to either we suffix it with ``.value``). Any missing entries will be set to ``None``. The
+  entries may be in any order, but `.FilesWriter` always writes them in `.ROW_MAJOR` order (skipping writing of ``None``
   values).
 
-* For 2D dense binary data, there will be a ``row_axis,column_axis;name.yaml`` file accompanied by a
+* For 2D `.Dense` binary data, there will be a ``row_axis,column_axis;name.yaml`` file accompanied by a
   ``row_axis,column_axis;name.array`` file (always in `.ROW_MAJOR` order based on the axis entries order). See
   `.create_memory_mapped_array` for details on the (trivial) format of these files.
 
-* For 2D sparse binary data, there will be a ``row_axis,column_axis;name.yaml`` file accompanied by three files:
-  ``row_axis,column_axis;name.sparse``, ``row_axis,column_axis;name.indices`` and ``row_axis,column_axis;name.indptr``
+* For 2D `.Sparse` binary data, there will be a ``row_axis,column_axis;name.yaml`` file accompanied by three files:
+  ``row_axis,column_axis;name.data``, ``row_axis,column_axis;name.indices`` and ``row_axis,column_axis;name.indptr``
   (always in `.ROW_MAJOR`, that is, CSR order, based on the axis entries order). See `.write_memory_mapped_sparse` for
   details on the (trivial) format of these files.
 
@@ -70,10 +71,10 @@ Other files, if any, are silently ignored.
 Using a directory of separate files for separate data instead of a complex single-file format such as ``h5fs`` has some
 advantages:
 
-* One can access parts of the data using the multitude of file-based tools to the data. Putting aside the convenience of
-  using ``bash`` or the Windows file explorer to simply see and manipulate the data, this allows using build tools like
-  ``make`` to create complex reproducible multi-program computation pipelines, and automatically re-run just the
-  necessary steps if/when some input data or control parameters are changed.
+* One can apply the multitude of file-based tools to the data. Putting aside the convenience of using ``bash`` or the
+  Windows file explorer to simply see and manipulate the data, this allows using build tools like ``make`` to create
+  complex reproducible multi-program computation pipelines, and automatically re-run just the necessary steps if/when
+  some input data or control parameters are changed.
 
 * Using memory-mapped files **never** creates an in-memory copy when accessing data, which is faster, and allows you to
   access data files larger than the available RAM (thanks to the wonders of paged virtual address spaces). You would
@@ -82,12 +83,13 @@ advantages:
 There are of course also downsides to this approach:
 
 * It requires you create an archive (using ``tar`` or ``zip`` or the like) if you want to send the data across the
-  network. This isn't much of a hardship, as typically a data set consists of multiple files anyway, and it allows it to
+  network. This isn't much of a hardship, as typically a data set consists of multiple files anyway. Using an archive
+  also allows for compression, which is important when sending files across the network.
 
 * It uses one file descriptor per memory-mapped file (that is, any actually accessed 1D/2D data). If you access "too
   many" such data files at the same time, you may see an error saying something like "too many open files". This isn't
   typically a problem for normal usage. If you do encounter such an error, try calling `.allow_maximal_open_files` which
-  will increase the limit as much as possible without requiring changing the operating system systems.
+  will increase the limit as much as possible without requiring changing operating system settings.
 """
 
 # pylint: disable=duplicate-code,cyclic-import

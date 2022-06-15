@@ -3,12 +3,12 @@ The types here define the abstract interface implemented by all ``daf`` storage 
 on simplicity to to make it easier to **implement** new adapters for specific formats, which makes it inconvenient to
 actually **use**. For a more usable interface, see the `.DafReader` and `.DafWriter` classes.
 
-Specifically, we only require storage objects to accept `.is_optimal` `.is_frozen` `.MatrixInRows` 2D data, but we allow
+For example, we only require storage objects to accept `.is_optimal` `.is_frozen` `.MatrixInRows` 2D data, but we allow
 storage objects to return almost anything they happen to contain (as long as it is `.Known2D` data). This simplifies
 writing storage format adapters that access arbitrary data.
 
 In general ``daf`` users would not be interested in the abstract storage interface defined here, other than to construct
-storage objects (using the concrete implementation constructors) and possibly accessing ``.name`` and possibly
+storage objects (using the concrete implementation constructors) and possibly accessing ``.name``, ``.description``, and
 ``.as_reader``.
 
 It is the higher level `.DafReader` and `.DafWriter` classes which will actually use the API exposed here. It is still

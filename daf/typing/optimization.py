@@ -1,20 +1,28 @@
 """
 The generic data types provided by ``numpy``, ``pandas`` and ``scipy.sparse`` allow for representing data in ways which
-aren't optimal for processing. While most operations that take optimal data as input return "optimal" data, this isn't
-always the case and the documentation of the relevant libraries is mostly silent on this issue.
+aren't optimal for processing. While most operations that take optimal data as input also return optimal data, this
+isn't always the case, and the documentation of the relevant libraries is mostly silent on this issue.
 
 At the same time, some code (especially C++ extension code) relies on the data being in one of the optimal formats. Even
 code that technically works can become **much** slower when applied to non-optimal data. Therefore, all data fetched
 from ``daf`` is always `.is_optimal`.
 
-Examples of non-optimal data are strided ``numpy`` data, and ``scipy.sparse.spmatrix`` that isn't
-``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``, or that is, but contains duplicate and/or unsorted indices.
+Examples of non-optimal data are strangely-strided ``numpy`` data, any ``scipy.sparse.spmatrix`` that isn't
+``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix``, or any data that is, but contains duplicate and/or unsorted
+indices.
 
 The functions here allow to test whether data is in an optimal format, and allow converting data to an optimal format,
 in-place if possible, optionally forcing a copy.
 
 Most of the time, you can ignore these functions. However if you are writing serious processing code (e.g. a library),
 they are useful in ensuring it will be correct and efficient.
+
+.. note::
+
+    We can easily test and correct for most issues, but if some operation placed "structural zeros" inside a
+    ``scipy.sparse.csr_matrix`` or ``scipy.sparse.csc_matrix`` data, we have no way to detect them, so the result would
+    be "optimal" as far as the code here goes. Luckily, such operations are rare. If you do encounter this, manually
+    invoke the ``eliminate_zeros`` method on the afflicted matrix.
 """
 
 # pylint: disable=duplicate-code,cyclic-import

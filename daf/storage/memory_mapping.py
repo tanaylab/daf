@@ -8,8 +8,8 @@ many use cases we don't care about in ``daf``).
 
 .. note::
 
-    The code here assumes all the machines accessing memory-mapped data use the same (little-endian) byte order, which
-    is the byte order used by all modern CPUs.
+    The code here assumes all the machines accessing memory-mapped data use the same (little-endian) byte order and IEEE
+    floating point formats, which is true for all modern CPUs.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
