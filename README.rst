@@ -6,13 +6,14 @@ DAF 0.1.0-dev.1 - Data in Axes in Formats
     :alt: Documentation Status
 
 The daf package provides a uniform generic interface for accessing 1D and 2D data arranged along some set of axes. This
-is a much-needed generalization of the `AnnData <https://pypi.org/project/anndata>`_ functionality. The key
-features are:
+is a much-needed generalization of the `AnnData <https://pypi.org/project/anndata>`_ functionality. The key features
+are:
 
 * Support both in-memory and persistent data storage of "any" format (given an adapter implementation).
 
-* Out of the box, allow storing the data in memory, in ``AnnData`` objects, inside an ``H5FS`` file, or as a collection
-  of simple memory-mapped files in a directory.
+* Out of the box, allow storing the data in memory, in ``AnnData`` object (e.g., using ``h5ad`` files), directly inside
+  `H5FS <https://hdfgroup.org/>`_ files (using `h5py <https://www.h5py.org/>`_), or as a collection of simple
+  memory-mapped files in a directory.
 
 * The data model is based on (1) some axes with named entries, (2) 1-D data indexed by a single axis, (3) 2-D
   data indexed by a pair of axes, and also (4) 0-D data items (anything not tied to some axis).
