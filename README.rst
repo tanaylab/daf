@@ -140,23 +140,23 @@ Usage
         # Umis matrix is sparse (sp.csr_matrix).
         ...
 
-    # Get a Pandas data frame with homogeneous data elements by two axes and a name.
+    # Get a Pandas data frame with homogeneous elements by two axes and a name.
     type_marker_genes = data.get_frame("gene,type;marker")
 
     # Access the mask of marker genes for a specific type as a Pandas series.
     t_marker_genes = type_marker_genes["T"]
 
-    # Get a Pandas data frame with multiple named vectors (columns) of possibly different types.
+    # Get a Pandas data frame with multiple named (columns) of different types.
     genes_masks = data.get_columns("gene", ["forbidden", "significant"])
 
     # Access the mask of significant genes in the frame as a Pandas series.
     significant_genes_mask = genes_masks["significant"]
 
-    # Get the total sum of UMIs per cell (and cache it so repeated requests will not re-compute it).
+    # Get the total sum of UMIs per cell (and cache it for future requests).
     cells_umis_sum = data.get_vector("cell,gene;UMIs|Sum")
 
-    #: Slice the data to look only at cells with a high number of UMIs and significant.
-    strong_data = daf.daf_view(
+    #: Slice to include cells with a high number of UMIs and significant genes.
+    strong_data = daf.view(
         data,
         axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask)
     )
