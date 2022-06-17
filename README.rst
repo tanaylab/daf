@@ -70,9 +70,9 @@ turn allows the data to be stored in various disk file formats such as ``h5ad``.
 ``AnnData`` data model, we also allow directly storing ``daf`` data in an ``h5fs`` file in a more efficient way (that
 is, in ``h5df`` files).
 
-That said, we find the use of complex single-file formats such as ``h5fs`` to be sub-optimal in many cases. In effect
-they try to replicate a file system, but offer only some of its functionality. For example, you need special APIs to
-list the content of the file, copy or delete just parts of it, find out which parts have been changed when, and most
+That said, we find that, for our use cases, the use of complex single-file formats such as ``h5fs`` to be sub-optimal.
+In effect they function as a file system, but offer only some of its functionality. For example, you need special APIs
+to list the content of the data, copy or delete just parts of it, find out which parts have been changed when, and most
 implementations do not support memory-mapping the data, which causes a large performance hit for large data sets.
 
 Therefore, as an option, ``daf`` also supports a simple "files" storage format where every "annotation" is a separate
