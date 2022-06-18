@@ -80,6 +80,12 @@ advantages:
   access data files larger than the available RAM (thanks to the wonders of paged virtual address spaces). You would
   need to **always** use `.StorageWriter.create_dense_in_rows` to create your data, though.
 
+.. note::
+
+    We have improved the implementation of ``daf`` storage for the `.h5fs` format, using the low-level ``h5py`` APIs, to
+    also use memory mapping, which avoids copies "almost all the time". You still need to **always** use
+    `.StorageWriter.create_dense_in_rows` to create your data, though.
+
 There are of course also downsides to this approach:
 
 * It requires you create an archive (using ``tar`` or ``zip`` or the like) if you want to send the data across the

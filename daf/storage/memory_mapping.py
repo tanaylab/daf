@@ -17,6 +17,7 @@ many use cases we don't care about in ``daf``).
 from __future__ import annotations
 
 from functools import reduce
+from mmap import ALLOCATIONGRANULARITY
 from mmap import PROT_READ
 from mmap import PROT_WRITE
 from mmap import mmap
@@ -26,7 +27,8 @@ from os.path import exists as exists_path
 from resource import RLIMIT_NOFILE
 from resource import getrlimit
 from resource import setrlimit
-from typing import List
+from typing import Collection
+from typing import Optional
 from typing import Tuple
 from typing import Union
 from weakref import WeakValueDictionary
@@ -45,7 +47,6 @@ from ..typing import Vector
 from ..typing import assert_data
 from ..typing import be_dense_in_rows
 from ..typing import be_vector
-from ..typing import freeze
 from ..typing import is_dtype
 from ..typing import is_optimal
 from ..typing import is_sparse_in_rows
@@ -63,11 +64,88 @@ __all__ = [
     "write_memory_mapped_sparse",
     "open_memory_mapped_sparse",
     "allow_maximal_open_files",
+    "MMAP_CACHE",
+    "mmap_file",
+    "bytes_as_ndarray",
 ]
 
 
-#: Cache memory-mapped data so it is not mapped twice.
-CACHE: WeakValueDictionary = WeakValueDictionary()
+#: Cache memory-mapped files so they are not mapped twice.
+#:
+#: The key is the path, the mode, offset and size (size=0 means the whole file), the value is the ``mmap`` object.
+MMAP_CACHE: WeakValueDictionary[Tuple[str, str, int, int], mmap] = WeakValueDictionary()
+
+
+_PROT_OF_MODE = {"r": PROT_READ, "r+": PROT_READ | PROT_WRITE}
+
+
+def mmap_file(*, path: str, mode: str, fd: int, offset: int = 0, size: int = 0) -> Union[bytes, bytearray]:
+    """
+    Memory-map a whole file at some ``path`` opened using some ``fd`` using some ``mode`` (``r``, ``r+``).
+
+    If both the ``offset`` and the ``size`` are zero, maps the whole file.
+
+    If there already exists a compatible mapping, return it instead of creating a new one. That is:
+
+    * A mapping of the whole file will be used (sliced as needed) to return any mapping for the same file.
+
+    * A mapping for "r+" data will be used to return any mapping for both "r" and "r+" data.
+
+    If the mode is ``r`` returns an immutable ``bytes`` object, if it is ``r+`` returns a mutable ``bytearray`` object.
+
+
+    .. note::
+
+        Since we are caching the ``mmap``, if the file was changed in the file system, this need not be reflected in the
+        result of a following call to ``mmap_file``. E.g., if the file was deleted, the ``mmap`` may survive (the OS
+        will actually delete the data only once the final ``mmap`` is garbage collected, or the Python process exits).
+        However writing into the file (updating the content) will immediately update the content of the ``mmap`` (and
+        any ``numpy.ndarray`` built from it), which may cause subtle problems issues if the code assumes the data is
+        immutable.
+    """
+    assert mode in ("r", "r+")
+    assert size >= 0
+    assert offset >= 0
+
+    prefix = offset % ALLOCATIONGRANULARITY
+    offset -= prefix
+    if size > 0:
+        size += prefix
+
+    memory = MMAP_CACHE.get((path, mode, 0, 0))
+    if memory is None and mode == "r":
+        memory = MMAP_CACHE.get((path, "r+", 0, 0))
+    if memory is not None:
+        prefix += offset
+
+    if memory is None and (offset > 0 or size > 0):
+        memory = MMAP_CACHE.get((path, mode, offset, size))
+        if memory is None and mode == "r":
+            memory = MMAP_CACHE.get((path, "r+", offset, size))
+
+    if memory is None:
+        MMAP_CACHE[(path, mode, offset, size)] = memory = mmap(fd, size, prot=_PROT_OF_MODE[mode], offset=offset)
+
+    if mode == "r+":
+        return memoryview(memory)[prefix:]
+
+    return memory[prefix:]
+
+
+def bytes_as_ndarray(memory: Union[bytes, bytearray], *, name: str, shape: Collection[int], dtype: DType) -> np.ndarray:
+    """
+    View the bytes in ``memory`` as a ``numpy.ndarray`` with some ``shape`` and ``dtype``.
+
+    If the bytes array has the wrong size, complain using the ``name``.
+    """
+    size = reduce(mul, shape, 1) * np.dtype(dtype).itemsize
+    assert len(memory) == size, f"wrong size for the memory-mapped data in the {name}"
+
+    array = np.frombuffer(memory, dtype=dtype)
+    if len(shape) > 1:
+        array = array.reshape(*shape)
+
+    return array
 
 
 def exists_memory_mapped_array(path: str) -> bool:
@@ -191,10 +269,25 @@ def open_memory_mapped_array(path: str, mode: str) -> Union[Vector, DenseInRows]
 
     # pylint: enable=duplicate-code
 
-    array = _mmap_array(f"{path}.array", metadata["shape"], mode, metadata["dtype"])
-    if len(metadata["shape"]) == 1:
+    shape = metadata["shape"]
+    array = _mmap_array(path=path + ".array", mode=mode, shape=shape, dtype=metadata["dtype"])
+    if len(shape) == 1:
         return be_vector(array, dtype=metadata["dtype"])
     return be_dense_in_rows(array, dtype=metadata["dtype"])
+
+
+def _mmap_array(*, path: str, fd: Optional[int] = None, mode: str, shape: Collection[int], dtype: DType) -> np.ndarray:
+    if fd is None:
+        # TRICKY: The ``file`` object has to live while ``mmap_file`` is called.
+        file = open(path, mode=mode + "b")  # pylint: disable=unspecified-encoding,consider-using-with
+        fd = file.fileno()  # pylint: disable=unspecified-encoding,consider-using-with
+
+    return bytes_as_ndarray(
+        mmap_file(path=path, fd=fd, mode=mode),
+        name=f"file: {path}",
+        shape=shape,
+        dtype=dtype,
+    )
 
 
 def exists_memory_mapped_sparse(path: str) -> bool:
@@ -309,35 +402,15 @@ def open_memory_mapped_sparse(path: str, mode: str) -> SparseInRows:
             and all(isinstance(size, int) and size > 0 for size in metadata["shape"])
         ), f"invalid YAML format for the memory-mapped sparse data: {path}"
 
-    data_array = _mmap_array(f"{path}.data", [metadata["nnz"]], mode, metadata["data_dtype"])
-    indices_array = _mmap_array(f"{path}.indices", [metadata["nnz"]], mode, metadata["indices_dtype"])
-    indptr_array = _mmap_array(f"{path}.indptr", [metadata["shape"][0] + 1], mode, metadata["indptr_dtype"])
+    data_array = _mmap_array(path=f"{path}.data", mode=mode, shape=[metadata["nnz"]], dtype=metadata["data_dtype"])
+    indices_array = _mmap_array(
+        path=f"{path}.indices", mode=mode, shape=[metadata["nnz"]], dtype=metadata["indices_dtype"]
+    )
+    indptr_array = _mmap_array(
+        path=f"{path}.indptr", mode=mode, shape=[metadata["shape"][0] + 1], dtype=metadata["indptr_dtype"]
+    )
 
     return sp.csr_matrix((data_array, indices_array, indptr_array))
-
-
-_PROT_OF_MODE = {"r": PROT_READ, "r+": PROT_READ | PROT_WRITE}
-
-
-def _mmap_array(path: str, shape: List[int], mode: str, dtype: DType) -> np.ndarray:
-    memory = CACHE.get((mode, path))
-    if memory is None and mode == "r":
-        memory = CACHE.get(("r+", path))
-
-    if memory is None:
-        with open(path, f"{mode}b") as data_file:  # pylint: disable=unspecified-encoding
-            CACHE[(mode, path)] = memory = mmap(data_file.fileno(), 0, prot=_PROT_OF_MODE[mode])
-
-    size = reduce(mul, shape, 1) * np.dtype(dtype).itemsize
-    assert len(memory) == size, f"wrong size for the memory-mapped data file: {path}"
-
-    array = np.frombuffer(memory, dtype=dtype)
-    if len(shape) > 1:
-        array = array.reshape(*shape)
-
-    if mode == "r":
-        array = freeze(array)
-    return array
 
 
 def allow_maximal_open_files() -> int:

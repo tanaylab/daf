@@ -38,6 +38,7 @@ from typing import Union
 
 import numpy as np
 
+from ..typing import FIXED_DTYPES
 from ..typing import ROW_MAJOR
 from ..typing import STR_DTYPE
 from ..typing import DenseInRows
@@ -53,6 +54,7 @@ from ..typing import assert_data
 from ..typing import be_dense_in_rows
 from ..typing import data_description
 from ..typing import freeze
+from ..typing import is_dtype
 from ..typing import is_frozen
 from ..typing import is_matrix_in_rows
 from ..typing import is_optimal
@@ -552,6 +554,8 @@ class StorageWriter(StorageReader):
         assert overwrite or not self._has_data2d(
             axes, name
         ), f"refuse to overwrite the 2D data: {name} in the storage: {self.name}"
+
+        assert is_dtype(dtype, FIXED_DTYPES), f"unsupported dtype: {dtype}"
 
         shape = (self._axis_size(axes[0]), self._axis_size(axes[1]))
         with self._create_dense_in_rows(name, axes=axes, shape=shape, dtype=dtype) as dense:

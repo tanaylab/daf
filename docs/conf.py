@@ -94,6 +94,7 @@ nitpick_ignore = [
     ('py:class', '_dense.DenseInRows'),
     ('py:class', '_fake_sparse.spmatrix'),
     ('py:class', 'h5py._hl.group.Group'),
+    ('py:class', 'mmap.mmap'),
     ('py:class', 'np.dtype'),
     ('py:class', 'numpy.dtype'),
     ('py:class', 'numpy.ndarray'),
@@ -109,6 +110,7 @@ nitpick_ignore = [
     ('py:class', '_unions.AnyData'),
     ('py:class', '_unions.Known'),
     ('py:class', '_vectors.Vector'),
+    ('py:class', 'weakref.WeakValueDictionary'),
 ]
 
 # Add any paths that contain templates here, relative to this directory.

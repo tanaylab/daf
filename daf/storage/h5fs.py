@@ -75,55 +75,67 @@ There are of course also downsides to this approach:
   create complex reproducible multi-program computation pipelines, and automatically re-run just the necessary steps
   if/when some input data or control parameters are changed.
 
-* Accessing data from ``h5fs`` creates an in-memory copy. To clarify, the ``h5fs`` API does lazily load data only
+* Accessing data from ``h5fs`` creates an in-memory copy. To clarify, the ``h5py`` API does lazily load data only
   when it is accessed, and does allow to only access a slice of the data, but it **will** create an in-memory copy of
-  that slice, at least until such time (if any) that https://github.com/h5py/h5py/issues/1607 is resolved.
+  that slice.
 
   When using ``daf`` to access ``h5fs`` data, you can't even ask it for just a slice, since ``daf`` always asks for the
   whole thing (in theory we could do something clever with views - we don't). If you are accessing large data, this will
   hurt performance; in extreme cases, when the data is bigger than the available RAM, the program will crash.
 
-  If size is an issue for your data, you can use the `.files` storage instead, which **never** creates an in-memory copy
-  when accessing data, which is faster, and allows you to access data files larger than the available RAM (thanks to the
-  wonders of paged virtual address spaces). You would need to **always** use `.StorageWriter.create_dense_in_rows` to
-  create your data, though.
+  All that said, the implementation here uses the low-level ``h5py`` APIs to memory-map 1D/2D data, so the above applies
+  only to using ``h5fs`` through the "normal" ``h5py`` high-level API, which does not support memory-mapping (at least
+  such time that https://github.com/h5py/h5py/issues/1607 is resolved).
 
 .. note::
 
     The ``h5py`` API provides advanced storage features (e.g., chunking, compression). While ``daf`` doesn't support
     creating data using these features, it will happily read them. You can therefore either manually create ``daf`` data
-    using these advanced features (following the naming convention above), or you can create the data using ``daf`` and
-    then run a post-processing step that optimizes the storage format of the data as you see fit.
+    using these advanced features (following the above naming convention), or you can create the data using ``daf`` and
+    then run a post-processing step that optimizes the storage format of the data as you see fit. However, if you do so,
+    ``daf`` will no longer be able to memory-map the data, so for large data you may end up losing rather than gaining
+    performance.
 """
 
 # pylint: disable=duplicate-code,cyclic-import
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from typing import Any
 from typing import Collection
 from typing import Dict
+from typing import Generator
 from typing import List
 from typing import Tuple
 from typing import Union
 
+import numpy as np
 import scipy.sparse as sp  # type: ignore
 from h5py import AttributeManager  # type: ignore
 from h5py import Dataset
 from h5py import Group
+from h5py import h5d
+from h5py import h5p
+from h5py import h5s
+from h5py import h5t
 
 from ..typing import INT_DTYPES
 from ..typing import STR_DTYPE
+from ..typing import DenseInRows
+from ..typing import DType
 from ..typing import Known1D
 from ..typing import Known2D
 from ..typing import MatrixInRows
 from ..typing import Vector
+from ..typing import be_dense_in_rows
 from ..typing import has_dtype
 from ..typing import is_vector
 from . import interface as _interface
+from . import memory_mapping as _memory_mapping
 
 # pylint: enable=duplicate-code,cyclic-import
-
+# pylint: disable=c-extension-no-member
 
 __all__ = [
     "H5fsReader",
@@ -265,10 +277,13 @@ class H5fsReader(_interface.StorageReader):
     # pylint: enable=duplicate-code
 
     def _get_data1d(self, axis: str, name: str) -> Known1D:
-        vector = self._vectors[axis][name][:]
+        dataset = self._vectors[axis][name]
+        vector = self._get_ndarray(dataset, name)
+
         if "S" in str(vector.dtype):
             vector = vector.astype("U").astype("object")
             vector[vector == NONE_STRING] = None
+
         return vector
 
     # pylint: disable=duplicate-code
@@ -284,13 +299,54 @@ class H5fsReader(_interface.StorageReader):
     def _get_data2d(self, axes: Tuple[str, str], name: str) -> Known2D:
         data = self._matrices[axes][name]
         if isinstance(data, Dataset):
-            matrix = data[:]
+            matrix = self._get_ndarray(data, name)
+
             if "S" in str(matrix.dtype):
                 matrix = matrix.astype("U").astype("object")
                 matrix[matrix == NONE_STRING] = None
+
             return matrix
+
         assert isinstance(data, Group)
-        return sp.csr_matrix((data["data"][:], data["indices"][:], data["indptr"][:]), shape=tuple(data.attrs["shape"]))
+
+        data_dataset = data["data"]
+        indices_dataset = data["indices"]
+        indptr_dataset = data["indptr"]
+
+        assert isinstance(data_dataset, Dataset)
+        assert isinstance(indices_dataset, Dataset)
+        assert isinstance(indptr_dataset, Dataset)
+
+        data_ndarray = self._get_ndarray(data_dataset, name + ".data")
+        indices_ndarray = self._get_ndarray(indices_dataset, name + ".indices")
+        indptr_ndarray = self._get_ndarray(indptr_dataset, name + ".indptr")
+        shape = tuple(data.attrs["shape"])
+
+        return sp.csr_matrix((data_ndarray, indices_ndarray, indptr_ndarray), shape=shape)
+
+    def _get_ndarray(self, dataset: Dataset, name: str) -> np.ndarray:
+        if (
+            dataset.id.get_create_plist().get_layout() != h5d.CONTIGUOUS
+            or dataset.id.get_space_status() != h5d.SPACE_STATUS_ALLOCATED
+        ):
+            return dataset[:]
+
+        dataset.flush()
+
+        memory = _memory_mapping.mmap_file(
+            path=self.group.file.filename,
+            mode=self.group.file.mode,
+            fd=self.group.file.id.get_vfd_handle(),
+            offset=dataset.id.get_offset(),
+            size=dataset.id.get_storage_size(),
+        )
+
+        return _memory_mapping.bytes_as_ndarray(
+            memory,
+            name=f"dataset for: {name} in the group: {self.group.name} in the h5fs file: {self.group.file.filename}",
+            shape=dataset.shape,
+            dtype=dataset.dtype,
+        )
 
 
 class H5fsWriter(H5fsReader, _interface.StorageWriter):
@@ -351,3 +407,25 @@ class H5fsWriter(H5fsReader, _interface.StorageWriter):
             data[:] = matrix[:]
 
         self._matrices[axes][name] = data
+
+    @contextmanager
+    def _create_dense_in_rows(
+        self, name: str, *, axes: Tuple[str, str], shape: Tuple[int, int], dtype: DType
+    ) -> Generator[DenseInRows, None, None]:
+        space_id = h5s.create_simple(shape)
+        plist = h5p.create(h5p.DATASET_CREATE)
+        plist.set_layout(h5d.CONTIGUOUS)
+        plist.set_fill_time(h5d.FILL_TIME_NEVER)
+        plist.set_alloc_time(h5d.ALLOC_TIME_EARLY)
+        dataset_id = h5d.create(
+            self.group.id,
+            bytes(name, encoding="utf-8"),
+            h5t.py_create(np.dtype(dtype)),
+            space_id,
+            plist,
+        )
+        dataset = Dataset(dataset_id)
+
+        matrix = be_dense_in_rows(self._get_ndarray(dataset, name), shape=shape)
+        yield matrix
+        self._matrices[axes][name] = dataset

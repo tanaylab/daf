@@ -309,7 +309,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         axis = extract_1d_axis(name)
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         assert self.has_data1d(name), f"missing 1D data: {name} in the data set: {self.name}"
-        return freeze(optimize(as_vector(self.chain._get_data1d(axis, name))))
+        return freeze(optimize(be_vector(as_vector(self.chain._get_data1d(axis, name)), size=self.axis_size(axis))))
 
     def get_series(self, name: str) -> Series:
         """
@@ -414,7 +414,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         if id(matrix_in_rows) != id(data2d):
             self.derived.set_matrix(name, matrix_in_rows)
 
-        return matrix_in_rows
+        return be_matrix_in_rows(matrix_in_rows, shape=(self.axis_size(axes[0]), self.axis_size(axes[1])))
 
     def get_frame(self, name: str) -> FrameInRows:
         """
