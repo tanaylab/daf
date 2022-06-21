@@ -23,6 +23,7 @@ code layers to be more efficient.
 from .chains import *
 from .files import *
 from .h5fs import *
+from .anndata import *
 from .interface import *
 from .memory import *
 from .none import *
