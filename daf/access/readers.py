@@ -216,11 +216,11 @@ class DafReader:  # pylint: disable=too-many-public-methods
             return self.has_data2d(name)
         return self.has_data1d(name)
 
-    def item_names(self) -> Collection[str]:
+    def item_names(self) -> List[str]:
         """
-        Return a collection of the names of the 0D data items that exists in the data set.
+        Return the list of names of the 0D data items that exists in the data set, in alphabetical order.
         """
-        return self.chain.item_names()
+        return sorted(self.chain.item_names())
 
     def has_item(self, name: str) -> bool:
         """
@@ -246,11 +246,11 @@ class DafReader:  # pylint: disable=too-many-public-methods
         assert self.has_item(name), f"missing item: {name} in the data set: {self.name}"
         return self.chain._get_item(name)
 
-    def axis_names(self) -> Collection[str]:
+    def axis_names(self) -> List[str]:
         """
-        Return a collection of the names of the axes that exist in the data set.
+        Return the list of names of the axes that exist in the data set, in alphabetical order.
         """
-        return self.chain._axis_names()
+        return sorted(self.chain._axis_names())
 
     def has_axis(self, axis: str) -> bool:
         """
@@ -272,14 +272,19 @@ class DafReader:  # pylint: disable=too-many-public-methods
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         return freeze(optimize(as_vector(self.chain._axis_entries(axis))))
 
-    def data1d_names(self, axis: str) -> Collection[str]:
+    def data1d_names(self, axis: str, *, full: bool = True) -> List[str]:
         """
-        Return the names of the 1D data that exists in the data set for a specific ``axis`` (which must exist).
+        Return the names of the 1D data that exists in the data set for a specific ``axis`` (which must exist), in
+        alphabetical order.
 
-        The returned names are in the format ``axis;name`` which uniquely identifies the 1D data.
+        The returned names are in the format ``axis;name`` which uniquely identifies the 1D data. If not ``full``, the
+        returned names include only the simple ``name`` without the ``axis;`` prefix.
         """
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
-        return self.chain._data1d_names(axis)
+        names = sorted(self.chain._data1d_names(axis))
+        if not full:
+            names = [name.split(";")[1] for name in names]
+        return names
 
     def has_data1d(self, name: str) -> bool:
         """
@@ -337,23 +342,30 @@ class DafReader:  # pylint: disable=too-many-public-methods
         index = self.axis_entries(axis)
         return freeze(optimize(pd.Series(vector, index=index)))
 
-    def data2d_names(self, axes: Union[str, Tuple[str, str]]) -> Collection[str]:
+    def data2d_names(self, axes: Union[str, Tuple[str, str]], *, full: bool = True) -> List[str]:
         """
         Return the names of the 2D data that exists in the data set for a specific pair of ``axes`` (which must exist).
 
-        The returned names are in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
+        The returned names are in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data. If
+        not ``full``, the returned names include only the simple ``name`` without the ``row_axis,columns_axis;`` prefix.
 
         .. note::
 
-            If two copies of the data exist in transposed axes order, then two different names will be returned. This
-            can serve as a *hint* that it is efficient to access the data in both layouts; we can't guarantee this for
-            data not created by ``daf`` (e.g., wrapped ``AnnData`` objects).
+            Data will be listed in the results even if it is only stored in the other layout (that is, as
+            ``columns_axis,rows_axis;name``). Such data can still be fetched (e.g. using `.get_matrix`), in which case
+            it will be re-layout internally (and the result will be cached in `.derived`).
         """
         if isinstance(axes, str):
             axes = parse_2d_axes(axes)
         assert self.has_axis(axes[0]), f"missing axis: {axes[0]} in the data set: {self.name}"
         assert self.has_axis(axes[1]), f"missing axis: {axes[1]} in the data set: {self.name}"
-        return self.chain._data2d_names(axes)
+
+        names_set = set(self.chain._data2d_names(axes))
+        names_set.update([transpose_name(name) for name in self.chain._data2d_names((axes[1], axes[0]))])
+        names = sorted(names_set)
+        if not full:
+            names = [name.split(";")[1] for name in names]
+        return names
 
     def has_data2d(self, name: str) -> bool:
         """
@@ -452,7 +464,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         frame.columns.name = axes[1]
         return freeze(optimize(frame))
 
-    def get_columns(self, axis: str, columns: Sequence[str]) -> FrameInColumns:
+    def get_columns(self, axis: str, columns: Optional[Sequence[str]] = None) -> FrameInColumns:
         """
         Get an arbitrary collection of 1D data for the same ``axis`` as ``columns`` of a ``pandas.DataFrame``.
 
@@ -460,9 +472,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
         ``|operation|operation...`` to invoke a pipeline of `.ElementWise` operations). These names will be used as the
         column names of the frame, and the axis entries will be used as the index of the frame.
 
+        If no ``columns`` are specified, returns all the 1D data for the ``axis``, in alphabetical order (that is, as if
+        ``columns`` was set to `.data1d_names` for the ``axis``).
+
         The returned data will always be in `.COLUMN_MAJOR` order.
         """
         index = self.axis_entries(axis)
+        columns = columns or self.data1d_names(axis, full=False)
         data = {column: self.get_vector(f"{axis};{column}") for column in columns}
         frame = pd.DataFrame(data, index=index)
         frame.index.name = axis

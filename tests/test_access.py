@@ -25,7 +25,7 @@ def test_daf_item() -> None:
 
     data.set_item("description", "test daf storage")
 
-    assert set(data.item_names()) == set(["description"])
+    assert data.item_names() == ["description"]
     assert data.has_item("description")
     assert data.get_item("description") == "test daf storage"
 
@@ -51,7 +51,7 @@ def test_daf_axis() -> None:
 
     assert data.has_axis("cell")
     assert data.axis_size("cell") == 2
-    assert set(data.axis_names()) == set(["cell"])
+    assert data.axis_names() == ["cell"]
     assert is_frozen(be_vector(data.axis_entries("cell")))
     assert len(data.axis_entries("cell")) == len(cell_names)
     assert np.all(data.axis_entries("cell") == cell_names)
@@ -82,7 +82,8 @@ def test_daf_data1d() -> None:
     data.set_data1d("cell;type", ["T", "B"])
 
     assert data.has_data1d("cell;type")
-    assert set(data.data1d_names("cell")) == set(["cell;type"])
+    assert data.data1d_names("cell") == ["cell;type"]
+    assert data.data1d_names("cell", full=False) == ["type"]
     assert is_vector(data.get_vector("cell;type"))
     assert is_frozen(data.get_vector("cell;type"))
     assert np.all(data.get_vector("cell;type") == cell_types)
@@ -131,17 +132,18 @@ def test_daf_data2d() -> None:
     data.set_data2d("cell,gene;UMIs", [[0, 10, 90], [190, 10, 0]])
 
     assert data.has_data2d("cell,gene;UMIs")
-    assert set(data.data2d_names("cell,gene")) == set(["cell,gene;UMIs"])
+    assert data.data2d_names("cell,gene") == ["cell,gene;UMIs"]
+    assert data.data2d_names("cell,gene", full=False) == ["UMIs"]
     assert is_dense_in_rows(data.get_matrix("cell,gene;UMIs"))
     assert is_frozen(data.get_matrix("cell,gene;UMIs"))
     assert fast_all_close(data.get_matrix("cell,gene;UMIs"), umis)
 
     assert data.has_data2d("gene,cell;UMIs")
-    assert len(data.data2d_names("gene,cell")) == 0
+    assert data.data2d_names("gene,cell") == ["gene,cell;UMIs"]
+    assert data.data2d_names("gene,cell", full=False) == ["UMIs"]
     assert is_dense_in_rows(data.get_matrix("gene,cell;UMIs"))
     assert is_frozen(data.get_matrix("gene,cell;UMIs"))
     assert np.allclose(data.get_matrix("gene,cell;UMIs"), umis.transpose())
-    assert set(data.data2d_names("gene,cell")) == set(["gene,cell;UMIs"])
 
     new_umis = freeze(sp.csr_matrix([[90, 0, 10], [10, 0, 190]]))
     data.set_data2d("gene,cell;UMIs", new_umis.transpose(), overwrite=True)
