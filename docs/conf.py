@@ -39,6 +39,7 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
+    'autodocsumm',
 ]
 
 autoclass_content = "both"

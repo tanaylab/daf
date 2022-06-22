@@ -240,6 +240,9 @@ class DafReader:  # pylint: disable=too-many-public-methods
         ``derived`` storage so it would not have to be re-computed if used in a following ``get_...`` call. You can
         disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific
         operation by using ``|!Name,...`` instead of ``|Name,...``.
+
+        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
+        packages.
         """
         if "|" in name:
             return self._get_pipeline(name, 0)
@@ -308,6 +311,9 @@ class DafReader:  # pylint: disable=too-many-public-methods
         pipeline will be cached in the ``derived`` storage so it would not have to be re-computed if used in a following
         ``get_...`` call. You can disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the
         constructor, or for a specific operation by using ``|!Name,...`` instead of ``|Name,...``.
+
+        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
+        packages.
         """
         if "|" in name:
             return be_vector(self._get_pipeline(name, 1))
@@ -322,6 +328,9 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
 
+        The ``axis`` entries will form the index of the series; if getting a pipeline, starting with 2D data, the index
+        of the series will be the entries of the ``rows_axis``.
+
         If the ``name`` contains ``|``, than it should be in the format ``axis;name|operation|operation|...`` or
         ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
         ``Name,param=value,...``. Since we are getting a 1D data item, if the ``name`` starts with a 2D data name, one
@@ -331,8 +340,8 @@ class DafReader:  # pylint: disable=too-many-public-methods
         ``get_...`` call. You can disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the
         constructor, or for a specific operation by using ``|!Name,...`` instead of ``|Name,...``.
 
-        The ``axis`` entries will form the index of the series; if getting a pipeline, starting with 2D data, the index
-        of the series will be the entries of the ``rows_axis``.
+        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
+        packages.
         """
         vector = self.get_vector(name)
         if "|" in name:
@@ -384,6 +393,8 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
 
+        If this required us to re-layout the raw stored data, we cache the result in the ``derived`` storage.
+
         If the ``name`` contains ``|``, than it should be in the format
         ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
         ``Name,param=value,...``. Since we are getting a 2D data item, all the operations must be `.ElementWise`
@@ -397,7 +408,8 @@ class DafReader:  # pylint: disable=too-many-public-methods
         between these two cases (e.g. using `.is_sparse` and/or `.is_dense`) to pick a code path for processing the
         data, as these two types don't really provide the same set of operations.
 
-        If this required us to re-layout the raw stored data, we cache the result in the ``derived`` storage.
+        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
+        packages.
         """
         if "|" in name:
             return be_matrix_in_rows(self._get_pipeline(name, 2))
@@ -442,10 +454,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
         `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific operation by using ``|!Name,...``
         instead of ``|Name,...``.
 
+        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
+        packages.
+
         The data will always be returned in `.ROW_MAJOR` order as a ``numpy`` `.DenseInRows`. Due to ``pandas``
         limitations, if the data is stored as a ``scipy.sparse.spmatrix``, it will be converted to a dense ``numpy`` 2D
         array, which will be cached in ``derived``, as if the ``name`` was suffixed by ``|`` `.Densify`. If you wish to
-        disable this caching, explicitly add ``|!Densify`` to the name.
+        disable this caching, explicitly add ``|!Densify`` to the end of the name.
 
         .. note::
 
@@ -468,14 +483,17 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Get an arbitrary collection of 1D data for the same ``axis`` as ``columns`` of a ``pandas.DataFrame``.
 
+        The returned data will always be in `.COLUMN_MAJOR` order.
+
+        If no ``columns`` are specified, returns all the 1D data for the ``axis``, in alphabetical order (that is, as if
+        ``columns`` was set to `.data1d_names` with ``full=False`` for the ``axis``).
+
         The specified ``columns`` names should only be the simple name of each column (possibly followed by
         ``|operation|operation...`` to invoke a pipeline of `.ElementWise` operations). These names will be used as the
         column names of the frame, and the axis entries will be used as the index of the frame.
 
-        If no ``columns`` are specified, returns all the 1D data for the ``axis``, in alphabetical order (that is, as if
-        ``columns`` was set to `.data1d_names` for the ``axis``).
-
-        The returned data will always be in `.COLUMN_MAJOR` order.
+        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
+        packages.
         """
         index = self.axis_entries(axis)
         columns = columns or self.data1d_names(axis, full=False)
