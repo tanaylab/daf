@@ -519,6 +519,14 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         If the ``name`` starts with ``.``, it is appended to both the `.StorageView` and the `.DafReader` names. If the
         name ends with ``#``, we append the object id to it to make it unique.
+
+        .. note::
+
+            If any of the axes is sliced, the view will ignore any derived data based on the sliced axes. While some
+            derived data is safe to slice, some isn't, and it isn't easy to tell the difference; for example, when
+            slicing the ``gene`` axis, then ``cell,gene;Log,...`` is safe to slice, but
+            ``cell,gene;Folds|Significant,...`` is not. The code therefore plays it safe by ignoring any derived data
+            using any of the sliced axes.
         """
         # pylint: disable=duplicate-code
 
@@ -540,7 +548,12 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         view = DafReader(
             StorageView(
-                self.chain, axes=axes, data=data, cache=cache, hide_implicit=hide_implicit, name=name + ".base"
+                self._view_base(axes, hide_implicit, name),
+                axes=axes,
+                data=data,
+                cache=cache,
+                hide_implicit=hide_implicit,
+                name=name + ".base",
             ),
             name=name,
         )
@@ -549,6 +562,33 @@ class DafReader:  # pylint: disable=too-many-public-methods
             setattr(view, "__daf_unique__", unique)  # Prevent it from being garbage collected.
 
         return view
+
+    def _view_base(
+        self, axes: Optional[Mapping[str, Union[None, str, AnyData, AxisView]]], hide_implicit: bool, name: str
+    ) -> StorageReader:
+        return StorageChain([self._derived_filtered(axes, hide_implicit, name), self.base], name=name + ".chain")
+
+    def _derived_filtered(
+        self, axes: Optional[Mapping[str, Union[None, str, AnyData, AxisView]]], hide_implicit: bool, name: str
+    ) -> StorageReader:
+        axes = axes or {}
+        hide_axes: Dict[str, None] = {}
+        for axis in self.derived._axis_names():
+            hide_axis = False
+            if axis in axes:
+                axis_view = axes[axis]
+                hide_axis = not isinstance(axis_view, str) and (
+                    not isinstance(axis_view, AxisView) or axis_view.entries is not None
+                )
+            else:
+                hide_axis = hide_implicit
+            if hide_axis:
+                hide_axes[axis] = None
+
+        if len(hide_axes) == 0:
+            return self.derived
+
+        return StorageView(self.derived, axes=hide_axes, name=name + ".derived.filtered")
 
     def _get_pipeline(self, pipeline: str, result_ndim: int) -> Any:
         step_texts = pipeline.split("|")

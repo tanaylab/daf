@@ -179,6 +179,13 @@ class DafWriter(DafReader):
         """
         return DafReader(StorageChain([self.storage, self.base]), derived=self.derived, name=self.name + ".as_reader")
 
+    def _view_base(
+        self, axes: Optional[Mapping[str, Union[None, str, AnyData, AxisView]]], hide_implicit: bool, name: str
+    ) -> StorageReader:
+        return StorageChain(
+            [self._derived_filtered(axes, hide_implicit, name), self.storage, self.base], name=name + ".chain"
+        )
+
     def set_item(self, name: str, item: Any, *, overwrite: bool = False) -> None:
         """
         Set a ``name`` 0D data ``item``.
