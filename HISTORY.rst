@@ -4,4 +4,4 @@ History
 0.1.0
 -----
 
-* First published version.
+* First published version (alpha).

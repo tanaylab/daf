@@ -1,4 +1,4 @@
-Daf 0.1.0-dev.1 Documentation
+DAF 0.1.0-dev.1 Documentation
 =============================
 
 .. toctree::

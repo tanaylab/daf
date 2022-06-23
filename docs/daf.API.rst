@@ -1,4 +1,4 @@
-daf API
+DAF API
 =======
 
 .. automodule:: daf

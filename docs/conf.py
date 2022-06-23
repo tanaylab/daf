@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Daf documentation build configuration file, created by
+# DAF documentation build configuration file, created by
 # sphinx-quickstart on Fri Jun  9 13:47:02 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -127,7 +127,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'Daf'
+project = 'DAF'
 copyright = "2022 Weizmann Institute of Science"
 author = "Oren Ben-Kiki"
 
@@ -218,7 +218,7 @@ latex_elements = {
 # [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'daf.tex',
-     'Daf Documentation',
+     'DAF Documentation',
      'Oren Ben-Kiki', 'manual'),
 ]
 
@@ -229,7 +229,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     (master_doc, 'daf',
-     'Daf Documentation',
+     'DAF Documentation',
      [author], 1)
 ]
 
@@ -241,7 +241,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'daf',
-     'Daf Documentation',
+     'DAF Documentation',
      author,
      'daf',
      'One line description of project.',
