@@ -21,6 +21,7 @@ Write API for ``daf`` data sets.
 
 # pylint: disable=duplicate-code
 
+import sys
 from contextlib import contextmanager
 from inspect import Parameter
 from inspect import signature
@@ -284,8 +285,8 @@ class DafWriter(DafReader):
         cache: Optional[StorageWriter] = None,
         storage: Optional[StorageWriter] = None,
         hide_implicit: bool = False,
-        back_axes: Union[None, Collection[str], Mapping[str, BackAxis]] = None,
-        back_data: Union[None, Collection[str], Mapping[str, BackData]] = None,
+        back_axes: Union[None, Collection[str], Mapping[str, Union[str, BackAxis]]] = None,
+        back_data: Union[None, Collection[str], Mapping[str, Union[str, BackData]]] = None,
     ) -> Generator["DafWriter", None, None]:
         """
         Execute some code on a view of this data set; when done, transfer (some of) the results back into it.
@@ -299,15 +300,15 @@ class DafWriter(DafReader):
         computed results are copied back into the original data set:
 
         * If ``back_axes`` is specified, it should list (some of) the new axes created by the processing code. Each of
-          these will be copied into the original data set. If ``back_axes`` is a ``dict``, it provides a `.BackAxis`
-          specifying exactly how to copy each axis back. Otherwise it is just a collection of the new axes to copy
-          on success, preserving their name.
+          these will be copied into the original data set. If ``back_axes`` is a ``dict``, it provides either a name or
+          a complete `.BackAxis` specifying exactly how to copy each axis back. Otherwise it is just a collection of the
+          new axes to copy on success, preserving their name.
 
         * If ``back_data`` is specified, it should list (some of) the new data created (or modified) by the processing
           code. Each of these will be copied back into the original data set. If ``back_data`` is a ``dict``, it
-          provides a `.BackData` specifying exactly how to copy each data back. Otherwise it is a just a collection
-          of the data to copy on success, preserving the names and requiring that such data will not use any sliced
-          axes.
+          provides either a name of a complete `.BackData` specifying exactly how to copy each data back. Otherwise it
+          is a just a collection of the data to copy on success, preserving the names and requiring that such data will
+          not use any sliced axes.
 
         A contrived example might look like:
 
@@ -371,7 +372,9 @@ class DafWriter(DafReader):
         if back_axes is None:
             _back_axes = {}
         elif isinstance(back_axes, dict):
-            _back_axes = back_axes
+            _back_axes = {
+                name: BackAxis(name=back) if isinstance(back, str) else back for name, back in back_axes.items()
+            }
         else:
             _back_axes = {axis: BackAxis() for axis in back_axes}
 
@@ -383,11 +386,21 @@ class DafWriter(DafReader):
             _back_data1d = {}
             _back_data2d = {}
         elif isinstance(back_data, dict):
-            _back_items = {name: back for name, back in back_data.items() if ";" not in name}
-            _back_data1d = {
-                name: back for name, back in back_data.items() if ";" in name and "," not in name.split(";")[0]
+            _back_items = {
+                name: BackData(name=back) if isinstance(back, str) else back
+                for name, back in back_data.items()
+                if ";" not in name
             }
-            _back_data2d = {name: back for name, back in back_data.items() if ";" in name and "," in name.split(";")[0]}
+            _back_data1d = {
+                name: BackData(name=back) if isinstance(back, str) else back
+                for name, back in back_data.items()
+                if ";" in name and "," not in name.split(";")[0]
+            }
+            _back_data2d = {
+                name: BackData(name=back) if isinstance(back, str) else back
+                for name, back in back_data.items()
+                if ";" in name and "," in name.split(";")[0]
+            }
         else:
             _back_items = {name: BackData() for name in back_data if ";" not in name}
             _back_data1d = {name: BackData() for name in back_data if ";" in name and "," not in name.split(";")[0]}
@@ -697,7 +710,11 @@ class DafWriter(DafReader):
                 self._copy_data(work, optional_name, overwrite)
 
         for rows_axis in self.axis_names():
+            if not work.derived.has_axis(rows_axis):
+                continue
             for columns_axis in self.axis_names():
+                if not work.derived.has_axis(columns_axis):
+                    continue
                 for derived_name in work.derived.data2d_names((rows_axis, columns_axis)):
                     base_name = derived_name.split("|")[0]
                     if self.has_data2d(base_name):
@@ -789,7 +806,7 @@ def computation(  # pylint: disable=too-many-arguments
             required_inputs={
                 "foo,bar;baz": '''
                     Input baz per foo and bar.
-                '''
+                    '''
             },
             assured_outputs={
                 "foo,bar;vaz": '''
@@ -870,12 +887,12 @@ def computation(  # pylint: disable=too-many-arguments
         setattr(wrapper, "__daf_optional_inputs__", daf_optional_inputs)
         setattr(wrapper, "__daf_assured_outputs__", daf_assured_outputs)
         setattr(wrapper, "__daf_optional_outputs__", daf_optional_outputs)
-        wrapper.__doc__ = function.__doc__.replace(
+        function.__doc__ = wrapper.__doc__ = function.__doc__.replace(
             "\n__DAF__\n",
             _documentation(required_inputs, optional_inputs, assured_outputs, optional_outputs),
         )
 
-        return wrapper
+        return function if "sphinx" in sys.argv[0] else wrapper  # type: ignore
 
     return wrapped  # type: ignore
 

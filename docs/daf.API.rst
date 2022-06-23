@@ -8,4 +8,5 @@ daf API
   daf.access
   daf.storage
   daf.typing
+  daf.groups
   genindex

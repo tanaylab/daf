@@ -134,22 +134,29 @@ def dtype_of(data: _unions.Known) -> Optional[np.dtype]:
     And no, calling ``.dtype`` does not work for all `.Known` types, because of ``pandas``, which has no concept of a
     ``pandas.DataFrame`` with homogeneous data elements (that is, a `.Frame`). For a data frame with mixed types, we
     give up and return ``None``.
+
+    .. note::
+
+        This will return `.STR_DTYPE` for any ``dtype`` we can interpret as a string.
     """
     if isinstance(data, np.ndarray):
-        return data.dtype
+        dtype = data.dtype
 
-    if isinstance(data, sp.spmatrix):
-        return data.data.dtype
+    elif isinstance(data, sp.spmatrix):
+        dtype = data.data.dtype
 
-    if isinstance(data, pd.Series):
-        return data.values.dtype
+    elif isinstance(data, pd.Series):
+        dtype = data.values.dtype
 
-    if isinstance(data, pd.DataFrame):
-        if len(set(data.dtypes)) == 1:
-            return data.values.dtype
-        return None
+    elif isinstance(data, pd.DataFrame):
+        if len(set(data.dtypes)) != 1:
+            return None
+        dtype = data.values.dtype
 
-    assert False, f"expected: known 1D/2D data, got: {_descriptions.data_description(data)}"
+    else:
+        assert False, f"expected: known 1D/2D data, got: {_descriptions.data_description(data)}"
+
+    return np.dtype(STR_DTYPE) if is_dtype(dtype, STR_DTYPE) else dtype
 
 
 def has_dtype(
