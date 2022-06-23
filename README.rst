@@ -1,4 +1,4 @@
-DAF 0.1.0-dev.1 - Data in Axes in Formats
+DAF 0.1.0 - Data in Axes in Formats
 =========================================
 
 .. image:: https://readthedocs.org/projects/dafpy/badge/?version=latest

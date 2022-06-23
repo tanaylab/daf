@@ -45,5 +45,5 @@ setup(
     tests_require=test_requirements,
     extras_require={"dev": dev_requirements},
     url="https://github.com/tanaylab/daf.git",
-    version="0.1.0-dev.1",
+    version="0.1.0",
 )
