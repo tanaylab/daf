@@ -205,9 +205,21 @@ class DafWriter(DafReader):
         The ``entries`` must be `.is_frozen` and contain string data.
 
         It is always an error to overwrite an existing axis.
+
+        .. note::
+
+            We verify that the axis entries are unique. However, we can't guarantee that the entries will be unique for
+            axes in arbitrary data accessed through some storage adapter (e.g., ``AnnData``).
         """
         assert not self.has_axis(axis), f"refuse to recreate the axis: {axis} in the data set: {self.name}"
         entries = freeze(optimize(as_vector(entries)))
+
+        unique, counts = np.unique(entries, return_counts=True)
+        repeated = np.argmax(counts)
+        assert (
+            counts[repeated] == 1
+        ), f"duplicate entry: {unique[repeated]} in the entries for the axis: {axis} in the data set: {self.name}"
+
         self.storage.create_axis(axis, entries)
         self.derived.create_axis(axis, entries)
 
