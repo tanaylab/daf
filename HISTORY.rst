@@ -5,3 +5,8 @@ History
 -----
 
 * First published version (alpha).
+
+0.2.0 (WIP)
+-----------
+
+* Add `.axis_index`.

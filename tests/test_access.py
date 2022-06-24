@@ -51,6 +51,7 @@ def test_daf_axis() -> None:
 
     assert data.has_axis("cell")
     assert data.axis_size("cell") == 2
+    assert data.axis_index("cell", "cell1") == 1
     assert data.axis_names() == ["cell"]
     assert is_frozen(be_vector(data.axis_entries("cell")))
     assert len(data.axis_entries("cell")) == len(cell_names)

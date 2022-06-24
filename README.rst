@@ -1,8 +1,8 @@
 DAF 0.2.0-dev.1 - Data in Axes in Formats
 =========================================
 
-.. image:: https://readthedocs.org/projects/dafpy/badge/?version=latest
-    :target: https://dafpy.readthedocs.io/en/latest/
+.. image:: https://readthedocs.org/projects/daf/badge/?version=latest
+    :target: https://daf.readthedocs.io/en/latest/
     :alt: Documentation Status
 
 The daf package provides a uniform generic interface for accessing 1D and 2D data arranged along some set of axes. This
@@ -162,7 +162,7 @@ Usage
         axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask)
     )
 
-See the `documentation <https://dafpy.readthedocs.io/en/latest/?badge=latest>`_ for the full API details.
+See the `documentation <https://daf.readthedocs.io/en/latest/?badge=latest>`_ for the full API details.
 
 Installation
 ------------
