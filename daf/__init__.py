@@ -13,7 +13,7 @@ if 0:
 
 __author__ = "Oren Ben-Kiki"
 __email__ = "oren@ben-kiki.org"
-__version__ = "0.1.0"
+__version__ = "0.2.0-dev.1"
 
 # pylint: disable=wrong-import-position
 
