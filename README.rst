@@ -162,7 +162,7 @@ Usage
         axes=dict(cells=cells_umis_sum > 1000, genes=significant_genes_mask)
     )
 
-See the `documentation <https://daf.readthedocs.io/en/latest/?badge=latest>`_ for the full API details.
+See the `documentation <https://dafpy.readthedocs.io/en/latest/?badge=latest>`_ for the full API details.
 
 Installation
 ------------
