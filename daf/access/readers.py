@@ -23,9 +23,8 @@ from ..storage import StorageChain
 from ..storage import StorageReader
 from ..storage import StorageView
 from ..storage import StorageWriter
-from ..storage import extract_1d_axis
-from ..storage import extract_2d_axes
-from ..storage import parse_2d_axes
+from ..storage import prefix
+from ..storage import suffix
 from ..typing import ROW_MAJOR
 from ..typing import AnyData
 from ..typing import FrameInColumns
@@ -64,7 +63,9 @@ class PipelineState:  # pylint: disable=too-few-public-methods
     State while evaluating an operations pipeline.
     """
 
-    def __init__(self, data: Any, ndim: int, axes: Tuple[str, str], source_name: str) -> None:
+    def __init__(  # pytest: disable=too-many-arguments
+        self, *, data: Any, ndim: int, axes: Tuple[str, str], source_name: str, canonical: str
+    ) -> None:
         #: The data we have computed so far.
         self.data = data
 
@@ -77,8 +78,8 @@ class PipelineState:  # pylint: disable=too-few-public-methods
         #: The pipeline so far (for error messages).
         self.pipeline = source_name
 
-        #: The canonical name of the data.
-        self.canonical = source_name
+        #: The canonical name of the data for caching it in the ``derived`` storage.
+        self.canonical = canonical
 
 
 class DafReader:  # pylint: disable=too-many-public-methods
@@ -214,10 +215,11 @@ class DafReader:  # pylint: disable=too-many-public-methods
             return self.has_axis(name[:-1])
         if ";" not in name:
             return self.has_item(name)
-        axes = name.split(";")[0]
-        if "," in axes:
-            return self.has_data2d(name)
-        return self.has_data1d(name)
+        axes = prefix(name, ";").split(",")
+        assert 1 <= len(axes) <= 2, f"{len(axes)}D name: {name} for: has_data for the data set: {self.name}"
+        if len(axes) == 1:
+            return self.has_data1d(name)
+        return self.has_data2d(name)
 
     def item_names(self) -> List[str]:
         """
@@ -244,11 +246,18 @@ class DafReader:  # pylint: disable=too-many-public-methods
         disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific
         operation by using ``|!Name,...`` instead of ``|Name,...``.
 
+        If the ``axis`` part of the name contains ``=``, then it specifies a single value to use in the axis, for
+        example ``type=T;color`` will access the color assigned to the ``T`` cell type. This can be used to access a
+        single item of 2D data as in ``cell=ACTG,gene=SOX8;UMIs" will access the UMIs count of the ``SOX8`` gene in the
+        cell whose name is ``ACTG``. Finally, this can be used as a basis for a ``I`` operation, e.g.
+        ``cell=ACTG,gene;UMIs|Sum`` will return the sum of all the UMIs of all the genes of the cell whose name is
+        ``ACTG``.
+
         See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
         packages.
         """
-        if "|" in name:
-            return self._get_pipeline(name, 0)
+        if "|" in name or ("=" in name and ";" in name):
+            return self._get_complex(name, 0)
         assert self.has_item(name), f"missing item: {name} in the data set: {self.name}"
         return self.chain._get_item(name)
 
@@ -287,6 +296,17 @@ class DafReader:  # pylint: disable=too-many-public-methods
             self._axis_indices[axis] = indices = {name: index for index, name in enumerate(self.axis_entries(axis))}
         return indices
 
+    def axis_index(self, axis: str, entry: str) -> int:
+        """
+        Return the index of the ``entry`` (which must exist) in the entries of the ``axis`` (which must exist).
+        """
+        indices = self.axis_indices(axis)
+        index = indices.get(entry)
+        assert (
+            index is not None
+        ), f"missing entry: {entry} in the entries of the axis: {axis} for the data set: {self.name}"
+        return index
+
     def data1d_names(self, axis: str, *, full: bool = True) -> List[str]:
         """
         Return the names of the 1D data that exists in the data set for a specific ``axis`` (which must exist), in
@@ -298,7 +318,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         names = sorted(self.chain._data1d_names(axis))
         if not full:
-            names = [name.split(";")[1] for name in names]
+            names = [suffix(name, ";") for name in names]
         return names
 
     def has_data1d(self, name: str) -> bool:
@@ -324,12 +344,22 @@ class DafReader:  # pylint: disable=too-many-public-methods
         ``get_...`` call. You can disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the
         constructor, or for a specific operation by using ``|!Name,...`` instead of ``|Name,...``.
 
+        If the ``axis`` part of the name contains ``=``, then it specifies a single value to use in the axis, for
+        example ``cell=ACTG,gene;UMIs`` will access the vector of UMIs counts for all the genes of the cell whose name
+        is ``ACTG``. In this case the order of the axes doesn't mater (that is, the same result will be obtained by
+        asking for ``gene,cell=ACTG;UMIs``. Finally, this can be used as a basis for a ``I`` operation, e.g.
+        ``cell=ACTG,gene;folds|Abs`` will return the absolute value of all the fold factos of all the genes of the cell
+        whose name is ``ACTG``.
+
         See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
         packages.
         """
-        if "|" in name:
-            return be_vector(self._get_pipeline(name, 1))
-        axis = extract_1d_axis(name)
+        assert ";" in name, f"0D name: {name} for: get_vector for the data set: {self.name}"
+        if "|" in name or "=" in name:
+            return be_vector(self._get_complex(name, 1))
+        axis = prefix(name, ";")
+        axes = axis.split(",")
+        assert len(axes) == 1, f"{len(axes)}D name: {name} for: get_vector for the data set: {self.name}"
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         assert self.has_data1d(name), f"missing 1D data: {name} in the data set: {self.name}"
         return freeze(optimize(be_vector(as_vector(self.chain._get_data1d(axis, name)), size=self.axis_size(axis))))
@@ -356,10 +386,9 @@ class DafReader:  # pylint: disable=too-many-public-methods
         packages.
         """
         vector = self.get_vector(name)
-        if "|" in name:
-            axis = name.split("|")[0].split(";")[0].split(",")[0]
-        else:
-            axis = extract_1d_axis(name)
+        axis = name
+        for separator in ("=", ",", ";", "|"):
+            axis = prefix(axis, separator)
         index = self.axis_entries(axis)
         return freeze(optimize(pd.Series(vector, index=index)))
 
@@ -377,7 +406,9 @@ class DafReader:  # pylint: disable=too-many-public-methods
             it will be re-layout internally (and the result will be cached in `.derived`).
         """
         if isinstance(axes, str):
-            axes = parse_2d_axes(axes)
+            parts = axes.split(",")
+            assert len(parts) == 2, f"{len(axes)}D axes: {axes} for: data2d_names for the data set: {self.name}"
+            axes = (parts[0], parts[1])
         assert self.has_axis(axes[0]), f"missing axis: {axes[0]} in the data set: {self.name}"
         assert self.has_axis(axes[1]), f"missing axis: {axes[1]} in the data set: {self.name}"
 
@@ -385,7 +416,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         names_set.update([transpose_name(name) for name in self.chain._data2d_names((axes[1], axes[0]))])
         names = sorted(names_set)
         if not full:
-            names = [name.split(";")[1] for name in names]
+            names = [suffix(name, ";") for name in names]
         return names
 
     def has_data2d(self, name: str) -> bool:
@@ -423,24 +454,29 @@ class DafReader:  # pylint: disable=too-many-public-methods
         See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
         packages.
         """
-        if "|" in name:
-            return be_matrix_in_rows(self._get_pipeline(name, 2))
-        axes = extract_2d_axes(name)
+        assert ";" in name, f"0D name: {name} for: get_matrix for the data set: {self.name}"
+        if "|" in name or "=" in name:
+            return be_matrix_in_rows(self._get_complex(name, 2))
+        axes_names, simple_name = name.split(";", 1)
+        axes = axes_names.split(",")
+        assert len(axes) == 2, f"{len(axes)}D name: {name} for: get_matrix for the data set: {self.name}"
         assert self.has_axis(axes[0]), f"missing axis: {axes[0]} in the data set: {self.name}"
         assert self.has_axis(axes[1]), f"missing axis: {axes[1]} in the data set: {self.name}"
         assert self.has_data2d(name), f"missing 2D data: {name} in the data set: {self.name}"
 
-        transposed_name = transpose_name(name)
+        transposed_name: Optional[str] = None
         if self.chain.has_data2d(name):
             data2d = self.chain.get_data2d(name)
             matrix = as_matrix(data2d)
         else:
+            transposed_name = f"{axes[1]},{axes[0]};{simple_name}"
             data2d = self.chain.get_data2d(transposed_name)
             matrix = as_matrix(data2d).transpose()
 
         if is_matrix_in_rows(matrix):
             matrix_in_rows = matrix
         else:
+            transposed_name = transposed_name or f"{axes[1]},{axes[0]};{simple_name}"
             if not self.chain.has_data2d(transposed_name):
                 transposed_matrix = be_matrix_in_rows(matrix.transpose())
                 self.derived.set_matrix(transposed_name, freeze(optimize(transposed_matrix)))
@@ -483,7 +519,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         name += "|Densify"
         dense = be_dense_in_rows(self.get_matrix(name))
-        axes = extract_2d_axes(name)
+        axes = prefix(name, ";").split(",")
         index = self.axis_entries(axes[0])
         columns = self.axis_entries(axes[1])
         frame = pd.DataFrame(dense, index=index, columns=columns)
@@ -602,7 +638,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         return StorageView(self.derived, axes=hide_axes, name=name + ".derived.filtered")
 
-    def _get_pipeline(self, pipeline: str, result_ndim: int) -> Any:
+    def _get_complex(self, pipeline: str, result_ndim: int) -> Any:
         step_texts = pipeline.split("|")
         source_name = step_texts[0]
         operation_texts = step_texts[1:]
@@ -611,22 +647,22 @@ class DafReader:  # pylint: disable=too-many-public-methods
             ";" in source_name
         ), f"0D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
 
-        pipeline_state: PipelineState
+        axes_names, simple_name = source_name.split(";", 1)
+        axes = axes_names.split(",")
+        assert (
+            1 <= len(axes) <= 2
+        ), f"{len(axes)}D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
 
-        if "," in source_name:
-            axes = extract_2d_axes(source_name)
-            pipeline_state = PipelineState(
-                data=self.get_matrix(source_name), ndim=2, axes=axes, source_name=source_name
-            )
-        else:
-            axis = extract_1d_axis(source_name)
-            axes = (axis, axis)
-            pipeline_state = PipelineState(
-                data=self.get_vector(source_name), ndim=1, axes=axes, source_name=source_name
-            )
+        (item, pipeline_state, allow_cache) = (
+            self._1d_pipeline_state(axes[0], simple_name, source_name, pipeline, operation_texts)
+            if len(axes) == 1
+            else self._2d_pipeline_state(axes, simple_name, source_name, pipeline, operation_texts)
+        )
+        if pipeline_state is None:
+            return item
 
         for operation_text in operation_texts:
-            self._pipeline_step(pipeline_state, operation_text)
+            self._pipeline_step(pipeline_state, operation_text, allow_cache)
 
         method = ["get_item", "get_vector", "get_matrix"][result_ndim]
         assert pipeline_state.ndim == result_ndim, (
@@ -636,12 +672,78 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         return pipeline_state.data
 
-    def _pipeline_step(self, pipeline_state: PipelineState, operation_text: str) -> None:
+    def _1d_pipeline_state(  # pylint: disable=too-many-arguments
+        self, axis: str, simple_name: str, source_name: str, pipeline: str, operation_texts: List[str]
+    ) -> Tuple[Any, Optional[PipelineState], bool]:
+        index: Optional[int] = None
+        if "=" in axis:
+            assert (
+                len(operation_texts) == 0
+            ), f"0D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
+            axis, entry = axis.split("=", 1)
+            index = self.axis_index(axis, entry)
+
+        data = self.get_vector(f"{axis};{simple_name}")
+        if index is not None:
+            return (data[index], None, False)
+
+        axes = (axis, axis)
+        return (None, PipelineState(data=data, ndim=1, axes=axes, source_name=source_name, canonical=source_name), True)
+
+    def _2d_pipeline_state(  # pylint: disable=too-many-arguments
+        self, axes: List[str], simple_name: str, source_name: str, pipeline: str, operation_texts: List[str]
+    ) -> Tuple[Any, Optional[PipelineState], bool]:
+        row_index: Optional[int] = None
+        column_index: Optional[int] = None
+
+        if "=" in axes[0]:
+            axes[0], row_entry = axes[0].split("=", 1)
+            row_index = self.axis_index(axes[0], row_entry)
+        if "=" in axes[1]:
+            axes[1], column_entry = axes[1].split("=", 1)
+            column_index = self.axis_index(axes[1], column_entry)
+
+        if row_index is not None and column_index is not None:
+            assert (
+                len(operation_texts) == 0
+            ), f"0D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
+            data = self.get_matrix(f"{axes[0]},{axes[1]};{simple_name}")
+            return (data[row_index, column_index], None, False)
+
+        if column_index is not None:
+            axes = [axes[1], axes[0]]
+            row_entry = column_entry
+            row_index = column_index
+
+        data = self.get_matrix(f"{axes[0]},{axes[1]};{simple_name}")
+        if row_index is None:
+            return (
+                None,
+                PipelineState(
+                    data=data, ndim=2, axes=(axes[0], axes[1]), source_name=source_name, canonical=source_name
+                ),
+                True,
+            )
+
+        return (
+            None,
+            PipelineState(
+                data=data[row_index, :],
+                ndim=1,
+                axes=(axes[0], axes[1]),
+                source_name=source_name,
+                canonical=f"{axes[1]};{axes[0]}={row_entry},{simple_name}",
+            ),
+            False,
+        )
+
+    def _pipeline_step(self, pipeline_state: PipelineState, operation_text: str, allow_cache: bool) -> None:
         pipeline_state.pipeline += "|" + operation_text
 
         cache = not operation_text.startswith("!")
         if not cache:
             operation_text = operation_text[1:]
+        cache = cache and allow_cache
 
         operation_object = self._operation_object(pipeline_state, operation_text)
         canonical_before = pipeline_state.canonical
@@ -818,8 +920,7 @@ def transpose_name(name: str) -> str:
     """
     assert "|" not in name, f"transposing the pipelined name: {name}"
 
-    name_parts = name.split(";")
-    assert len(name_parts) == 2, f"invalid 2D data name: {name}"
+    name_parts = name.split(";", 1)
 
     axes = name_parts[0].split(",")
     assert len(axes) == 2, f"invalid 2D data name: {name}"

@@ -48,9 +48,8 @@ from ..storage import StorageChain
 from ..storage import StorageReader
 from ..storage import StorageView
 from ..storage import StorageWriter
-from ..storage import extract_1d_axis
-from ..storage import extract_2d_axes
-from ..storage import extract_name
+from ..storage import prefix
+from ..storage import suffix
 from ..typing import STR_DTYPE
 from ..typing import AnyData
 from ..typing import DenseInRows
@@ -406,17 +405,17 @@ class DafWriter(DafReader):
             _back_data1d = {
                 name: BackData(name=back) if isinstance(back, str) else back
                 for name, back in back_data.items()
-                if ";" in name and "," not in name.split(";")[0]
+                if ";" in name and "," not in prefix(name, ";")
             }
             _back_data2d = {
                 name: BackData(name=back) if isinstance(back, str) else back
                 for name, back in back_data.items()
-                if ";" in name and "," in name.split(";")[0]
+                if ";" in name and "," in prefix(name, ";")
             }
         else:
             _back_items = {name: BackData() for name in back_data if ";" not in name}
-            _back_data1d = {name: BackData() for name in back_data if ";" in name and "," not in name.split(";")[0]}
-            _back_data2d = {name: BackData() for name in back_data if ";" in name and "," in name.split(";")[0]}
+            _back_data1d = {name: BackData() for name in back_data if ";" in name and "," not in prefix(name, ";")}
+            _back_data2d = {name: BackData() for name in back_data if ";" in name and "," in prefix(name, ";")}
 
         try:
             yield adapter
@@ -476,7 +475,7 @@ class DafWriter(DafReader):
             if (not back.copy_on_error and is_error) or (back.optional and not adapter.has_data1d(data1d)):
                 continue
 
-            axis = extract_1d_axis(data1d)
+            axis = prefix(data1d, ";")
             back_axis = _back_axis_name(view, axis, back_axes)
 
             partial = adapter.get_vector(data1d)
@@ -495,9 +494,9 @@ class DafWriter(DafReader):
             if back.name is not None:
                 back_name = back.name
             elif view.has_data1d(data1d):
-                back_name = extract_name(view.base_data1d(data1d))
+                back_name = suffix(view.base_data1d(data1d), ";")
             else:
-                back_name = extract_name(data1d)
+                back_name = suffix(data1d, ";")
 
             self.set_data1d(f"{back_axis};{back_name}", complete, overwrite=back.overwrite)
 
@@ -514,16 +513,16 @@ class DafWriter(DafReader):
             if (not back.copy_on_error and is_error) or (back.optional and not adapter.has_data2d(data2d)):
                 continue
 
-            (view_rows_axis, view_columns_axis) = extract_2d_axes(data2d)
+            (view_rows_axis, view_columns_axis) = prefix(data2d, ";").split(",")
             back_rows_axis_name = _back_axis_name(view, view_rows_axis, back_axes)
             back_columns_axis_name = _back_axis_name(view, view_columns_axis, back_axes)
 
             if back.name is not None:
                 back_name = back.name
             elif view.has_data2d(data2d):
-                back_name = extract_name(view.base_data2d(data2d))
+                back_name = suffix(view.base_data2d(data2d), ";")
             else:
-                back_name = extract_name(data2d)
+                back_name = suffix(data2d, ";")
 
             complete_name = f"{back_rows_axis_name},{back_columns_axis_name};{back_name}"
 
@@ -689,10 +688,10 @@ class DafWriter(DafReader):
 
         view_data: Dict[str, str] = {}
         for required_name in required_inputs:
-            view_data[required_name] = extract_name(required_name)
+            view_data[required_name] = suffix(required_name, ";") if ";" in required_name else required_name
         for optional_name in optional_inputs:
             if self.has_data(optional_name):
-                view_data[optional_name] = extract_name(optional_name)
+                view_data[optional_name] = suffix(optional_name, ";") if ";" in optional_name else optional_name
 
         unique: Optional[List[None]] = None
         if name.endswith("#"):
@@ -728,7 +727,7 @@ class DafWriter(DafReader):
                 if not work.derived.has_axis(columns_axis):
                     continue
                 for derived_name in work.derived.data2d_names((rows_axis, columns_axis)):
-                    base_name = derived_name.split("|")[0]
+                    base_name = prefix(derived_name, "|")
                     if self.has_data2d(base_name):
                         self.derived.set_matrix(derived_name, work.get_matrix(derived_name))
 
@@ -746,7 +745,7 @@ class DafWriter(DafReader):
             return
         if ";" not in name:
             self.set_item(name, work.get_item(name), overwrite=overwrite)
-        elif "," in name.split(";")[0]:
+        elif "," in prefix(name, ";"):
             self.set_data2d(name, work.get_matrix(name), overwrite=overwrite)
         else:
             self.set_data1d(name, work.get_vector(name), overwrite=overwrite)
@@ -767,7 +766,7 @@ def _all_axes(names: Collection[str]) -> Set[str]:
     axes: Set[str] = set()
     for name in names:
         if ";" in name:
-            axes.update(name.split(";")[0].split(","))
+            axes.update(prefix(name, ";").split(","))
     return axes
 
 

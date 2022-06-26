@@ -51,7 +51,7 @@ def test_daf_axis() -> None:
 
     assert data.has_axis("cell")
     assert data.axis_size("cell") == 2
-    assert data.axis_indices("cell")["cell1"] == 1
+    assert data.axis_index("cell", "cell1") == 1
     assert data.axis_names() == ["cell"]
     assert is_frozen(be_vector(data.axis_entries("cell")))
     assert len(data.axis_entries("cell")) == len(cell_names)
@@ -88,6 +88,7 @@ def test_daf_data1d() -> None:
     assert is_vector(data.get_vector("cell;type"))
     assert is_frozen(data.get_vector("cell;type"))
     assert np.all(data.get_vector("cell;type") == cell_types)
+    assert data.get_item("cell=cell0;type") == "T"
 
     assert is_series(data.get_series("cell;type"))
     assert is_frozen(data.get_series("cell;type"))
@@ -138,6 +139,9 @@ def test_daf_data2d() -> None:
     assert is_dense_in_rows(data.get_matrix("cell,gene;UMIs"))
     assert is_frozen(data.get_matrix("cell,gene;UMIs"))
     assert fast_all_close(data.get_matrix("cell,gene;UMIs"), umis)
+    assert data.get_item("cell=cell0,gene=gene1;UMIs") == 10
+    assert list(data.get_vector("cell=cell0,gene;UMIs")) == [0, 10, 90]
+    assert list(data.get_vector("gene,cell=cell0;UMIs")) == [0, 10, 90]
 
     assert data.has_data2d("gene,cell;UMIs")
     assert data.data2d_names("gene,cell") == ["gene,cell;UMIs"]
@@ -757,7 +761,10 @@ def test_pipeline() -> None:
         assert list(data.get_vector("cell;age|Clip,min=0.5,max=1.5")) == [1, 1.5]
 
         assert list(data.get_vector("cell,gene;UMIs|!Sum")) == [100, 200]
+        assert data.get_item("cell=cell0,gene;UMIs|Sum") == 100
         assert fast_all_close(data.get_matrix("cell,gene;UMIs|!Abs"), np.array([[85, 10, 5], [170, 20, 10]]))
+        assert list(data.get_vector("cell=cell0,gene;UMIs|Abs")) == [85, 10, 5]
+        assert list(data.get_vector("gene,cell=cell0;UMIs|Abs")) == [85, 10, 5]
         assert fast_all_close(
             data.get_matrix("cell,gene;folds|!Densify|Abs"),
             np.array([[2, 1, 0], [2, 1, 0]]),

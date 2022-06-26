@@ -124,16 +124,16 @@ class AnnDataReader(_interface.StorageReader):
 
     def _has_data1d(self, axis: str, name: str) -> bool:
         if axis == "obs":
-            return _interface.extract_name(name) in self.adata.obs
+            return _interface.suffix(name, ";") in self.adata.obs
         if axis == "var":
-            return _interface.extract_name(name) in self.adata.var
+            return _interface.suffix(name, ";") in self.adata.var
         return name in self.adata.uns
 
     def _get_data1d(self, axis: str, name: str) -> Known1D:
         if axis == "obs":
-            return self.adata.obs[_interface.extract_name(name)]
+            return self.adata.obs[_interface.suffix(name, ";")]
         if axis == "var":
-            return self.adata.var[_interface.extract_name(name)]
+            return self.adata.var[_interface.suffix(name, ";")]
         return self.adata.uns[name]
 
     def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:  # pylint: disable=too-many-return-statements
@@ -153,14 +153,14 @@ class AnnDataReader(_interface.StorageReader):
 
         if axes[0] == "obs":
             return set(
-                f"obs,{axes[1]};{_interface.extract_name(name)}"
+                f"obs,{axes[1]};{_interface.suffix(name, ';')}"
                 for name in self.adata.obs.keys()
                 if ";" in name and name.startswith(f"{axes[1]}=")
             )
 
         if axes[0] == "var":
             return set(
-                f"var,{axes[1]};{_interface.extract_name(name)}"
+                f"var,{axes[1]};{_interface.suffix(name, ';')}"
                 for name in self.adata.var.keys()
                 if ";" in name and name.startswith(f"{axes[1]}=")
             )
@@ -169,24 +169,24 @@ class AnnDataReader(_interface.StorageReader):
 
     def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:  # pylint: disable=too-many-return-statements
         if axes == ("obs", "var"):
-            return name == "obs,var;X" or _interface.extract_name(name) in self.adata.layers
+            return name == "obs,var;X" or _interface.suffix(name, ";") in self.adata.layers
 
         if axes == ("obs", "obs"):
-            return _interface.extract_name(name) in self.adata.obsp.keys()
+            return _interface.suffix(name, ";") in self.adata.obsp.keys()
 
         if axes == ("var", "var"):
-            return _interface.extract_name(name) in self.adata.varp.keys()
+            return _interface.suffix(name, ";") in self.adata.varp.keys()
 
         if axes[1] in ("var", "obs"):
             return False
 
         if axes[0] == "obs":
             entry = self.axis_entries(axes[1])[0]
-            return f"{axes[1]}={entry};{_interface.extract_name(name)}" in self.adata.obs
+            return f"{axes[1]}={entry};{_interface.suffix(name, ';')}" in self.adata.obs
 
         if axes[0] == "var":
             entry = self.axis_entries(axes[1])[0]
-            return f"{axes[1]}={entry};{_interface.extract_name(name)}" in self.adata.var
+            return f"{axes[1]}={entry};{_interface.suffix(name, ';')}" in self.adata.var
 
         return name in self.adata.uns
 
@@ -194,18 +194,18 @@ class AnnDataReader(_interface.StorageReader):
         if axes == ("obs", "var"):
             if name == "obs,var;X":
                 return self.adata.X
-            return self.adata.layers[_interface.extract_name(name)]
+            return self.adata.layers[_interface.suffix(name, ";")]
 
         if axes == ("obs", "obs"):
-            return self.adata.obsp[_interface.extract_name(name)]
+            return self.adata.obsp[_interface.suffix(name, ";")]
 
         if axes == ("var", "var"):
-            return self.adata.varp[_interface.extract_name(name)]
+            return self.adata.varp[_interface.suffix(name, ";")]
 
         if axes[0] == "obs":
             return np.array(
                 [
-                    as_vector(self.adata.obs[f"{axes[1]}={entry};{_interface.extract_name(name)}"])
+                    as_vector(self.adata.obs[f"{axes[1]}={entry};{_interface.suffix(name, ';')}"])
                     for entry in self.axis_entries(axes[1])
                 ]
             ).transpose()
@@ -213,7 +213,7 @@ class AnnDataReader(_interface.StorageReader):
         if axes[0] == "var":
             return np.array(
                 [
-                    as_vector(self.adata.var[f"{axes[1]}={entry};{_interface.extract_name(name)}"])
+                    as_vector(self.adata.var[f"{axes[1]}={entry};{_interface.suffix(name, ';')}"])
                     for entry in self.axis_entries(axes[1])
                 ]
             ).transpose()
@@ -241,15 +241,15 @@ class AnnDataWriter(AnnDataReader, _interface.StorageWriter):
 
     def _set_vector(self, axis: str, name: str, vector: Vector) -> None:
         if axis == "obs":
-            self.adata.obs[_interface.extract_name(name)] = vector
+            self.adata.obs[_interface.suffix(name, ";")] = vector
         elif axis == "var":
-            self.adata.var[_interface.extract_name(name)] = vector
+            self.adata.var[_interface.suffix(name, ";")] = vector
         else:
             self.adata.uns[name] = vector
 
     def _set_matrix(self, axes: Tuple[str, str], name: str, matrix: MatrixInRows) -> None:
         if axes == ("var", "obs") or (axes[0] not in ("var", "obs") and axes[1] in ("var", "obs")):
-            name = f"{axes[1]},{axes[0]};{_interface.extract_name(name)}"
+            name = f"{axes[1]},{axes[0]};{_interface.suffix(name, ';')}"
             matrix = freeze(optimize(matrix.transpose()))
             axes = (axes[1], axes[0])
 
@@ -257,21 +257,21 @@ class AnnDataWriter(AnnDataReader, _interface.StorageWriter):
             if name == "obs,var;X":
                 self.adata.X = matrix
             else:
-                self.adata.layers[_interface.extract_name(name)] = matrix
+                self.adata.layers[_interface.suffix(name, ";")] = matrix
             return
 
         if axes == ("obs", "obs"):
-            self.adata.obsp[_interface.extract_name(name)] = matrix
+            self.adata.obsp[_interface.suffix(name, ";")] = matrix
             return
 
         if axes == ("var", "var"):
-            self.adata.varp[_interface.extract_name(name)] = matrix
+            self.adata.varp[_interface.suffix(name, ";")] = matrix
             return
 
         if axes[0] == "obs":
             matrix_in_columns = as_layout(matrix, COLUMN_MAJOR)
             for index, entry in enumerate(self.axis_entries(axes[1])):
-                self.adata.obs[f"{axes[1]}={entry};{_interface.extract_name(name)}"] = as_vector(
+                self.adata.obs[f"{axes[1]}={entry};{_interface.suffix(name, ';')}"] = as_vector(
                     matrix_in_columns[:, index]
                 )
             return
@@ -279,7 +279,7 @@ class AnnDataWriter(AnnDataReader, _interface.StorageWriter):
         if axes[0] == "var":
             matrix_in_columns = as_layout(matrix, COLUMN_MAJOR)
             for index, entry in enumerate(self.axis_entries(axes[1])):
-                self.adata.var[f"{axes[1]}={entry};{_interface.extract_name(name)}"] = as_vector(
+                self.adata.var[f"{axes[1]}={entry};{_interface.suffix(name, ';')}"] = as_vector(
                     matrix_in_columns[:, index]
                 )
             return

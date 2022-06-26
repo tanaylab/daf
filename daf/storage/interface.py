@@ -67,10 +67,8 @@ from . import chains as _chains
 __all__ = [
     "StorageReader",
     "StorageWriter",
-    "extract_name",
-    "extract_1d_axis",
-    "extract_2d_axes",
-    "parse_2d_axes",
+    "prefix",
+    "suffix",
 ]
 
 
@@ -283,7 +281,10 @@ class StorageReader(ABC):
 
         The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
         """
-        axis = extract_1d_axis(name)
+        assert ";" in name, f"0D name: {name} for: has_data1d for the storage: {self.name}"
+        axis = prefix(name, ";")
+        axes = axis.split(",")
+        assert len(axes) == 1, f"{len(axes)}D name: {name} for: has_data1d for the storage: {self.name}"
         return self._has_axis(axis) and self._has_data1d(axis, name)
 
     @abstractmethod
@@ -296,7 +297,10 @@ class StorageReader(ABC):
 
         The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
         """
-        axis = extract_1d_axis(name)
+        assert ";" in name, f"0D name: {name} for: get_data1d for the storage: {self.name}"
+        axis = prefix(name, ";")
+        axes = axis.split(",")
+        assert len(axes) == 1, f"{len(axes)}D name: {name} for: has_data1d for the storage: {self.name}"
         assert self._has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
         assert self._has_data1d(axis, name), f"missing 1D data: {name} in the storage: {self.name}"
         return self._get_data1d(axis, name)
@@ -314,7 +318,9 @@ class StorageReader(ABC):
         If two copies of the data exist in transposed axes order, then two different names will be returned.
         """
         if isinstance(axes, str):
-            axes = parse_2d_axes(axes)
+            parts = axes.split(",")
+            assert len(parts) == 2, f"{len(axes)}D axes: {axes} for: data2d_names for the storage: {self.name}"
+            axes = (parts[0], parts[1])
         assert self._has_axis(axes[0]), f"missing axis: {axes[0]} in the storage: {self.name}"
         assert self._has_axis(axes[1]), f"missing axis: {axes[1]} in the storage: {self.name}"
         return self._data2d_names(axes)
@@ -329,8 +335,10 @@ class StorageReader(ABC):
 
         The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
         """
-        axes = extract_2d_axes(name)
-        return self._has_axis(axes[0]) and self._has_axis(axes[1]) and self._has_data2d(axes, name)
+        assert ";" in name, f"0D name: {name} for: has_data2d for the storage: {self.name}"
+        axes = prefix(name, ";").split(",")
+        assert len(axes) == 2, f"{len(axes)}D name: {name} for: has_data2d for the storage: {self.name}"
+        return self._has_axis(axes[0]) and self._has_axis(axes[1]) and self._has_data2d((axes[0], axes[1]), name)
 
     @abstractmethod
     def _has_data2d(self, axes: Tuple[str, str], name: str) -> bool:
@@ -342,11 +350,13 @@ class StorageReader(ABC):
 
         The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
         """
-        axes = extract_2d_axes(name)
+        assert ";" in name, f"0D name: {name} for: get_data2d for the storage: {self.name}"
+        axes = prefix(name, ";").split(",")
+        assert len(axes) == 2, f"{len(axes)}D name: {name} for: has_data2d for the storage: {self.name}"
         assert self._has_axis(axes[0]), f"missing axis: {axes[0]} in the storage: {self.name}"
         assert self._has_axis(axes[1]), f"missing axis: {axes[1]} in the storage: {self.name}"
-        assert self._has_data2d(axes, name), f"missing 2D data: {name} in the storage: {self.name}"
-        return self._get_data2d(axes, name)
+        assert self._has_data2d((axes[0], axes[1]), name), f"missing 2D data: {name} in the storage: {self.name}"
+        return self._get_data2d((axes[0], axes[1]), name)
 
     @abstractmethod
     def _get_data2d(self, axes: Tuple[str, str], name: str) -> Known2D:
@@ -485,7 +495,10 @@ class StorageWriter(StorageReader):
         assert_data(is_frozen(vector), "frozen 1D numpy.ndarray", vector)
         assert_data(is_optimal(vector), "optimal 1D numpy.ndarray", vector)
 
-        axis = extract_1d_axis(name)
+        assert ";" in name, f"0D name: {name} for: set_vector for the storage: {self.name}"
+        axis = prefix(name, ";")
+        axes = axis.split(",")
+        assert len(axes) == 1, f"{len(axes)}D name: {name} for: set_vector for the storage: {self.name}"
         assert self._has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
 
         assert overwrite or not self._has_data1d(
@@ -516,12 +529,14 @@ class StorageWriter(StorageReader):
         assert_data(is_optimal(matrix), "optimal matrix", matrix)
         assert_data(is_frozen(matrix), "frozen matrix", matrix)
 
-        axes = extract_2d_axes(name)
+        assert ";" in name, f"0D name: {name} for: set_matrix for the storage: {self.name}"
+        axes = prefix(name, ";").split(",")
+        assert len(axes) == 2, f"{len(axes)}D name: {name} for: set_matrix for the storage: {self.name}"
         assert self._has_axis(axes[0]), f"missing axis: {axes[0]} in the storage: {self.name}"
         assert self._has_axis(axes[1]), f"missing axis: {axes[1]} in the storage: {self.name}"
 
         assert overwrite or not self._has_data2d(
-            axes, name
+            (axes[0], axes[1]), name
         ), f"refuse to overwrite the 2D data: {name} in the storage: {self.name}"
 
         assert matrix.shape[0] == self._axis_size(axes[0]), (
@@ -533,7 +548,7 @@ class StorageWriter(StorageReader):
             f"in the storage: {self.name}"
         )
 
-        self._set_matrix(axes, name, matrix)
+        self._set_matrix((axes[0], axes[1]), name, matrix)
 
     @abstractmethod
     def _set_matrix(self, axes: Tuple[str, str], name: str, matrix: MatrixInRows) -> None:
@@ -547,18 +562,20 @@ class StorageWriter(StorageReader):
         Create an uninitialized `.ROW_MAJOR` .`DenseInRows` of some ``dtype`` to be set by the ``name`` in the storage,
         expecting the code to initialize it.
         """
-        axes = extract_2d_axes(name)
+        assert ";" in name, f"0D name: {name} for: create_dense_in_rows for the storage: {self.name}"
+        axes = prefix(name, ";").split(",")
+        assert len(axes) == 2, f"{len(axes)}D name: {name} for: create_dense_in_rows for the storage: {self.name}"
         assert self._has_axis(axes[0]), f"missing axis: {axes[0]} in the storage: {self.name}"
         assert self._has_axis(axes[1]), f"missing axis: {axes[1]} in the storage: {self.name}"
 
         assert overwrite or not self._has_data2d(
-            axes, name
+            (axes[0], axes[1]), name
         ), f"refuse to overwrite the 2D data: {name} in the storage: {self.name}"
 
         assert is_dtype(dtype, FIXED_DTYPES), f"unsupported dtype: {dtype}"
 
         shape = (self._axis_size(axes[0]), self._axis_size(axes[1]))
-        with self._create_dense_in_rows(name, axes=axes, shape=shape, dtype=dtype) as dense:
+        with self._create_dense_in_rows(name, axes=(axes[0], axes[1]), shape=shape, dtype=dtype) as dense:
             yield dense
 
     @contextmanager
@@ -570,37 +587,19 @@ class StorageWriter(StorageReader):
         self._set_matrix(axes, name, freeze(optimize(dense)))
 
 
-def extract_name(name: str) -> str:
+def prefix(text: str, char: str) -> str:
     """
-    Extract the simple name out of a ``axes;name`` 1D/2D data name.
+    Return the characters in the ``text`` before the separator ``char`` (which need not exist).
+
+    It would have been much nicer if this was a method of ``str``.
     """
-    parts = name.split(";")
-    assert len(parts) == 2, f"invalid 1D/2D data name: {name}"
-    return parts[1]
+    return text.split(char, 1)[0]
 
 
-def extract_1d_axis(name: str) -> str:
+def suffix(text: str, char: str) -> str:
     """
-    Extract the axis out of a ``axis;name`` 1D data name.
-    """
-    parts = name.split(";")
-    assert len(parts) == 2, f"invalid 1D data name: {name}"
-    return parts[0]
+    Return the characters in the ``text`` after the separator ``char`` (which must exist).
 
-
-def extract_2d_axes(name: str) -> Tuple[str, str]:
+    It would have been much nicer if this was a method of ``str``.
     """
-    Extract the axes out of ``rows_axis,column_axis;name`` 2D data name.
-    """
-    parts = name.split(";")
-    assert len(parts) == 2, f"invalid 2D data name: {name}"
-    return parse_2d_axes(parts[0])
-
-
-def parse_2d_axes(name: str) -> Tuple[str, str]:
-    """
-    Parse the axes in a ``rows_axis,column_axis`` 2D data axes.
-    """
-    axes = name.split(",")
-    assert len(axes) == 2, f"invalid 2D data name: {name}"
-    return (axes[0], axes[1])
+    return text.split(char, 1)[1]

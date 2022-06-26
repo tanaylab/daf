@@ -241,7 +241,7 @@ class FilesReader(_interface.StorageReader):
                     self._items[path[: -1 - len(kind)]] = NotLoadedYet(kind)
                 continue
 
-            axis = path.split(";")[0]
+            axis = _interface.prefix(path, ";")
             if "," not in axis:
                 vector_data.append((axis, path, kind))
                 continue
@@ -541,14 +541,14 @@ class FilesWriter(FilesReader, _interface.StorageWriter):
 
 
 def _1d_csv_header(axis: str, name: str) -> Tuple[str, str]:
-    name = _interface.extract_name(name)
+    name = _interface.suffix(name, ";")
     if name == axis:
         name += ".value"
     return axis, name
 
 
 def _2d_csv_header(axes: Tuple[str, str], name: str) -> Tuple[str, str, str]:
-    name = _interface.extract_name(name)
+    name = _interface.suffix(name, ";")
     rows_axis, columns_axis = axes
     if rows_axis == columns_axis:
         rows_axis += ".row"

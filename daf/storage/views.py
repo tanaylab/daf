@@ -315,7 +315,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             for base_data in self.base._data1d_names(base_axis):
                 exposed_data: Optional[str]
 
-                name = _interface.extract_name(base_data)
+                name = _interface.suffix(base_data, ";")
                 data_view = self._base_data1d_views.get(base_data, None if hide_implicit else name)
                 if data_view is None:
                     exposed_data = None
@@ -377,7 +377,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
                 for base_data in self.base._data2d_names((base_rows_axis, base_columns_axis)):
                     exposed_data: Optional[str]
 
-                    name = _interface.extract_name(base_data)
+                    name = _interface.suffix(base_data, ";")
                     data_view = self._base_data2d_views.get(base_data, None if hide_implicit else name)
                     if data_view is None:
                         exposed_data = None
@@ -528,7 +528,10 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
 
         The base name of tracked entry indices of an axis is reported as ``axis;``.
         """
-        axis = _interface.extract_1d_axis(exposed_data1d)
+        assert ";" in exposed_data1d, f"0D name: {exposed_data1d} for: base_data1d for the storage: {self.name}"
+        axis = _interface.prefix(exposed_data1d, ";")
+        axes = axis.split(",")
+        assert len(axes) == 1, f"{len(axes)}D name: {exposed_data1d} for: base_data1d for the storage: {self.name}"
         assert self._has_data1d(
             axis, exposed_data1d
         ), f"missing 1D data: {exposed_data1d} in the base storage: {self.name}"
@@ -541,11 +544,13 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
         """
         Given the name of an ``exposed_data2d`` (which must exist), return its name in the base `.StorageReader`.
         """
-        axes = _interface.extract_2d_axes(exposed_data2d)
+        assert ";" in exposed_data2d, f"0D name: {exposed_data2d} for: base_data2d for the storage: {self.name}"
+        axes = _interface.prefix(exposed_data2d, ";").split(",")
+        assert len(axes) == 2, f"{len(axes)}D name: {exposed_data2d} for: base_data2d for the storage: {self.name}"
         assert self._has_data2d(
-            axes, exposed_data2d
+            (axes[0], axes[1]), exposed_data2d
         ), f"missing 2D data: {exposed_data2d} in the base storage: {self.name}"
-        return self._exposed_data2d[axes][exposed_data2d]
+        return self._exposed_data2d[(axes[0], axes[1])][exposed_data2d]
 
     def _item_names(self) -> Collection[str]:
         return self._exposed_items.keys()
