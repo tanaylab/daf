@@ -120,6 +120,9 @@ class DafReader:  # pylint: disable=too-many-public-methods
         #: ``base``.
         self.chain = StorageChain([self.derived, self.base], name=self.name + ".chain")
 
+        # Cache mapping from axis entries to indices.
+        self._axis_indices: Dict[str, Dict[str, int]] = {}
+
         for axis in self.base.axis_names():
             if not self.derived.has_axis(axis):
                 self.derived.create_axis(axis, freeze(optimize(as_vector(self.chain.axis_entries(axis)))))
@@ -275,20 +278,14 @@ class DafReader:  # pylint: disable=too-many-public-methods
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         return freeze(optimize(as_vector(self.chain._axis_entries(axis))))
 
-    def axis_index(self, axis: str, name: str) -> int:
+    def axis_indices(self, axis: str) -> Mapping[str, int]:
         """
-        Return the index of the ``name`` (which must exist) in the entries of the ``axis`` (which must also exist).
-
-        .. todo::
-
-            Find a more efficient way to do this.
+        Return a mapping from the axis string entries to the integer indices.
         """
-        entries = self.axis_entries(axis)
-        indices = np.where(entries == name)[0]
-        assert (
-            len(indices) > 0
-        ), f"missing the value: {name} in the entries of the axis: {axis} in the data set: {self.name}"
-        return indices[0]
+        indices = self._axis_indices.get(axis)
+        if indices is None:
+            self._axis_indices[axis] = indices = {name: index for index, name in enumerate(self.axis_entries(axis))}
+        return indices
 
     def data1d_names(self, axis: str, *, full: bool = True) -> List[str]:
         """

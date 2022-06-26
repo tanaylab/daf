@@ -83,9 +83,7 @@ __all__ = [
             """,
         "member;value": "The value associated with each individual member.",
     },
-    assured_outputs={
-        "group;value": "The aggregated value associated with each group.",
-    },
+    assured_outputs={"group;value": "The aggregated value associated with each group."},
 )
 def aggregate_group_data1d(
     data: DafWriter,
@@ -136,9 +134,7 @@ def aggregate_group_data1d(
         "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
         "member,data;value": "The value associated with each individual member and data axis entry.",
     },
-    assured_outputs={
-        "group,data;value": "The aggregated value associated with each group and data axis entry.",
-    },
+    assured_outputs={"group,data;value": "The aggregated value associated with each group and data axis entry."},
 )
 def aggregate_group_data2d(  # pylint: disable=too-many-locals
     data: DafWriter,
@@ -292,9 +288,7 @@ def count_group_members(data: DafWriter, *, dtype: DType = "int32", overwrite: b
         "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
         "member;value": "The value associated with each individual member.",
     },
-    assured_outputs={
-        "group,value;members": "How many members have each value in each group.",
-    },
+    assured_outputs={"group,value;members": "How many members have each value in each group."},
 )
 def count_group_values(
     data: DafWriter, *, dtype: DType = "int32", dense: bool = False, overwrite: bool = False
@@ -346,9 +340,7 @@ def count_group_values(
         "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
         "group;value": "The value associated with each group.",
     },
-    assured_outputs={
-        "member;value": "The value associated with the group of each member.",
-    },
+    assured_outputs={"member;value": "The value associated with the group of each member."},
 )
 def assign_group_values(
     data: DafWriter, *, dtype: Optional[DType] = None, default: Any = None, overwrite: bool = False
@@ -384,9 +376,7 @@ def assign_group_values(
     required_inputs={
         "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
     },
-    assured_outputs={
-        "group;": "A new axis with one entry per group.",
-    },
+    assured_outputs={"group;": "A new axis with one entry per group."},
 )
 def create_group_axis(
     data: DafWriter,

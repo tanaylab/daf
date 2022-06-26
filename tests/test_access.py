@@ -51,7 +51,7 @@ def test_daf_axis() -> None:
 
     assert data.has_axis("cell")
     assert data.axis_size("cell") == 2
-    assert data.axis_index("cell", "cell1") == 1
+    assert data.axis_indices("cell")["cell1"] == 1
     assert data.axis_names() == ["cell"]
     assert is_frozen(be_vector(data.axis_entries("cell")))
     assert len(data.axis_entries("cell")) == len(cell_names)
@@ -355,9 +355,7 @@ def test_computation_call() -> None:
 
 
 @computation(
-    required_inputs={
-        "cell,gene;UMIs": "Cells RNA data.",
-    },
+    required_inputs={"cell,gene;UMIs": "Cells RNA data."},
     assured_outputs={
         "quality": "How good is the clustering.",
         "gene;mean": "The mean fraction of each gene in the total of all cells",
@@ -460,10 +458,7 @@ def test_computation_back() -> None:
 
 @computation(
     required_inputs={"row,column;value": "Arbitrary 2D data."},
-    assured_outputs={
-        "row,column;absolute": "Absolute values.",
-        "row;sum_abs": "Sum or absolute values per row.",
-    },
+    assured_outputs={"row,column;absolute": "Absolute values.", "row;sum_abs": "Sum or absolute values per row."},
 )
 def row_sum_absolute(data: DafWriter, *, overwrite: bool = False) -> None:  # pylint: disable=unused-argument
     """
