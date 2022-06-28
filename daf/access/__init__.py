@@ -14,7 +14,7 @@ format adapters.
 
 Accessing data in ``daf`` is based on string names in the following format(s):
 
-* 0D data is identified by a simple ``name``, e.g. ``description`` might be a string describing the overall data set.
+* 0D data is identified by a simple ``name``, e.g. ``doi_url`` might be a string describing the overall data set.
   There is no restriction on the data type of 0D data except that it should be reasonably de/serializable to allow
   storing it in a disk file.
 
@@ -50,12 +50,6 @@ Accessing data in ``daf`` is based on string names in the following format(s):
   You can also request the data as a ``pandas.DataFrame`` (that is, `.Frame`), in which case, due to ``pandas``
   limitations, the data will always be returned in the dense (``numpy``) format. The index and columns of the frame
   will be the relevant axis entries.
-
-.. note::
-
-    To avoid ambiguities and to ensure that storing ``daf`` data in files works as expected, the axis and simple data
-    names should be restricted to alphanumeric, ``_``, ``-``, and/or ``+`` characters. Other characters may cause
-    various problems; in particular, do **not** use ``,``, ``;``, ``=`` or ``|`` characters in simple names.
 """
 
 from .operations import *

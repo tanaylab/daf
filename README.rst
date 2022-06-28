@@ -120,7 +120,7 @@ Usage
     data = daf.DafReader(daf.FilesReader("..."))
 
     # Access arbitrary 0D data.
-    description = data.get_item("description")
+    doi_url = data.get_item("doi_url")
 
     # Get a 1D numpy array by axis and name.
     metacell_types = data.get_vector("metacell;type")

@@ -82,7 +82,7 @@ staged:  ## check everything is staged for git commit
 	else true; \
 	fi
 
-format: trailingspaces linebreaks fstrings isort black flake8  ## check code format
+format: trailingspaces fstrings isort black flake8  ## check code format
 
 trailingspaces: .make.trailingspaces  ## check for trailing spaces
 
@@ -96,17 +96,6 @@ SP_SOURCE_FILES = $(filter-out setup.cfg, $(ALL_SOURCE_FILES))
 	    echo 'Files contain trailing spaces (run `make reformat` or `make stripspaces`).'; \
 	    false; \
 	else true; \
-	fi
-	touch $@
-
-linebreaks: .make.linebreaks  ## check line breaks in Python code
-
-.make.linebreaks: $(PY_SOURCE_FILES)
-	@echo "linebreaks"
-	@if grep -Hn "[^=*][^][/<>\"'a-zA-Z0-9_,;:()#}{.?!\\=\`+-]$$" $(PY_SOURCE_FILES) | grep -v -- '--$$\|import \*$$'; \
-	then \
-	    echo 'Files wrap lines after instead of before an operator (fix manually).'; \
-	    false; \
 	fi
 	touch $@
 

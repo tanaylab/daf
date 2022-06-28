@@ -27,29 +27,29 @@ A ``daf`` storage directory will contain the following files:
 * For axes, there will be an ``axis;.csv`` file with a single column with the axis name header, containing the unique
   names of the entries along the axis.
 
-* For 1D string data, there will be an ``axis;name.csv`` file with two columns, with the axis and the data name header
-  (if the name is identical to the axis, we suffix it with ``.value``). Any missing entries will be set to ``None``. The
-  entries may be in any order, but `.FilesWriter` always writes them in the axis order (skiupping writing of ``None``
-  values).
+* For 1D string data, there will be an ``axis;property.csv`` file with two columns, with the axis and the property name
+  header (if the property name is identical to the axis, we suffix it with ``.value``). Any missing entries will be set
+  to ``None``. The entries may be in any order, but `.FilesWriter` always writes them in the axis order (skiupping
+  writing of ``None`` values).
 
-* For 1D binary data, there will be an ``axis;name.yaml`` file and an ``axis;name.array`` containing the data
+* For 1D binary data, there will be an ``axis;property.yaml`` file and an ``axis;property.array`` containing the data
   (always in the axis entries order). See `.create_memory_mapped_array` for details in the (trivial) format of these
   files.
 
-* For 2D string data, there will be a ``row_axis,column_axis;name.csv`` file with three columns, with the rows axis,
-  columns axis, and data name header (if the axis names are identical we suffix them with ``.row`` and ``.column``, and
-  if the name is identical to either we suffix it with ``.value``). Any missing entries will be set to ``None``. The
-  entries may be in any order, but `.FilesWriter` always writes them in `.ROW_MAJOR` order (skipping writing of ``None``
-  values).
+* For 2D string data, there will be a ``row_axis,column_axis;property.csv`` file with three columns, with the rows axis,
+  columns axis, and property name header (if the axis names are identical we suffix them with ``.row`` and ``.column``,
+  and if the property name is identical to either we suffix it with ``.value``). Any missing entries will be set to
+  ``None``. The entries may be in any order, but `.FilesWriter` always writes them in `.ROW_MAJOR` order (skipping
+  writing of ``None`` values).
 
-* For 2D `.Dense` binary data, there will be a ``row_axis,column_axis;name.yaml`` file accompanied by a
-  ``row_axis,column_axis;name.array`` file (always in `.ROW_MAJOR` order based on the axis entries order). See
+* For 2D `.Dense` binary data, there will be a ``row_axis,column_axis;property.yaml`` file accompanied by a
+  ``row_axis,column_axis;property.array`` file (always in `.ROW_MAJOR` order based on the axis entries order). See
   `.create_memory_mapped_array` for details on the (trivial) format of these files.
 
-* For 2D `.Sparse` binary data, there will be a ``row_axis,column_axis;name.yaml`` file accompanied by three files:
-  ``row_axis,column_axis;name.data``, ``row_axis,column_axis;name.indices`` and ``row_axis,column_axis;name.indptr``
-  (always in `.ROW_MAJOR`, that is, CSR order, based on the axis entries order). See `.write_memory_mapped_sparse` for
-  details on the (trivial) format of these files.
+* For 2D `.Sparse` binary data, there will be a ``row_axis,column_axis;property.yaml`` file accompanied by three files:
+  ``row_axis,column_axis;property.data``, ``row_axis,column_axis;property.indices`` and
+  ``row_axis,column_axis;property.indptr`` (always in `.ROW_MAJOR`, that is, CSR order, based on the axis entries
+  order). See `.write_memory_mapped_sparse` for details on the (trivial) format of these files.
 
 Other files, if any, are silently ignored.
 
@@ -541,21 +541,23 @@ class FilesWriter(FilesReader, _interface.StorageWriter):
 
 
 def _1d_csv_header(axis: str, name: str) -> Tuple[str, str]:
-    name = _interface.suffix(name, ";")
-    if name == axis:
-        name += ".value"
-    return axis, name
+    property = _interface.suffix(name, ";")  # pylint: disable=redefined-builtin
+    if property == axis:
+        property += ".value"
+    return axis, property
 
 
 def _2d_csv_header(axes: Tuple[str, str], name: str) -> Tuple[str, str, str]:
-    name = _interface.suffix(name, ";")
+    property = _interface.suffix(name, ";")  # pylint: disable=redefined-builtin
     rows_axis, columns_axis = axes
+    if property in (rows_axis, columns_axis):
+        property += ".value"
     if rows_axis == columns_axis:
         rows_axis += ".row"
         columns_axis += ".column"
-    if name in (rows_axis, columns_axis):
-        name += ".value"
-    return rows_axis, columns_axis, name
+    if property in (rows_axis, columns_axis):
+        property += ".value"
+    return rows_axis, columns_axis, property
 
 
 def _csv_quote(value: str) -> str:

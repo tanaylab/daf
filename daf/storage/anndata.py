@@ -22,17 +22,18 @@ We use the following scheme to map between ``daf`` data and ``AnnData`` fields:
 * Axes other than ``obs`` and ``var`` require us to store their entries, which we do by using an ``uns`` entry with the
   name ``axis;``.
 
-* 1D data other than per-``obs`` and per-``var`` data is stored in an ``uns`` entry named ``axis;name``.
+* 1D data other than per-``obs`` and per-``var`` data is stored in an ``uns`` entry named ``axis;property``.
 
 * 2D data for ``obs`` and ``var`` axes is stored in the ``X``, ``layers``, ``obsp`` or ``varp`` ``AnnData`` fields, as
   appropriate.
 
 * 2D data for either ``obs`` or ``var`` and another axis is stored as a set of 1D annotations in the ``obs`` or ``var``
-  ``AnnData`` fields, one for each axis entry, named ``other_axis=entry;name``. It is debatable whether this makes it
-  easier or harder to access this data in systems that directly use ``AnnData``, but it is at least "technically
+  ``AnnData`` fields, one for each axis entry, named ``other_axis=entry;property``. It is debatable whether this makes
+  it easier or harder to access this data in systems that directly use ``AnnData``, but it is at least "technically
   correct".
 
-* 2D data where neither axis is ``obs`` or ``var`` is stored in an ``uns`` entry named ``row_axis,column_axis;name``.
+* 2D data where neither axis is ``obs`` or ``var`` is stored in an ``uns`` entry named
+  ``row_axis,column_axis;property``.
 """
 
 # pylint: disable=duplicate-code
@@ -117,10 +118,12 @@ class AnnDataReader(_interface.StorageReader):
 
     def _data1d_names(self, axis: str) -> Collection[str]:
         if axis == "obs":
-            return [f"obs;{name}" for name in self.adata.obs if ";" not in name]
+            return [f"obs;{property}" for property in self.adata.obs if ";" not in property]
         if axis == "var":
-            return [f"var;{name}" for name in self.adata.var if ";" not in name]
-        return [name for name in self.adata.uns if name.startswith(f"{axis};") and not name.endswith(";")]
+            return [f"var;{property}" for property in self.adata.var if ";" not in property]
+        return [
+            property for property in self.adata.uns if property.startswith(f"{axis};") and len(property) > len(axis) + 1
+        ]
 
     def _has_data1d(self, axis: str, name: str) -> bool:
         if axis == "obs":
@@ -138,15 +141,15 @@ class AnnDataReader(_interface.StorageReader):
 
     def _data2d_names(self, axes: Tuple[str, str]) -> Collection[str]:  # pylint: disable=too-many-return-statements
         if axes == ("obs", "var"):
-            names = set(f"obs,var;{name}" for name in self.adata.layers)
+            names = set(f"obs,var;{property}" for property in self.adata.layers)
             names.add("obs,var;X")
             return names
 
         if axes == ("obs", "obs"):
-            return set(f"obs,obs;{name}" for name in self.adata.obsp.keys())
+            return set(f"obs,obs;{property}" for property in self.adata.obsp.keys())
 
         if axes == ("var", "var"):
-            return set(f"var,var;{name}" for name in self.adata.varp.keys())
+            return set(f"var,var;{property}" for property in self.adata.varp.keys())
 
         if axes == ("var", "obs") or axes[1] in ("var", "obs"):
             return set()
@@ -181,12 +184,12 @@ class AnnDataReader(_interface.StorageReader):
             return False
 
         if axes[0] == "obs":
-            entry = self.axis_entries(axes[1])[0]
-            return f"{axes[1]}={entry};{_interface.suffix(name, ';')}" in self.adata.obs
+            first_entry = self.axis_entries(axes[1])[0]
+            return f"{axes[1]}={first_entry};{_interface.suffix(name, ';')}" in self.adata.obs
 
         if axes[0] == "var":
-            entry = self.axis_entries(axes[1])[0]
-            return f"{axes[1]}={entry};{_interface.suffix(name, ';')}" in self.adata.var
+            first_entry = self.axis_entries(axes[1])[0]
+            return f"{axes[1]}={first_entry};{_interface.suffix(name, ';')}" in self.adata.var
 
         return name in self.adata.uns
 

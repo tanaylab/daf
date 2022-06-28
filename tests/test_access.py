@@ -88,7 +88,7 @@ def test_daf_data1d() -> None:
     assert is_vector(data.get_vector("cell;type"))
     assert is_frozen(data.get_vector("cell;type"))
     assert np.all(data.get_vector("cell;type") == cell_types)
-    assert data.get_item("cell=cell0;type") == "T"
+    assert data.get_item("cell=cell0,type") == "T"
 
     assert is_series(data.get_series("cell;type"))
     assert is_frozen(data.get_series("cell;type"))
@@ -139,9 +139,9 @@ def test_daf_data2d() -> None:
     assert is_dense_in_rows(data.get_matrix("cell,gene;UMIs"))
     assert is_frozen(data.get_matrix("cell,gene;UMIs"))
     assert fast_all_close(data.get_matrix("cell,gene;UMIs"), umis)
-    assert data.get_item("cell=cell0,gene=gene1;UMIs") == 10
-    assert list(data.get_vector("cell=cell0,gene;UMIs")) == [0, 10, 90]
-    assert list(data.get_vector("gene,cell=cell0;UMIs")) == [0, 10, 90]
+    assert data.get_item("cell=cell0,gene=gene1,UMIs") == 10
+    assert data.get_item("gene=gene1,cell=cell0,UMIs") == 10
+    assert list(data.get_vector("gene;cell=cell0,UMIs")) == [0, 10, 90]
 
     assert data.has_data2d("gene,cell;UMIs")
     assert data.data2d_names("gene,cell") == ["gene,cell;UMIs"]
@@ -217,7 +217,7 @@ def test_daf_view() -> None:
 )
 def row_sums(data: DafWriter, *, overwrite: bool = False) -> None:  # pylint: disable=unused-argument
     """
-    Contrived computation step. You are better of writing ``.get_vector("row,column;value|RowSums")``.
+    Contrived computation step. You are better of writing ``.get_vector("row;column,value|RowSums")``.
 
     __DAF__
     """
@@ -278,7 +278,7 @@ def row_sums(data: DafWriter, *, overwrite: bool = False) -> None:  # pylint: di
 def test_computation_doc() -> None:
     assert row_sums.__doc__ == dedent(
         """
-        Contrived computation step. You are better of writing ``.get_vector("row,column;value|RowSums")``.
+        Contrived computation step. You are better of writing ``.get_vector("row;column,value|RowSums")``.
 
         **Required Inputs**
 
@@ -757,14 +757,13 @@ def test_pipeline() -> None:
 
     for _ in range(2):
         assert list(data.get_vector("cell;age|Abs")) == [1, 2]
-        assert data.get_item("cell;age|Mean") == 1.5
+        assert data.get_item("cell,age|Mean") == 1.5
         assert list(data.get_vector("cell;age|Clip,min=0.5,max=1.5")) == [1, 1.5]
 
-        assert list(data.get_vector("cell,gene;UMIs|!Sum")) == [100, 200]
-        assert data.get_item("cell=cell0,gene;UMIs|Sum") == 100
+        assert list(data.get_vector("cell;gene,UMIs|!Sum")) == [100, 200]
+        assert data.get_item("gene,cell=cell0,UMIs|Sum") == 100
         assert fast_all_close(data.get_matrix("cell,gene;UMIs|!Abs"), np.array([[85, 10, 5], [170, 20, 10]]))
-        assert list(data.get_vector("cell=cell0,gene;UMIs|Abs")) == [85, 10, 5]
-        assert list(data.get_vector("gene,cell=cell0;UMIs|Abs")) == [85, 10, 5]
+        assert list(data.get_vector("gene;cell=cell0,UMIs|Abs")) == [85, 10, 5]
         assert fast_all_close(
             data.get_matrix("cell,gene;folds|!Densify|Abs"),
             np.array([[2, 1, 0], [2, 1, 0]]),

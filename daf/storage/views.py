@@ -67,8 +67,8 @@ class AxisView(NamedTuple):
     entries: Optional[AnyData] = None
 
     #: Whether to create new data for the axis which tracks the index of each entry in the base data. If ``None``, no
-    #: such data is created. Otherwise, ``axis;name`` will be created and will contain the integer index of each exposed
-    #: axis entry in the original base data.
+    #: such data is created. Otherwise, ``axis;track`` will be created and will contain the integer index of each
+    #: exposed axis entry in the original base data.
     track: Optional[str] = None
 
     #: If creating new data to track the axis entry indices, whether to overwrite existing data of the same name.
@@ -89,7 +89,7 @@ class AxisFullView(NamedTuple):
     #: If slicing, the indices of the exposed entries.
     entry_indices: Optional[Vector]
 
-    #: If not ``None``, the simple name of the data exposing the axis entry indices.
+    #: If not ``None``, the name of the property of the data exposing the axis entry indices.
     track: Optional[str]
 
     #: If ``track`` is not ``None``, whether to overwrite existing data of the same name.
@@ -113,7 +113,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
     listed, then by default it is exposed as is; if ``hide_implicit``, it is hidden. Hiding an axis hides all the data
     based on that axis.
 
-    If the value of some axis or data is a string, it is the simple name to use to expose the data or axis.
+    If the value of some axis or data is a string, it is the property name to use to expose the data or axis.
 
     If the value of an axis is the entries of the axis to expose, it will be sliced (using the same name).
 
@@ -265,7 +265,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             self._base_item_views[base_data] = data_view
             return self.base._has_item(base_data)
 
-        axes, name = base_data.split(";")
+        axes, property = base_data.split(";")  # pylint: disable=redefined-builtin
 
         if "," not in axes:
             self._base_data1d_views[base_data] = data_view
@@ -273,7 +273,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
 
         self._base_data2d_views[base_data] = data_view
         rows_axis, columns_axis = axes.split(",")
-        transposed_data = f"{columns_axis},{rows_axis};{name}"
+        transposed_data = f"{columns_axis},{rows_axis};{property}"
         if transposed_data not in self._base_data2d_views:
             self._base_data2d_views[transposed_data] = data_view
         else:
@@ -315,8 +315,9 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             for base_data in self.base._data1d_names(base_axis):
                 exposed_data: Optional[str]
 
-                name = _interface.suffix(base_data, ";")
-                data_view = self._base_data1d_views.get(base_data, None if hide_implicit else name)
+                data_view = self._base_data1d_views.get(
+                    base_data, None if hide_implicit else _interface.suffix(base_data, ";")
+                )
                 if data_view is None:
                     exposed_data = None
                 else:
@@ -377,8 +378,9 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
                 for base_data in self.base._data2d_names((base_rows_axis, base_columns_axis)):
                     exposed_data: Optional[str]
 
-                    name = _interface.suffix(base_data, ";")
-                    data_view = self._base_data2d_views.get(base_data, None if hide_implicit else name)
+                    data_view = self._base_data2d_views.get(
+                        base_data, None if hide_implicit else _interface.suffix(base_data, ";")
+                    )
                     if data_view is None:
                         exposed_data = None
                     else:

@@ -1,7 +1,138 @@
 """
 Read-only interface for ``daf`` data sets.
+
+In ``daf``, data access uses a string name in the format described below. Even though each name uniquely identifies
+whether the data is 0D, 1D or 2D, there are separate functions for accessing the data based on its dimension. This
+both makes the code more readable, and also allows ``mypy`` to provide some semblence of effective type checking (if
+you choose to use it).
+
+.. note::
+
+    To avoid ambiguities and to ensure that storing ``daf`` data in files works as expected, do **not** use ``,``,
+    ``;``, ``=`` or ``|`` characters in axis, property or entry names. In addition, since axis and property names are
+    used as part of file names in certain storage formats, also avoid characters that are invalid in file names, most
+    importantly ``/``, but also ``"``, ``:``, and ``\\``.
+
+.. _2d_names:
+
+**2D Names**
+
+All 2D names start with ``rows_axis,columns_axis;``.
+
+* | *rows_axis* ``,`` *columns_axis* ``;`` *property*
+    [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+
+  The name of a property with a value per each combination of two axes entries, optionally processed by a series of
+  `.ElementWise` `.operations`.
+
+  For example: ``cell,gene|UMIs``, ``cell,gene;fraction|Log,base=2,factor=1e-1|Abs``.
+
+.. _1d_names:
+
+**1D Names**
+
+All 1D names start with ``axis;``.
+
+* | *axis* ``;`` *property*
+    [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+
+  The name of a property with a value per entry along some axis, optionally processed by a series of `.ElementWise`
+  `.operations`.
+
+  For example: ``cell;age``, ``cell;age|Clamp,min=6,max=8``.
+
+* | *axis* ``;`` *second_axis* ``=`` *entry* ``,`` *property*
+    [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+
+  The slice for a specific entry of the data of a 2D property, optionally processed by a series of `.ElementWise`
+  `.operations`.
+
+  For example: ``cell;gene=SOX8,UMIs``, ``cell;gene=SOX8,fraction|Log,base=2,factor=1e-1``.
+
+* | *axis* ``;`` *second_axis* ``,`` *property*
+    [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+  | ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
+    [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+
+  A reduction of 2D data into a single value per row, optionally processed by a series of `.ElementWise` `.operations`.
+
+  For example: ``cell;gene,UMIs|Sum``, ``cell;gene,fraction|Log,base=2,factor=1e-5|Max|Clip,min=-12,max=-7``.
+
+.. _0d_names:
+
+**0D Names**
+
+  No 0D names contain ``;`` (at least not before the first ``|``).
+
+* | *property*
+
+  The name of a 0D data item property.
+
+  For example: ``doi_url``.
+
+* | *axis* ``=`` *entry* ``,`` *property*
+
+  The value for a specific entry of the data of a 1D property.
+
+  For example: ``cell=ACTG,age``.
+
+* | *axis* ``=`` *entry* ``,`` *second_axis* ``=`` *second_entry* ``,`` *property*
+
+  The value for a specific entry of the data of a 2D property.
+
+  For example: ``cell=ACTG,gene=SOX8,UMIs``.
+
+* | *axis* ``,`` *property*
+  | [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+    ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
+
+  A reduction into a single value of 1D property with a value per entry along some axis, optionally processed by a
+  series of `.ElementWise` `.operations`.
+
+  For example: ``cell,age|Mean``, ``cell,age|Clamp,min=6,max=8|Mean``.
+
+* | *axis* ``,`` *second_axis* ``=`` *entry* ``,`` *property*
+  | [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+    ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
+
+  A reduction into a single value of a slice for a specific entry of the data of a 2D property, optionally processed by
+  a series of `.ElementWise` `.operations`.
+
+  For example: ``cell,gene=SOX8,UMIs|Max``, ``cell,gene=SOX8,fraction|Log,base=2,factor=1e-1|Mean``.
+
+* | *axis* ``,`` *second_axis* ``,`` *property*
+  | [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+    ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
+  | [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+    ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
+
+  A reduction of 2D data into a single value per row and then to a single value, optionally processed by a series of
+   `.ElementWise` `.operations`.
+
+  For example: ``cell,gene,UMIs|Sum|Max``, ``cell,gene,fraction|Log,base=2,factor=1e-5|Max|Clip,min=-12,max=-7|Mean``.
+
+.. note::
+
+    See `.operations` for the list of built-in `.ElementWise` and `.Reduction` operations. Additional operations can be
+    offered by other Python packages. In all the above, prefixing the operation name with ``!`` will prevent their
+    results from being cached. For example, ``cell;gene,UMIs|!Sum`` will not cache the total number of UMIs per cell.
+    The current implementation doesn't cache any 0D data regardless of whether a ``!`` was specified.
+
+**Motivation**
+
+The above scheme makes sense if you consider that each name starts with a description of the axes/shape of the result,
+followed by how to extract the result from the data set. This means that to get the sum of the UMIs of all the genes for
+each cell, we first consider this is per-cell 1D data and therefore must start with ``cell;``. We therefore write
+``cell;gene,UMIs|Sum`` instead of ``cell,gene;UMIs|Sum``.
+
+This may seem unintuitive at first, but it has some advantages, such as clearly identify the axes/shape of the result of
+a pipeline. An important feature of the scheme is that the name of **any** 1D data along some ``axis`` has the common
+prefix ``axis;``. This makes it easy to express data for `.get_columns`, or describe the X and Y coordinates of a
+scatter plot, or anything along these lines, by providing the common axis and a list suffixes to append to it.
 """
 
+
+# pylint: disable=too-many-lines
 # pylint: disable=duplicate-code
 
 from typing import Any
@@ -29,6 +160,7 @@ from ..typing import ROW_MAJOR
 from ..typing import AnyData
 from ..typing import FrameInColumns
 from ..typing import FrameInRows
+from ..typing import Matrix
 from ..typing import MatrixInRows
 from ..typing import Series
 from ..typing import Vector
@@ -36,6 +168,7 @@ from ..typing import as_layout
 from ..typing import as_matrix
 from ..typing import as_vector
 from ..typing import be_dense_in_rows
+from ..typing import be_matrix
 from ..typing import be_matrix_in_rows
 from ..typing import be_sparse_in_rows
 from ..typing import be_vector
@@ -58,28 +191,226 @@ __all__ = [
 # pylint: disable=protected-access
 
 
+class BaseName:  # pylint: disable=too-few-public-methods
+    """
+    Describe the name of base data of a pipeline.
+    """
+
+    def __init__(self, *, base_name: str, full_name: str, dataset_name: str) -> None:
+        #: The name of the base data (start of pipeline).
+        self.name = base_name
+
+        #: The property to get the data of.
+        self.property: str
+
+        #: The axes to access for the base data (start of pipeline).
+        self.axes: List[str] = []
+
+        #: The entries to pick out of the base axes to get the base data (start of pipeline).
+        self.entries: List[Optional[str]] = []
+
+        #: The number of dimensions of the base data (start of pipeline).
+        self.ndim: int = 0
+
+        #: The number of dimensions of the final result (end of pipeline).
+        self.final_ndim: int = 0
+
+        #: The canonical format of the name.
+        self.canonical: str
+
+        parts = base_name.split(";", 1)
+
+        if len(parts) == 2:
+            for axis in parts[0].split(","):
+                self.axes.append(axis)
+                self.entries.append(None)
+            self.ndim = self.final_ndim = len(self.axes)
+            parts = parts[1:]
+
+        parts = parts[0].split(",")
+        self.property = parts[-1]
+
+        for part in parts[:-1]:
+            axis_parts = part.split("=", 1)
+            axis = axis_parts[0]
+            self.axes.append(axis)
+            if len(axis_parts) == 1:
+                assert len(self.entries) == 0 or self.entries[-1] is None, (
+                    f"specifying entry for the first instead of the second axis in the base data name: {base_name} "
+                    f"in the data name: {full_name} "
+                    f"for the data set: {dataset_name}"
+                )
+                self.entries.append(None)
+                self.ndim += 1
+            else:
+                self.entries.append(axis_parts[1])
+
+        assert len(self.axes) <= 2, (
+            f"{self.ndim}D base data name: {base_name} "
+            f"in the data name: {full_name} "
+            f"for the data set: {dataset_name}"
+        )
+
+        self._finalize()
+
+    def _finalize(self) -> None:
+        if len(self.entries) == 2 and self.entries[0] is None and self.entries[1] is not None:
+            self.axes.reverse()
+            self.entries.reverse()
+
+        if self.ndim == 0:
+            if len(self.axes) == 0:
+                self.canonical = self.property
+            elif len(self.axes) == 1:
+                assert self.entries[0] is not None
+                self.canonical = f"{self.axes[0]}={self.entries[0]},{self.property}"
+            else:
+                assert len(self.axes) == 2
+                assert self.entries[0] is not None
+                assert self.entries[1] is not None
+                sorted_axes = self.axes
+                sorted_entries = self.entries
+                if sorted_axes[0] > sorted_axes[1]:
+                    sorted_axes.reverse()
+                    sorted_entries.reverse()
+                self.canonical = (
+                    f"{sorted_axes[0]}={sorted_entries[0]},{sorted_axes[1]}={sorted_entries[1]},{self.property}"
+                )
+
+        elif self.ndim == 1:
+            if len(self.axes) == 1:
+                assert self.entries[0] is None
+                self.canonical = f"{self.axes[0]};{self.property}"
+            else:
+                assert len(self.axes) == 2
+                assert self.entries[0] is not None
+                assert self.entries[1] is None
+                self.canonical = f"{self.axes[0]};{self.axes[1]}={self.entries[1]},{self.property}"
+
+        else:
+            assert len(self.axes) == 2
+            assert self.entries[0] is None
+            assert self.entries[1] is None
+            self.canonical = f"{self.axes[0]},{self.axes[1]};{self.property}"
+
+
+class OperationName:  # pylint: disable=too-few-public-methods
+    """
+    Describe the name of an operation in a pipeline.
+    """
+
+    def __init__(self, *, operation_name: str, input_ndim: int, full_name: str, dataset_name: str) -> None:
+        #: The name of the operation in the pipeline.
+        self.name = operation_name
+
+        #: Whether to cache the results.
+        self.cache = not operation_name.startswith("!")
+        if not self.cache:
+            operation_name = operation_name[1:]
+
+        assert input_ndim > 0, (
+            f"0D input for the operation: {self.name}"
+            f"in the data name: {full_name} "
+            f"for the data set: {dataset_name}"
+        )
+
+        parts = operation_name.split(",")
+
+        #: The name of the operation.
+        self.operation = parts[0]
+
+        #: The parameters of the operation.
+        self.kwargs: Dict[str, str] = {}
+
+        for part in parts[1:]:
+            key, value = part.split("=", 1)
+            assert key not in self.kwargs, (
+                f"repeated parameter: {key} "
+                f"for the operation: {self.name} "
+                f"in the data name: {full_name} "
+                f"for the data set: {dataset_name}"
+            )
+            self.kwargs[key] = value
+
+        klass = _operations.Operation._registry.get(self.operation)
+        assert (
+            klass is not None
+        ), f"unknown operation: {self.name} in the data name: {full_name} for the data set: {dataset_name}"
+
+        #: The class implementing the operation.
+        self.klass = klass
+
+        #: Whether this operation is a `.Reduction`.
+        self.is_reduction = _operations.Reduction in klass.mro()
+
+        if self.is_reduction:
+            #: The number of dimensions of the result.
+            self.ndim = input_ndim - 1
+        else:
+            self.ndim = input_ndim
+
+
+class ParsedName:  # pylint: disable=too-few-public-methods
+    """
+    Parse a full data name.
+    """
+
+    def __init__(self, *, full_name: str, dataset_name: str) -> None:
+        parts = full_name.split("|")
+
+        #: The name of the base data.
+        self.base = BaseName(base_name=parts[0], full_name=full_name, dataset_name=dataset_name)
+
+        #: The number of dimensions of the result.
+        self.ndim = self.base.ndim
+
+        #: The names of the pipeline operations.
+        self.operations: List[OperationName] = []
+
+        for part in parts[1:]:
+            operation = OperationName(
+                operation_name=part, input_ndim=self.ndim, full_name=full_name, dataset_name=dataset_name
+            )
+            self.operations.append(operation)
+            self.ndim = operation.ndim
+
+        assert self.ndim == self.base.final_ndim, (
+            f"expected {self.base.final_ndim}D result "
+            f"but got a {self.ndim}D result "
+            f"from the data name: {full_name} "
+            f"for the data set: {dataset_name} "
+        )
+
+
 class PipelineState:  # pylint: disable=too-few-public-methods
     """
     State while evaluating an operations pipeline.
     """
 
-    def __init__(  # pytest: disable=too-many-arguments
-        self, *, data: Any, ndim: int, axes: Tuple[str, str], source_name: str, canonical: str
-    ) -> None:
+    def __init__(self, base_name: BaseName, base_data: Any) -> None:
+        assert base_name.ndim > 0
+        assert base_name.ndim == base_data.ndim
+
         #: The data we have computed so far.
-        self.data = data
+        self.data = base_data
 
         #: The number of dimensions in the data.
-        self.ndim = ndim
+        self.ndim = base_data.ndim
 
-        #: The original 2D axes. For 1D data, only the 1st axis is meaningful.
-        self.axes = axes
+        if base_name.ndim == 2:
+            #: The original 2D axes. For 1D data, only the 1st axis is meaningful.
+            self.axes = (base_name.axes[0], base_name.axes[1])
+        else:
+            self.axes = (base_name.axes[0], base_name.axes[0])
 
         #: The pipeline so far (for error messages).
-        self.pipeline = source_name
+        self.pipeline = base_name.name
 
         #: The canonical name of the data for caching it in the ``derived`` storage.
-        self.canonical = canonical
+        self.canonical = base_name.canonical
+
+        #: Whether to allow caching at all.
+        self.allow_cache = base_name.ndim == len(base_name.axes)
 
 
 class DafReader:  # pylint: disable=too-many-public-methods
@@ -237,29 +568,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Access a 0D data item from the data set (which must exist) by its ``name``.
 
-        If the ``name`` contains ``|``, than it should be in the format ``axis;name|operation|operation|...`` or
-        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
-        ``Name,param=value,...``. Since we are getting a 0D data item, the pipeline should contain `.Reduction`
-        operation(s) that convert the raw input data all the way down to a scalar, e.g. ``axis;name|Sum`` or
-        ``rows_axis,columns_axis;name|Sum|Sum``. Any 1D/2D data computed by the pipeline will be cached in the
-        ``derived`` storage so it would not have to be re-computed if used in a following ``get_...`` call. You can
-        disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific
-        operation by using ``|!Name,...`` instead of ``|Name,...``.
-
-        If the ``axis`` part of the name contains ``=``, then it specifies a single value to use in the axis, for
-        example ``type=T;color`` will access the color assigned to the ``T`` cell type. This can be used to access a
-        single item of 2D data as in ``cell=ACTG,gene=SOX8;UMIs" will access the UMIs count of the ``SOX8`` gene in the
-        cell whose name is ``ACTG``. Finally, this can be used as a basis for a ``I`` operation, e.g.
-        ``cell=ACTG,gene;UMIs|Sum`` will return the sum of all the UMIs of all the genes of the cell whose name is
-        ``ACTG``.
-
-        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
-        packages.
+        The name is the name of some 0D data as described :ref:`above <0d_names>`.
         """
-        if "|" in name or ("=" in name and ";" in name):
-            return self._get_complex(name, 0)
-        assert self.has_item(name), f"missing item: {name} in the data set: {self.name}"
-        return self.chain._get_item(name)
+        parsed_name = ParsedName(full_name=name, dataset_name=self.name)
+        assert (
+            parsed_name.ndim == 0
+        ), f"{parsed_name.ndim}D data name: {name} given to get_item for the data set: {self.name}"
+        return self._get_parsed(parsed_name)
 
     def axis_names(self) -> List[str]:
         """
@@ -333,62 +648,22 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Get the ``name`` 1D data (which must exist) as a `.Vector`.
 
-        The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
-
-        If the ``name`` contains ``|``, than it should be in the format ``axis;name|operation|operation|...`` or
-        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
-        ``Name,param=value,...``. Since we are getting a 1D data item, if the ``name`` starts with a 2D data name, one
-        of the operations should be a `.Reduction` converts its input down to a vector of one entry per row of its
-        input, e.g. ``rows_axis,columns_axis;name|Sum`` is equivalent to R's ``rowSums``. Any 1D/2D data computed by the
-        pipeline will be cached in the ``derived`` storage so it would not have to be re-computed if used in a following
-        ``get_...`` call. You can disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the
-        constructor, or for a specific operation by using ``|!Name,...`` instead of ``|Name,...``.
-
-        If the ``axis`` part of the name contains ``=``, then it specifies a single value to use in the axis, for
-        example ``cell=ACTG,gene;UMIs`` will access the vector of UMIs counts for all the genes of the cell whose name
-        is ``ACTG``. In this case the order of the axes doesn't mater (that is, the same result will be obtained by
-        asking for ``gene,cell=ACTG;UMIs``. Finally, this can be used as a basis for a ``I`` operation, e.g.
-        ``cell=ACTG,gene;folds|Abs`` will return the absolute value of all the fold factos of all the genes of the cell
-        whose name is ``ACTG``.
-
-        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
-        packages.
+        The name is the name of some 1D data as described :ref:`above <1d_names>`.
         """
-        assert ";" in name, f"0D name: {name} for: get_vector for the data set: {self.name}"
-        if "|" in name or "=" in name:
-            return be_vector(self._get_complex(name, 1))
-        axis = prefix(name, ";")
-        axes = axis.split(",")
-        assert len(axes) == 1, f"{len(axes)}D name: {name} for: get_vector for the data set: {self.name}"
-        assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
-        assert self.has_data1d(name), f"missing 1D data: {name} in the data set: {self.name}"
-        return freeze(optimize(be_vector(as_vector(self.chain._get_data1d(axis, name)), size=self.axis_size(axis))))
+        parsed_name = ParsedName(full_name=name, dataset_name=self.name)
+        assert (
+            parsed_name.ndim == 1
+        ), f"{parsed_name.ndim}D data name: {name} given to get_vector for the data set: {self.name}"
+        return be_vector(self._get_parsed(parsed_name))
 
     def get_series(self, name: str) -> Series:
         """
         Get the ``name`` 1D data (which must exist) as a ``pandas.Series``.
 
-        The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
-
-        The ``axis`` entries will form the index of the series; if getting a pipeline, starting with 2D data, the index
-        of the series will be the entries of the ``rows_axis``.
-
-        If the ``name`` contains ``|``, than it should be in the format ``axis;name|operation|operation|...`` or
-        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
-        ``Name,param=value,...``. Since we are getting a 1D data item, if the ``name`` starts with a 2D data name, one
-        of the operations should be a `.Reduction` converts its input down to a vector of one entry per row of its
-        input, e.g. ``rows_axis,columns_axis;name|Sum`` is equivalent to R's ``rowSums``. Any 1D/2D data computed by the
-        pipeline will be cached in the ``derived`` storage so it would not have to be re-computed if used in a following
-        ``get_...`` call. You can disable this globally by speciying a `.NO_STORAGE` ``derived`` storage in the
-        constructor, or for a specific operation by using ``|!Name,...`` instead of ``|Name,...``.
-
-        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
-        packages.
+        The name is the name of some 1D data as described :ref:`above <1d_names>`.
         """
         vector = self.get_vector(name)
-        axis = name
-        for separator in ("=", ",", ";", "|"):
-            axis = prefix(axis, separator)
+        axis = prefix(name, ";")
         index = self.axis_entries(axis)
         return freeze(optimize(pd.Series(vector, index=index)))
 
@@ -434,88 +709,27 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Get the ``name`` 2D data (which must exist) as a `.MatrixInRows`.
 
-        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
-
-        If this required us to re-layout the raw stored data, we cache the result in the ``derived`` storage.
-
-        If the ``name`` contains ``|``, than it should be in the format
-        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
-        ``Name,param=value,...``. Since we are getting a 2D data item, all the operations must be `.ElementWise`
-        operations. Any 2D data computed by the pipeline will be cached in the ``derived`` storage so it would not have
-        to be re-computed if used in a following ``get_...`` call. You can disable this globally by speciying a
-        `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific operation by using ``|!Name,...``
-        instead of ``|Name,...``.
-
-        The data will always be returned in `.ROW_MAJOR` order, that is, either as a ``numpy`` `.DenseInRows` or as a
-        ``scipy.sparse`` `.SparseInRows`, depending on how it is stored. The caller is responsible for distinguishing
-        between these two cases (e.g. using `.is_sparse` and/or `.is_dense`) to pick a code path for processing the
-        data, as these two types don't really provide the same set of operations.
-
-        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
-        packages.
+        The name is the name of some 2D data as described :ref:`above <2d_names>`.
         """
-        assert ";" in name, f"0D name: {name} for: get_matrix for the data set: {self.name}"
-        if "|" in name or "=" in name:
-            return be_matrix_in_rows(self._get_complex(name, 2))
-        axes_names, simple_name = name.split(";", 1)
-        axes = axes_names.split(",")
-        assert len(axes) == 2, f"{len(axes)}D name: {name} for: get_matrix for the data set: {self.name}"
-        assert self.has_axis(axes[0]), f"missing axis: {axes[0]} in the data set: {self.name}"
-        assert self.has_axis(axes[1]), f"missing axis: {axes[1]} in the data set: {self.name}"
-        assert self.has_data2d(name), f"missing 2D data: {name} in the data set: {self.name}"
-
-        transposed_name: Optional[str] = None
-        if self.chain.has_data2d(name):
-            data2d = self.chain.get_data2d(name)
-            matrix = as_matrix(data2d)
-        else:
-            transposed_name = f"{axes[1]},{axes[0]};{simple_name}"
-            data2d = self.chain.get_data2d(transposed_name)
-            matrix = as_matrix(data2d).transpose()
-
-        if is_matrix_in_rows(matrix):
-            matrix_in_rows = matrix
-        else:
-            transposed_name = transposed_name or f"{axes[1]},{axes[0]};{simple_name}"
-            if not self.chain.has_data2d(transposed_name):
-                transposed_matrix = be_matrix_in_rows(matrix.transpose())
-                self.derived.set_matrix(transposed_name, freeze(optimize(transposed_matrix)))
-            matrix_in_rows = as_layout(matrix, ROW_MAJOR)
-
-        matrix_in_rows = freeze(optimize(matrix_in_rows))
-        if id(matrix_in_rows) != id(data2d):
-            self.derived.set_matrix(name, matrix_in_rows)
-
-        return be_matrix_in_rows(matrix_in_rows, shape=(self.axis_size(axes[0]), self.axis_size(axes[1])))
+        parsed_name = ParsedName(full_name=name, dataset_name=self.name)
+        assert (
+            parsed_name.ndim == 2
+        ), f"{parsed_name.ndim}D data name: {name} given to get_matrix for the data set: {self.name}"
+        return be_matrix_in_rows(self._get_parsed(parsed_name))
 
     def get_frame(self, name: str) -> FrameInRows:
         """
         Get the ``name`` 2D data (which must exist) as a ``pandas.DataFrame``.
 
-        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
-
-        If the ``name`` contains ``|``, than it should be in the format
-        ``rows_axis,columns_axis;name|operation|operation|...``, where each ``operation`` should be of the form
-        ``Name,param=value,...``. Since we are getting a 2D data item, all the operation must be `.ElementWise`
-        operations. Any 2D data computed by the pipeline will be cached in the ``derived`` storage so it would not have
-        to be re-computed if used in a following ``get_...`` call. You can disable this globally by speciying a
-        `.NO_STORAGE` ``derived`` storage in the constructor, or for a specific operation by using ``|!Name,...``
-        instead of ``|Name,...``.
-
-        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
-        packages.
-
-        The data will always be returned in `.ROW_MAJOR` order as a ``numpy`` `.DenseInRows`. Due to ``pandas``
-        limitations, if the data is stored as a ``scipy.sparse.spmatrix``, it will be converted to a dense ``numpy`` 2D
-        array, which will be cached in ``derived``, as if the ``name`` was suffixed by ``|`` `.Densify`. If you wish to
-        disable this caching, explicitly add ``|!Densify`` to the end of the name.
+        The name is the name of some 2D data as described :ref:`above <2d_names>`.
 
         .. note::
 
-          This (and using `.Densify` in general) should be restricted to cases where the data is known to be "not too
-          big". For example, it would be a **bad** idea to ask for a frame of the UMIs of all genes of all cells in a
-          data set with ~2M cells and ~30K genes, forcing a dense representation with a size of ~240GB, which is ~40
-          times the "mere" ~6GB needed to represent the sparse data.
+            Storing `.Sparse` data in a ``pandas.DataFrame`` fails in various unpleasant ways. Therefore, data for
+            ``get_frame`` is always returned in a `.Dense` format. Do **not** call ``get_frame`` unless you are certain
+            that the data size is "within reason", or that the data is memory-mapped from a `.Dense` format on disk. In
+            one of our data sets, calling ``get_frame("cell,gene;UMIs")`` would result in creating a ``numpy.ndarray``
+            of ~240GB(!), compared to the "mere" ~6GB needed to hold the data in a ``scipy.csr_matrix``.
         """
         name += "|Densify"
         dense = be_dense_in_rows(self.get_matrix(name))
@@ -533,15 +747,11 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         The returned data will always be in `.COLUMN_MAJOR` order.
 
-        If no ``columns`` are specified, returns all the 1D data for the ``axis``, in alphabetical order (that is, as if
-        ``columns`` was set to `.data1d_names` with ``full=False`` for the ``axis``).
+        If no ``columns`` are specified, returns all the 1D properties for the ``axis``, in alphabetical order (that is,
+        as if ``columns`` was set to `.data1d_names` with ``full=False`` for the ``axis``).
 
-        The specified ``columns`` names should only be the simple name of each column (possibly followed by
-        ``|operation|operation...`` to invoke a pipeline of `.ElementWise` operations). These names will be used as the
-        column names of the frame, and the axis entries will be used as the index of the frame.
-
-        See `.operations` for the list of built-in operations. Additional operations can be offered by other Python
-        packages.
+        The specified ``columns`` names should only be the suffix following the ``axis;`` prefix in the 1D name
+        of the data, as described :ref:`above <1d_names>`.
         """
         index = self.axis_entries(axis)
         columns = columns or self.data1d_names(axis, full=False)
@@ -638,114 +848,96 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         return StorageView(self.derived, axes=hide_axes, name=name + ".derived.filtered")
 
-    def _get_complex(self, pipeline: str, result_ndim: int) -> Any:
-        step_texts = pipeline.split("|")
-        source_name = step_texts[0]
-        operation_texts = step_texts[1:]
+    def _get_parsed(self, parsed_name: ParsedName) -> Any:
+        base_data = self._get_base_data(parsed_name.base)
 
-        assert (
-            ";" in source_name
-        ), f"0D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
+        if len(parsed_name.operations) == 0:
+            return base_data
 
-        axes_names, simple_name = source_name.split(";", 1)
-        axes = axes_names.split(",")
-        assert (
-            1 <= len(axes) <= 2
-        ), f"{len(axes)}D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
-
-        (item, pipeline_state, allow_cache) = (
-            self._1d_pipeline_state(axes[0], simple_name, source_name, pipeline, operation_texts)
-            if len(axes) == 1
-            else self._2d_pipeline_state(axes, simple_name, source_name, pipeline, operation_texts)
-        )
-        if pipeline_state is None:
-            return item
-
-        for operation_text in operation_texts:
-            self._pipeline_step(pipeline_state, operation_text, allow_cache)
-
-        method = ["get_item", "get_vector", "get_matrix"][result_ndim]
-        assert pipeline_state.ndim == result_ndim, (
-            f"got: {pipeline_state.ndim}D data instead of the expected: {result_ndim}D data for the method: {method} "
-            f"from the pipeline: {pipeline} for the data set: {self.name}"
-        )
+        pipeline_state = PipelineState(parsed_name.base, base_data)
+        for operation_name in parsed_name.operations:
+            self._pipeline_step(pipeline_state, operation_name)
 
         return pipeline_state.data
 
-    def _1d_pipeline_state(  # pylint: disable=too-many-arguments
-        self, axis: str, simple_name: str, source_name: str, pipeline: str, operation_texts: List[str]
-    ) -> Tuple[Any, Optional[PipelineState], bool]:
-        index: Optional[int] = None
-        if "=" in axis:
-            assert (
-                len(operation_texts) == 0
-            ), f"0D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
-            axis, entry = axis.split("=", 1)
-            index = self.axis_index(axis, entry)
+    def _get_base_data(self, base_name: BaseName) -> Any:
+        if len(base_name.axes) == 0:
+            return self._get_base_item(base_name)
 
-        data = self.get_vector(f"{axis};{simple_name}")
-        if index is not None:
-            return (data[index], None, False)
+        if len(base_name.axes) == 1:
+            return self._get_base_vector(base_name)
 
-        axes = (axis, axis)
-        return (None, PipelineState(data=data, ndim=1, axes=axes, source_name=source_name, canonical=source_name), True)
+        assert len(base_name.axes) == 2
+        return self._get_base_matrix(base_name)
 
-    def _2d_pipeline_state(  # pylint: disable=too-many-arguments
-        self, axes: List[str], simple_name: str, source_name: str, pipeline: str, operation_texts: List[str]
-    ) -> Tuple[Any, Optional[PipelineState], bool]:
-        row_index: Optional[int] = None
-        column_index: Optional[int] = None
+    def _get_base_item(self, base_name: BaseName) -> Any:
+        assert self.has_item(base_name.property), f"missing item: {base_name.property} in the data set: {self.name}"
+        return self.chain._get_item(base_name.property)
 
-        if "=" in axes[0]:
-            axes[0], row_entry = axes[0].split("=", 1)
-            row_index = self.axis_index(axes[0], row_entry)
-        if "=" in axes[1]:
-            axes[1], column_entry = axes[1].split("=", 1)
-            column_index = self.axis_index(axes[1], column_entry)
+    def _get_base_vector(self, base_name: BaseName) -> Any:
+        axis = base_name.axes[0]
+        size = self.axis_size(axis)
+        entry = base_name.entries[0]
+        index = None if entry is None else self.axis_index(axis, entry)
+        name = f"{axis};{base_name.property}"
+        assert self.chain.has_data1d(name), f"missing 1D data: {name} in the data set: {self.name}"
 
-        if row_index is not None and column_index is not None:
-            assert (
-                len(operation_texts) == 0
-            ), f"0D source: {source_name} for the pipeline: {pipeline} for the data set: {self.name}"
-            data = self.get_matrix(f"{axes[0]},{axes[1]};{simple_name}")
-            return (data[row_index, column_index], None, False)
+        base_vector = freeze(optimize(be_vector(as_vector(self.chain._get_data1d(axis, name)), size=size)))
 
-        if column_index is not None:
-            axes = [axes[1], axes[0]]
-            row_entry = column_entry
-            row_index = column_index
+        if index is None:
+            return base_vector
+        return base_vector[index]
 
-        data = self.get_matrix(f"{axes[0]},{axes[1]};{simple_name}")
+    def _get_base_matrix(self, base_name: BaseName) -> Any:
+        base_data2d: Any
+        base_matrix: Optional[Matrix] = None
+        base_matrix_in_rows: Optional[MatrixInRows] = None
+
+        rows_axis, columns_axis = base_name.axes
+        rows_size = self.axis_size(rows_axis)
+        columns_size = self.axis_size(columns_axis)
+        row_entry, column_entry = base_name.entries
+        row_index = None if row_entry is None else self.axis_index(rows_axis, row_entry)
+        column_index = None if column_entry is None else self.axis_index(columns_axis, column_entry)
+        name = f"{rows_axis},{columns_axis};{base_name.property}"
+
+        if self.chain.has_data2d(name):
+            base_data2d = self.chain.get_data2d(name)
+            base_matrix = be_matrix(as_matrix(base_data2d), shape=(rows_size, columns_size))
+            if is_matrix_in_rows(base_matrix):
+                base_matrix_in_rows = base_matrix
+
+        if base_matrix_in_rows is None:
+            transposed_name = f"{columns_axis},{rows_axis};{base_name.property}"
+            if self.chain.has_data2d(transposed_name):
+                base_data2d = self.chain.get_data2d(transposed_name)
+                base_matrix = be_matrix(as_matrix(base_data2d).transpose(), shape=(rows_size, columns_size))
+                if is_matrix_in_rows(base_matrix):
+                    base_matrix_in_rows = base_matrix
+
+        if base_matrix_in_rows is None:
+            assert base_matrix is not None, f"missing 2D data: {name} in the data set: {self.name}"
+            base_matrix_in_rows = as_layout(base_matrix, ROW_MAJOR)
+
+        base_matrix_in_rows = freeze(optimize(base_matrix_in_rows))
+        if id(base_matrix_in_rows) != id(base_data2d):
+            self.derived.set_matrix(name, base_matrix_in_rows)
+
         if row_index is None:
-            return (
-                None,
-                PipelineState(
-                    data=data, ndim=2, axes=(axes[0], axes[1]), source_name=source_name, canonical=source_name
-                ),
-                True,
-            )
+            assert column_index is None
+            return base_matrix_in_rows
 
-        return (
-            None,
-            PipelineState(
-                data=data[row_index, :],
-                ndim=1,
-                axes=(axes[0], axes[1]),
-                source_name=source_name,
-                canonical=f"{axes[1]};{axes[0]}={row_entry},{simple_name}",
-            ),
-            False,
-        )
+        if column_index is None:
+            return as_vector(base_matrix_in_rows[row_index, :])
 
-    def _pipeline_step(self, pipeline_state: PipelineState, operation_text: str, allow_cache: bool) -> None:
-        pipeline_state.pipeline += "|" + operation_text
+        return base_matrix_in_rows[row_index, column_index]
 
-        cache = not operation_text.startswith("!")
-        if not cache:
-            operation_text = operation_text[1:]
-        cache = cache and allow_cache
+    def _pipeline_step(self, pipeline_state: PipelineState, operation_name: OperationName) -> None:
+        pipeline_state.pipeline += "|" + operation_name.name
 
-        operation_object = self._operation_object(pipeline_state, operation_text)
+        operation_object = operation_name.klass(_input_dtype=str(pipeline_state.data.dtype), **operation_name.kwargs)
+        assert isinstance(operation_object, (_operations.ElementWise, _operations.Reduction))
+
         canonical_before = pipeline_state.canonical
         pipeline_state.canonical += "|" + operation_object.canonical
 
@@ -755,6 +947,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
                 pipeline_state.canonical = pipeline_state.canonical.replace(",", ";", 1)
             pipeline_state.ndim -= 1
 
+        cache = operation_name.cache and pipeline_state.allow_cache
         if self._fetch_derived(pipeline_state):
             cache = False
         elif isinstance(operation_object, _operations.Reduction):
@@ -775,37 +968,6 @@ class DafReader:  # pylint: disable=too-many-public-methods
                 self.derived.set_vector(pipeline_state.canonical, be_vector(pipeline_state.data))
             else:
                 self.derived.set_item(pipeline_state.canonical, pipeline_state.data)
-
-    def _operation_object(
-        self, pipeline_state: PipelineState, operation_text: str
-    ) -> Union[_operations.ElementWise, _operations.Reduction]:
-        operation_parts = operation_text.split(",")
-        operation_name = operation_parts[0]
-        parameters = operation_parts[1:]
-
-        assert pipeline_state.ndim != 0, (
-            f"0D input for the operation: {operation_name} "
-            f"in the pipeline: {pipeline_state.pipeline} for the data set: {self.name}"
-        )
-
-        operation_class = _operations.Operation._registry.get(operation_name)
-        assert operation_class is not None, (
-            f"missing operation: {operation_name} "
-            f"in the pipeline: {pipeline_state.pipeline} for the data set: {self.name}"
-        )
-
-        kwargs: Dict[str, str] = {}
-        for parameter in parameters:
-            parameter_parts = parameter.split("=")
-            assert len(parameter_parts) == 2, (
-                f"invalid operation parameter: {parameter} for the operation: {operation_name} "
-                f"in the pipeline: {pipeline_state.pipeline} for the data set: {self.name}"
-            )
-            kwargs[parameter_parts[0]] = parameter_parts[1]
-
-        operation_object = operation_class(_input_dtype=str(pipeline_state.data.dtype), **kwargs)
-        assert isinstance(operation_object, (_operations.ElementWise, _operations.Reduction))
-        return operation_object
 
     def _fetch_derived(self, pipeline_state: PipelineState) -> bool:
         if pipeline_state.ndim == 2 and self.derived.has_data2d(pipeline_state.canonical):

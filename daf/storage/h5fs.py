@@ -34,9 +34,9 @@ A ``daf`` group inside an ``h5fs`` file will contain the following data sets:
 
 * For axes, there will be an ``axis;`` data set containing the unique names of the entries along the axis.
 
-* For 1D data, there will be an ``axis;name`` data set containing the data.
+* For 1D data, there will be an ``axis;property`` data set containing the data.
 
-* For dense 2D data, there will be a ``row_axis,column_axis;name`` data set containing the data.
+* For dense 2D data, there will be a ``row_axis,column_axis;property`` data set containing the data.
 
 .. note::
 
@@ -47,7 +47,7 @@ A ``daf`` group inside an ``h5fs`` file will contain the following data sets:
     ``None`` value. So do **not** use this magic string value in arrays of strings you pass to ``daf``, and don't be
     surprised if you see this value if you access the data directly from ``h5fs``. Sigh.
 
-* For sparse 2D data, there will be a group ``row_axis,column_axis;name`` which will contain three data sets:
+* For sparse 2D data, there will be a group ``row_axis,column_axis;property`` which will contain three data sets:
   ``data``, ``indices`` and ``indptr``, needed to construct the sparse ``scipy.sparse.csr_matrix``. The group will have
   a ``shape`` attribute whose value is an array of two integers, the rows count and the columns count of the matrix.
 
@@ -208,16 +208,16 @@ class H5fsReader(_interface.StorageReader):
                 continue
 
             if name.endswith(";"):
-                name = name[:-1]
+                axis = name[:-1]
                 if isinstance(data, Dataset):
-                    self._axes[name] = data
-                    self._vectors[name] = {}
+                    self._axes[axis] = data
+                    self._vectors[axis] = {}
                     for other_axis in self._axes:
-                        self._matrices[(name, other_axis)] = {}
-                        self._matrices[(other_axis, name)] = {}
+                        self._matrices[(axis, other_axis)] = {}
+                        self._matrices[(other_axis, axis)] = {}
                 continue
 
-            axis = name.split(";")[0]
+            axis = _interface.prefix(name, ";")
             if "," not in axis:
                 if isinstance(data, Dataset):
                     vector_data.append((axis, name, data))

@@ -6,9 +6,11 @@ Logically and operationally this is a distinct data type from a generic data fra
 data type (that is, a "real" data frame). Since ``pandas`` does not make this distinction, even if/when it provides
 ``mypy`` annotations, we'd still need to set up the types here (similar to the problem with ``numpy.ndarray``).
 
-In theory it should have been possible to store sparse data inside a ``pandas.DataFrame``, but in practice this fails in
-various ways, so **don't**. When fetching data from ``daf``, frames will alway contain dense (``numpy.ndarray`` 2D)
-data.
+.. note::
+
+    In theory it should have been possible to store sparse data inside a ``pandas.DataFrame``, but in practice this
+    fails in various ways, so **don't**. When fetching data from ``daf``, frames will alway contain dense
+    (``numpy.ndarray`` 2D) data.
 """
 
 # pylint: disable=duplicate-code,cyclic-import

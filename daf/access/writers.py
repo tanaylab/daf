@@ -1,6 +1,9 @@
 """
 Write API for ``daf`` data sets.
 
+All names used for ``set_*`` methods are simple ``property``, ``axis;property`` or ``rows_axis,columns_axis;property``
+names. This is in contrast to `.DafReader` ``get_*`` methods which accept much more complex names.
+
 .. note::
 
     Since ``daf`` aggressively caches data derived from the stored data, the only safe operation is to add new data to a

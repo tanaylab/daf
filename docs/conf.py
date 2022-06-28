@@ -244,7 +244,7 @@ texinfo_documents = [
      'DAF Documentation',
      author,
      'daf',
-     'One line description of project.',
+     'Data in Axes in Formats.',
      'Miscellaneous'),
 ]
 
