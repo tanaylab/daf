@@ -431,15 +431,27 @@ class FilesWriter(FilesReader, _interface.StorageWriter):
 
     If ``name`` is not specified, the ``path`` is used instead, adding a trailing ``/`` to ensure no ambiguity if/when
     the name is suffixed later. If the name ends with ``#``, we append the object id to it to make it unique.
+
+    If ``copy`` is specified, it is copied into the directory, using the ``overwrite``.
     """
 
-    def __init__(self, path: str, *, name: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        path: str,
+        *,
+        name: Optional[str] = None,
+        copy: Optional[_interface.StorageReader] = None,
+        overwrite: bool = False,
+    ) -> None:
         if not isdir(path):
             mkdir(path)
             with open(f"{path}/__daf__.yaml", "w", encoding="utf-8") as yaml_file:
                 dump_yaml(dict(version=[1, 0]), yaml_file)
 
         super().__init__(path, name=name)
+
+        if copy is not None:
+            self.update(copy, overwrite=overwrite)
 
     def _set_item(self, name: str, item: Any) -> None:
         with open(f"{self.path}/{name}.yaml", "w", encoding="utf-8") as yaml_file:

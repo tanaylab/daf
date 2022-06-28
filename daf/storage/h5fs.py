@@ -107,6 +107,7 @@ from typing import Collection
 from typing import Dict
 from typing import Generator
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -354,12 +355,25 @@ class H5fsWriter(H5fsReader, _interface.StorageWriter):
     Implement the `.StorageWriter` interface for simple files storage inside an empty ``group`` in an ``h5fs`` file.
 
     If the name ends with ``#``, we append the object id to it to make it unique.
+
+    If ``copy`` is specified, it is copied into the directory, using the ``overwrite``.
     """
 
-    def __init__(self, group: Group, *, name: str = "h5fs#") -> None:
+    def __init__(
+        self,
+        group: Group,
+        *,
+        name: str = "h5fs#",
+        copy: Optional[_interface.StorageReader] = None,
+        overwrite: bool = False,
+    ) -> None:
         if "__daf__" not in group:
             group.create_dataset("__daf__", (2,), dtype="int8")[:] = [1, 0]
+        # pylint: disable=duplicate-code
         super().__init__(group, name=name)
+        if copy is not None:
+            self.update(copy, overwrite=overwrite)
+        # pylint: enable=duplicate-code
 
     def _set_item(self, name: str, item: Any) -> None:
         self._items[name] = item

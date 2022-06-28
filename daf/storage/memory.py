@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 from typing import Collection
 from typing import Dict
+from typing import Optional
 from typing import Tuple
 
 from ..typing import Known1D
@@ -106,17 +107,24 @@ class MemoryStorage(_MemoryReader, _interface.StorageWriter):
 
     If the ``name`` ends with ``#``, we append the object id to it to make it unique.
 
+    If ``copy`` is specified, it is copied into the directory, using the ``overwrite``.
+
     .. note::
 
         This just keeps a reference to the data it is given, so care must be taken not to mess it up after it has been
         put into the storage. It does `.freeze` it to prevent accidental modifications.
     """
 
-    def __init__(self, *, name: str = "memory#") -> None:
+    def __init__(
+        self, *, name: str = "memory#", copy: Optional[_interface.StorageReader] = None, overwrite: bool = False
+    ) -> None:
         if name.endswith("#"):
             name += str(id(self))
-
+        # pylint: disable=duplicate-code
         super().__init__(name=name)
+        if copy is not None:
+            self.update(copy, overwrite=overwrite)
+        # pylint: enable=duplicate-code
 
     def _set_item(self, name: str, item: Any) -> None:
         self._items[name] = item

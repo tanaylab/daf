@@ -40,6 +40,7 @@ We use the following scheme to map between ``daf`` data and ``AnnData`` fields:
 
 from typing import Any
 from typing import Collection
+from typing import Optional
 from typing import Tuple
 
 import numpy as np
@@ -228,6 +229,9 @@ class AnnDataWriter(AnnDataReader, _interface.StorageWriter):
     """
     Implement the `.StorageWriter` interface for ``AnnData``.
 
+    If ``copy`` is specified, it is copied into the ``AnnData``, using the ``overwrite``. This requires the ``copy`` to
+    have ``obs`` and ``var`` axes. Typically you would be better off calling `.storage_as_anndata`.
+
     .. note::
 
         Do **not** modify the wrapped ``AnnData`` after creating a writer (other than through the writer object).
@@ -235,6 +239,18 @@ class AnnDataWriter(AnnDataReader, _interface.StorageWriter):
 
         Setting large 2D data for axes other than ``obs`` and ``var`` will be inefficient.
     """
+
+    def __init__(
+        self,
+        adata: AnnData,
+        *,
+        name: str = "anndata#",
+        copy: Optional[_interface.StorageReader] = None,
+        overwrite: bool = False,
+    ) -> None:
+        super().__init__(adata, name=name)
+        if copy is not None:
+            self.update(copy, overwrite=overwrite)
 
     def _set_item(self, name: str, item: Any) -> None:
         self.adata.uns[name] = item
