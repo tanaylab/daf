@@ -147,6 +147,7 @@ from typing import Union
 
 import numpy as np
 import pandas as pd  # type: ignore
+import yaml  # type: ignore
 
 from ..storage import AxisView
 from ..storage import MemoryStorage
@@ -458,6 +459,12 @@ class DafReader:  # pylint: disable=too-many-public-methods
         for axis in self.base.axis_names():
             if not self.derived.has_axis(axis):
                 self.derived.create_axis(axis, freeze(optimize(as_vector(self.chain.axis_entries(axis)))))
+
+    def __str__(self) -> str:
+        return f"<{self.__class__.__module__}.{self.__class__.__qualname__} at {id(self)} called {self.name}>"
+
+    def __repr__(self) -> str:
+        return yaml.dump(self.description(detail=True), width=99999, sort_keys=False).strip()
 
     def as_reader(self) -> "DafReader":
         """

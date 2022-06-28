@@ -37,6 +37,7 @@ from typing import Tuple
 from typing import Union
 
 import numpy as np
+import yaml  # type: ignore
 
 from ..typing import FIXED_DTYPES
 from ..typing import ROW_MAJOR
@@ -88,6 +89,12 @@ class StorageReader(ABC):
         #: The name of the storage for messages.
         self.name = name
 
+    def __str__(self) -> str:
+        return f"<{self.__class__.__module__}.{self.__class__.__qualname__} at {id(self)} called {self.name}>"
+
+    def __repr__(self) -> str:
+        return yaml.dump(self.description(detail=True), width=99999, sort_keys=False).strip()
+
     def as_reader(self) -> "StorageReader":
         """
         Return the storage as a `.StorageReader`.
@@ -119,10 +126,9 @@ class StorageReader(ABC):
         If ``description`` is provided, collect the result into it. This allows collecting multiple data set
         descriptions into a single overall system state description.
 
-        .. todo::
+        .. note::
 
-            Make the `.StorageReader.description` of a `.StorageView` list the mapping from the exposed and the base
-            names, and some indication of axis slicing.
+            Calling ``repr(storage)`` returns ``yaml.dump(storage.description(detail=True))``.
         """
         description = description or {}
         if self.name in description:
