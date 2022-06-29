@@ -155,7 +155,7 @@ Usage
     significant_genes_mask = genes_masks["significant"]
 
     # Get the total sum of UMIs per cell (and cache it for future requests).
-    cells_umis_sum = data.get_vector("cell,gene;UMIs|Sum")
+    cells_umis_sum = data.get_vector("cell;gene,UMIs|Sum")
 
     #: Slice to include cells with a high number of UMIs and significant genes.
     strong_data = data.view(
