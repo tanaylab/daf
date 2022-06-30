@@ -77,13 +77,12 @@ __all__ = [
 
 @computation(
     required_inputs={
-        "member#group": """
-            The index of the group each member belongs to.
-            If negative, the member is not a part of any group.
-            """,
-        "member#value": "The value associated with each individual member.",
+        "member#": "An axis with one entry per individual group member.",
+        "group#": "An axis with an entry per group of zero or more members.",
+        "member#group": "The index of the group each member belongs to, or negative if not a part of any group.",
+        "member#property": "Some property value associated with each individual member.",
     },
-    assured_outputs={"group#value": "The aggregated value associated with each group."},
+    assured_outputs={"group#property": "The aggregated property value associated with each group."},
 )
 def aggregate_group_data1d(
     data: DafWriter,
@@ -94,8 +93,8 @@ def aggregate_group_data1d(
     overwrite: bool = False,
 ) -> None:
     """
-    Compute a per-group value which is the result of applying the ``aggregation`` function to the vector of values of
-    the members of the group.
+    Compute a per-group property value which is the result of applying the ``aggregation`` function to the vector of
+    values of the members of the group.
 
     The ``aggregation`` function can be any function that converts a vector of all member values into a single group
     value. For example, for discrete data, `.most_frequent` will pick the value that appears in the highest number of
@@ -115,7 +114,7 @@ def aggregate_group_data1d(
     member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
 
-    member_values_series = data.get_series("member#value")
+    member_values_series = data.get_series("member#property")
     grouped = _aggregate_pandas(member_values_series, aggregation, member_groups, dtype)
     grouped = grouped[grouped.index >= 0]
 
@@ -126,15 +125,18 @@ def aggregate_group_data1d(
         group_values = np.full(groups_count, default, dtype=dtype)
         group_values[grouped.index] = grouped.values
 
-    data.set_data1d("group#value", group_values, overwrite=overwrite)
+    data.set_data1d("group#property", group_values, overwrite=overwrite)
 
 
 @computation(
     required_inputs={
-        "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
-        "member,data#value": "The value associated with each individual member and data axis entry.",
+        "member#": "An axis with one entry per individual group member.",
+        "group#": "An axis with an entry per group of zero or more members.",
+        "axis#": "An axis for some 2D property.",
+        "member#group": "The index of the group each member belongs to, or negative if not a part of any group.",
+        "member,axis#property": "The property value associated with each individual member and data axis entry.",
     },
-    assured_outputs={"group,data#value": "The aggregated value associated with each group and data axis entry."},
+    assured_outputs={"group,axis#property": "The aggregated value associated with each group and data axis entry."},
 )
 def aggregate_group_data2d(  # pylint: disable=too-many-locals
     data: DafWriter,
@@ -145,17 +147,17 @@ def aggregate_group_data2d(  # pylint: disable=too-many-locals
     overwrite: bool = False,
 ) -> None:
     """
-    Compute per-group-per-data values which are the result of applying the ``aggregation`` function to the vector of
-    values of the members of the group.
+    Compute per-group-per-axis property values which are the result of applying the ``aggregation`` function to the
+    vector of values of the members of the group.
 
     The ``aggregation`` function can be any function that converts a vector of all member values into a single group
     value. For example, for discrete data, `.most_frequent` will pick the value that appears in the highest number of
     members. An optimized version is used if the ``aggregation`` is one of ``numpy.sum``, ``numpy.mean``, ``numpy.var``,
     ``numpy.std``, ``numpy.median``, ``numpy.min`` or ``numpy.max``.
 
-    The resulting per-group 1D data will have the specified ``dtype``. By default is the same as the data type of of the
-    member values. This is acceptable for an aggregation like ``np.sum``, but would fail for an aggregation like
-    ``np.mean`` for integer data.
+    The resulting per-group-per-axis 2D data will have the specified ``dtype``. By default is the same as the data type
+    of of the member values. This is acceptable for an aggregation like ``np.sum``, but would fail for an aggregation
+    like ``np.mean`` for integer data.
 
     If no members are assigned to some existing group, then it is given the ``default`` value for all entries. By
     default this is ``None`` which is acceptable for floating point values (becomes a ``NaN``), but would fail for
@@ -172,11 +174,10 @@ def aggregate_group_data2d(  # pylint: disable=too-many-locals
     member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
 
-    member_data_values = data.get_matrix("member,data#value")
+    member_data_values = data.get_matrix("member,axis#property")
     dtype = dtype or dtype_of(member_data_values)
     assert dtype is not None
     groups_count = data.axis_size("group")
-    data_count = data.axis_size("data")
 
     if is_dense(member_data_values):
         member_data_values_frame = pd.DataFrame(member_data_values)
@@ -185,10 +186,10 @@ def aggregate_group_data2d(  # pylint: disable=too-many-locals
 
         if grouped.shape[0] == groups_count:
             group_values = grouped.iloc[np.arange(groups_count), :]
-            data.set_data2d("group,data#value", group_values, overwrite=overwrite)
+            data.set_data2d("group,axis#property", group_values, overwrite=overwrite)
 
         else:
-            with data.create_dense_in_rows("group,data#value", dtype=dtype, overwrite=overwrite) as group_values:
+            with data.create_dense_in_rows("group,axis#property", dtype=dtype, overwrite=overwrite) as group_values:
                 group_values[:] = default
                 group_values[grouped.index, :] = grouped.values[:]
 
@@ -202,8 +203,8 @@ def aggregate_group_data2d(  # pylint: disable=too-many-locals
                 grouped = _aggregate_pandas(group_member_data_values_frame, aggregation, same_group, dtype)
                 group_vectors.append(as_vector(grouped))
             else:
-                group_vectors.append(be_vector(np.full(data_count, default)))
-        data.set_data2d("group,data#value", np.vstack(group_vectors), overwrite=overwrite)
+                group_vectors.append(be_vector(np.full(data.axis_size("axis"), default)))
+        data.set_data2d("group,axis#property", np.vstack(group_vectors), overwrite=overwrite)
 
 
 @overload
@@ -285,16 +286,19 @@ def count_group_members(data: DafWriter, *, dtype: DType = "int32", overwrite: b
 
 @computation(
     required_inputs={
+        "member#": "An axis with one entry per individual group member.",
+        "group#": "An axis with an entry per group of zero or more members.",
+        "property#": "An axis with an entry per value of some property.",
         "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
-        "member#value": "The value associated with each individual member.",
+        "member#property": "The property value associated with each individual member.",
     },
-    assured_outputs={"group,value#members": "How many members have each value in each group."},
+    assured_outputs={"group,property#members": "How many members have each property value in each group."},
 )
 def count_group_values(
     data: DafWriter, *, dtype: DType = "int32", dense: bool = False, overwrite: bool = False
 ) -> None:
     """
-    Count how many members of each group have each possible value.
+    Count how many members of each group have each possible property value.
 
     In ``daf``, axis entries always have string values. However, the per-member values 1D data need not contain strings,
     the only requirement is that converting them to strings will match the values axis entry names. This allows us to
@@ -309,16 +313,16 @@ def count_group_values(
     """
     assert is_dtype(dtype, NUM_DTYPES), f"non-numeric dtype: {dtype}"
     groups_count = data.axis_size("group")
-    values_count = data.axis_size("value")
+    values_count = data.axis_size("property")
 
     member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
-    member_values = data.get_vector("member#value")
+    member_values = data.get_vector("member#property")
     grouped_mask = member_groups >= 0
     member_groups = member_groups[grouped_mask]
     member_values = member_values[grouped_mask].astype("str")
 
-    value_entries = data.axis_entries("value")
+    value_entries = data.axis_entries("property")
     sorted_entry_indices = np.argsort(value_entries)
     sorted_value_entries = value_entries[sorted_entry_indices]
     sorted_member_value_indices = np.searchsorted(sorted_value_entries, member_values)
@@ -332,21 +336,22 @@ def count_group_values(
         data2d = data2d.toarray()
     assert has_dtype(data2d, dtype)
 
-    data.set_data2d("group,value#members", data2d, overwrite=overwrite)
+    data.set_data2d("group,property#members", data2d, overwrite=overwrite)
 
 
 @computation(
     required_inputs={
+        "member#": "An axis with one entry per individual group member.",
         "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
-        "group#value": "The value associated with each group.",
+        "group#property": "The property value associated with each group.",
     },
-    assured_outputs={"member#value": "The value associated with the group of each member."},
+    assured_outputs={"member#property": "The property value associated with the group of each member."},
 )
 def assign_group_values(
     data: DafWriter, *, dtype: Optional[DType] = None, default: Any = None, overwrite: bool = False
 ) -> None:
     """
-    Assign the per-group value to each members of the group.
+    Assign the per-group property value to each members of the group.
 
     The resulting per-member 1D data will have the specified ``dtype``. By default is the same as the data type of of
     the group values.
@@ -359,7 +364,7 @@ def assign_group_values(
     assert dtype is None or is_dtype(dtype), f"invalid dtype: {dtype}"
     member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
-    group_values = data.get_vector("group#value")
+    group_values = data.get_vector("group#property")
     dtype = dtype or dtype_of(group_values)
     assert dtype is not None
 
@@ -369,11 +374,12 @@ def assign_group_values(
         group_values = np.concatenate([[default], group_values], dtype=dtype)  # pylint: disable=unexpected-keyword-arg
 
     member_values = group_values.astype(dtype)[member_groups]
-    data.set_data1d("member#value", member_values, overwrite=overwrite)
+    data.set_data1d("member#property", member_values, overwrite=overwrite)
 
 
 @computation(
     required_inputs={
+        "member#": "An axis with one entry per individual group member.",
         "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
     },
     assured_outputs={"group#": "A new axis with one entry per group."},

@@ -66,8 +66,8 @@ def test_assign_group_values() -> None:
     data = sample_data()
     with data.adapter(
         axes=dict(cell="member", metacell="group"),
-        data={"cell#metacell": "group", "metacell#type": "value"},
-        back_data={"member#value": "type"},
+        data={"cell#metacell": "group", "metacell#type": "property"},
+        back_data={"member#property": "type"},
     ) as work:
         assign_group_values(work, default="outlier")
     assert list(data.get_vector("cell#type")) == ["type1", "outlier", "type0", "type1", "type1"]
@@ -77,8 +77,8 @@ def test_assign_gap_group_values() -> None:
     data = sample_data(gap=True)
     with data.adapter(
         axes=dict(cell="member", metacell="group"),
-        data={"cell#metacell": "group", "metacell#type": "value"},
-        back_data={"member#value": "type"},
+        data={"cell#metacell": "group", "metacell#type": "property"},
+        back_data={"member#property": "type"},
     ) as work:
         assign_group_values(work, default="outlier")
     assert list(data.get_vector("cell#type")) == ["type1", "outlier", "type0", "type1", "type1"]
@@ -87,9 +87,9 @@ def test_assign_gap_group_values() -> None:
 def test_count_group_values() -> None:
     data = sample_data()
     with data.adapter(
-        axes=dict(cell="member", metacell="group", age="value"),
-        data={"cell#metacell": "group", "cell#age": "value"},
-        back_data={"group,value#members": "cells"},
+        axes=dict(cell="member", metacell="group", age="property"),
+        data={"cell#metacell": "group", "cell#age": "property"},
+        back_data={"group,property#members": "cells"},
     ) as work:
         count_group_values(work)
     assert np.allclose(as_dense(data.get_matrix("metacell,age#cells")), np.array([[1, 0, 0], [2, 1, 0]]))
@@ -98,9 +98,9 @@ def test_count_group_values() -> None:
 def test_count_group_dense_values() -> None:
     data = sample_data()
     with data.adapter(
-        axes=dict(cell="member", metacell="group", age="value"),
-        data={"cell#metacell": "group", "cell#age": "value"},
-        back_data={"group,value#members": "cells"},
+        axes=dict(cell="member", metacell="group", age="property"),
+        data={"cell#metacell": "group", "cell#age": "property"},
+        back_data={"group,property#members": "cells"},
     ) as work:
         count_group_values(work, dense=True)
     assert np.allclose(data.get_matrix("metacell,age#cells"), np.array([[1, 0, 0], [2, 1, 0]]))
@@ -109,9 +109,9 @@ def test_count_group_dense_values() -> None:
 def test_count_gap_group_values() -> None:
     data = sample_data(gap=True)
     with data.adapter(
-        axes=dict(cell="member", metacell="group", age="value"),
-        data={"cell#metacell": "group", "cell#age": "value"},
-        back_data={"group,value#members": "cells"},
+        axes=dict(cell="member", metacell="group", age="property"),
+        data={"cell#metacell": "group", "cell#age": "property"},
+        back_data={"group,property#members": "cells"},
     ) as work:
         count_group_values(work)
     assert np.allclose(as_dense(data.get_matrix("metacell,age#cells")), np.array([[1, 0, 0], [0, 0, 0], [2, 1, 0]]))
@@ -121,17 +121,17 @@ def test_aggregate_group_data1d() -> None:
     data = sample_data()
 
     with data.adapter(
-        axes=dict(cell="member", metacell="group", age="value"),
-        data={"cell#metacell": "group", "cell#age": "value"},
-        back_data={"group#value": "age.mean"},
+        axes=dict(cell="member", metacell="group", age="property"),
+        data={"cell#metacell": "group", "cell#age": "property"},
+        back_data={"group#property": "age.mean"},
     ) as work:
         aggregate_group_data1d(work, np.mean)
     assert list(data.get_vector("metacell#age.mean")) == [1.0, 3.5 / 3]
 
     with data.adapter(
-        axes=dict(cell="member", metacell="group", age="value"),
-        data={"cell#metacell": "group", "cell#age": "value"},
-        back_data={"group#value": "age.frequent"},
+        axes=dict(cell="member", metacell="group", age="property"),
+        data={"cell#metacell": "group", "cell#age": "property"},
+        back_data={"group#property": "age.frequent"},
     ) as work:
         aggregate_group_data1d(work, most_frequent)
     assert list(data.get_vector("metacell#age.frequent")) == [1.0, 1.0]
@@ -141,17 +141,17 @@ def test_aggregate_gap_group_data1d() -> None:
     data = sample_data(gap=True)
 
     with data.adapter(
-        axes=dict(cell="member", metacell="group", age="value"),
-        data={"cell#metacell": "group", "cell#age": "value"},
-        back_data={"group#value": "age.mean"},
+        axes=dict(cell="member", metacell="group", age="property"),
+        data={"cell#metacell": "group", "cell#age": "property"},
+        back_data={"group#property": "age.mean"},
     ) as work:
         aggregate_group_data1d(work, np.mean)
     assert list(data.get_vector("metacell#age.mean")) == [1.0, None, 3.5 / 3]
 
     with data.adapter(
-        axes=dict(cell="member", metacell="group", age="value"),
-        data={"cell#metacell": "group", "cell#age": "value"},
-        back_data={"group#value": "age.frequent"},
+        axes=dict(cell="member", metacell="group", age="property"),
+        data={"cell#metacell": "group", "cell#age": "property"},
+        back_data={"group#property": "age.frequent"},
     ) as work:
         aggregate_group_data1d(work, most_frequent)
     assert list(data.get_vector("metacell#age.frequent")) == [1.0, None, 1.0]
@@ -160,9 +160,9 @@ def test_aggregate_gap_group_data1d() -> None:
 def test_aggregate_group_data2d() -> None:
     data = sample_data()
     with data.adapter(
-        axes=dict(cell="member", metacell="group", gene="data"),
-        data={"cell#metacell": "group", "cell,gene#UMIs": "value"},
-        back_data={"group,data#value": "UMIs"},
+        axes=dict(cell="member", metacell="group", gene="axis"),
+        data={"cell#metacell": "group", "cell,gene#UMIs": "property"},
+        back_data={"group,axis#property": "UMIs"},
     ) as work:
         aggregate_group_data2d(work, np.sum)
     assert np.allclose(data.get_matrix("metacell,gene#UMIs"), np.array([[5, 6], [8, 20]]))
@@ -171,9 +171,9 @@ def test_aggregate_group_data2d() -> None:
 def test_aggregate_gap_group_data2d() -> None:
     data = sample_data(gap=True)
     with data.adapter(
-        axes=dict(cell="member", metacell="group", gene="data"),
-        data={"cell#metacell": "group", "cell,gene#UMIs": "value"},
-        back_data={"group,data#value": "UMIs"},
+        axes=dict(cell="member", metacell="group", gene="axis"),
+        data={"cell#metacell": "group", "cell,gene#UMIs": "property"},
+        back_data={"group,axis#property": "UMIs"},
     ) as work:
         aggregate_group_data2d(work, np.sum, default=0)
     assert np.allclose(data.get_matrix("metacell,gene#UMIs"), np.array([[5, 6], [0, 0], [8, 20]]))
@@ -182,9 +182,9 @@ def test_aggregate_gap_group_data2d() -> None:
 def test_aggregate_group_sparse_data2d() -> None:
     data = sample_data(sparse=True)
     with data.adapter(
-        axes=dict(cell="member", metacell="group", gene="data"),
-        data={"cell#metacell": "group", "cell,gene#UMIs": "value"},
-        back_data={"group,data#value": "UMIs"},
+        axes=dict(cell="member", metacell="group", gene="axis"),
+        data={"cell#metacell": "group", "cell,gene#UMIs": "property"},
+        back_data={"group,axis#property": "UMIs"},
     ) as work:
         aggregate_group_data2d(work, np.sum)
     assert np.allclose(data.get_matrix("metacell,gene#UMIs"), np.array([[5, 6], [8, 20]]))
@@ -193,9 +193,9 @@ def test_aggregate_group_sparse_data2d() -> None:
 def test_aggregate_gap_group_sparse_data2d() -> None:
     data = sample_data(gap=True, sparse=True)
     with data.adapter(
-        axes=dict(cell="member", metacell="group", gene="data"),
-        data={"cell#metacell": "group", "cell,gene#UMIs": "value"},
-        back_data={"group,data#value": "UMIs"},
+        axes=dict(cell="member", metacell="group", gene="axis"),
+        data={"cell#metacell": "group", "cell,gene#UMIs": "property"},
+        back_data={"group,axis#property": "UMIs"},
     ) as work:
         aggregate_group_data2d(work, np.sum, default=0)
     assert np.allclose(data.get_matrix("metacell,gene#UMIs"), np.array([[5, 6], [0, 0], [8, 20]]))

@@ -691,9 +691,10 @@ class DafWriter(DafReader):
 
         view_data: Dict[str, str] = {}
         for required_name in required_inputs:
-            view_data[required_name] = suffix(required_name, "#") if "#" in required_name else required_name
+            if not required_name.endswith("#"):
+                view_data[required_name] = suffix(required_name, "#") if "#" in required_name else required_name
         for optional_name in optional_inputs:
-            if self.has_data(optional_name):
+            if not optional_name.endswith("#") and self.has_data(optional_name):
                 view_data[optional_name] = suffix(optional_name, "#") if "#" in optional_name else optional_name
 
         unique: Optional[List[None]] = None
@@ -801,7 +802,8 @@ def computation(  # pylint: disable=too-many-arguments
 
     .. note::
 
-        If the computation creates a new axis, list it in the outputs as ``axis#``.
+        If the computation creates a new axis, list it in the outputs as ``axis#``. You can also document required axes
+        by listing them as ``axis#`` required inputs.
 
     By default, the ``name`` will append the wrapped function's name (with a ``#`` suffix). The ``storage`` and
     ``derived`` used will, by default, be simple `.MemoryStorage` objects. You can overwrite this in an arbitrary way

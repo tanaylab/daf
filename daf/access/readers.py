@@ -541,7 +541,8 @@ class DafReader:  # pylint: disable=too-many-public-methods
         To verify an axis exists, list it as ``axis#``.
         """
         for name in names:
-            assert self.has_data(name), f"missing the data: {name} which is {reason} in the data set: {self.name}"
+            kind = f"axis: {name[:-1]}" if name.endswith("#") else f"data: {name}"
+            assert self.has_data(name), f"missing the {kind} which is {reason} in the data set: {self.name}"
 
     def has_data(self, name: str) -> bool:
         """
