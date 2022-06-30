@@ -123,16 +123,16 @@ Usage
     doi_url = data.get_item("doi_url")
 
     # Get a 1D numpy array by axis and name.
-    metacell_types = data.get_vector("metacell;type")
+    metacell_types = data.get_vector("metacell#type")
 
     # Get a Pandas series by axis and name (index is the type names).
-    type_colors = data.get_series("type;color")
+    type_colors = data.get_series("type#color")
 
     # Combine these to get a Pandas series of the color of each metacell.
     metacell_colors = type_colors[metacell_types]
 
     # Get a 2D matrix by two axes and a name.
-    umis_matrix = data.get_matrix("cell,gene;UMIs")
+    umis_matrix = data.get_matrix("cell,gene#UMIs")
 
     if daf.is_dense(umis_matrix):
         # Umis matrix is dense (2D numpy.ndarray).
@@ -143,7 +143,7 @@ Usage
         ...
 
     # Get a Pandas data frame with homogeneous elements by two axes and a name.
-    type_marker_genes = data.get_frame("gene,type;marker")
+    type_marker_genes = data.get_frame("gene,type#marker")
 
     # Access the mask of marker genes for a specific type as a Pandas series.
     t_marker_genes = type_marker_genes["T"]
@@ -155,7 +155,7 @@ Usage
     significant_genes_mask = genes_masks["significant"]
 
     # Get the total sum of UMIs per cell (and cache it for future requests).
-    cells_umis_sum = data.get_vector("cell;gene,UMIs|Sum")
+    cells_umis_sum = data.get_vector("cell#gene,UMIs|Sum")
 
     #: Slice to include cells with a high number of UMIs and significant genes.
     strong_data = data.view(

@@ -1,7 +1,7 @@
 """
 Write API for ``daf`` data sets.
 
-All names used for ``set_*`` methods are simple ``property``, ``axis;property`` or ``rows_axis,columns_axis;property``
+All names used for ``set_*`` methods are simple ``property``, ``axis#property`` or ``rows_axis,columns_axis#property``
 names. This is in contrast to `.DafReader` ``get_*`` methods which accept much more complex names.
 
 .. note::
@@ -229,7 +229,7 @@ class DafWriter(DafReader):
         """
         Set a ``name`` `.AnyData` data.
 
-        The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
+        The name must be in the format ``axis#name`` which uniquely identifies the 1D data.
 
         If ``overwrite``, will silently overwrite an existing 1D data of the same name, otherwise overwriting will fail.
         """
@@ -242,7 +242,7 @@ class DafWriter(DafReader):
         """
         Set a ``name`` ``.AnyData`` data.
 
-        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
+        The name must be in the format ``rows_axis,columns_axis#name`` which uniquely identifies the 2D data.
 
         If ``overwrite``, will silently overwrite an existing 2D data of the same name, otherwise overwriting will fail.
         """
@@ -267,13 +267,13 @@ class DafWriter(DafReader):
         Create an uninitialized `.ROW_MAJOR` .`DenseInRows` of some ``dtype`` to be set by the ``name`` in the data set,
         expecting the code to initialize it.
 
-        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
+        The name must be in the format ``rows_axis,columns_axis#name`` which uniquely identifies the 2D data.
 
         Expected usage is:
 
         .. code:: python
 
-            with data.create_dense_in_rows(name="rows_axis,columns_axis;name", dtype="...") as dense:
+            with data.create_dense_in_rows(name="rows_axis,columns_axis#name", dtype="...") as dense:
                 # Here the dense is still not necessarily set inside the data set.
                 # That is, one can't assume ``get_matrix`` will access it.
                 # It is only available for filling in the values:
@@ -333,18 +333,18 @@ class DafWriter(DafReader):
             # Assume the `rna` data set has `cell` and `gene` axes, and a per-cell-per-gene `UMIs` matrix.
 
             with rna.adapter(axes=dict(cell="x", gene="y", data={ "cell,gene:UMIs": "z" }), hide_implicit=True,
-                             back_data=[ "x;mean", "y;variance" ]) as adapter:
+                             back_data=[ "x#mean", "y#variance" ]) as adapter:
 
                 # The `adapter` data set has only `x` and `y` axes, and a per-x-per-y `z` matrix,
                 # matching the expectations of `collect_stats`:
 
                 collect_stats(adapter)
 
-                # Assume `collect_stats` created `x;mean`, `x;variance`, `y;mean`, `y;variance` in `adapter`.
+                # Assume `collect_stats` created `x#mean`, `x#variance`, `y#mean`, `y#variance` in `adapter`.
                 # This has no effect on the `rna` data set (yet).
 
-            # The `rna` data set now has additional `cell;mean` and `gene;variance` data copied from the above.
-            # It does not contain `cell;variance` and `gene;mean`, as these were not requested to be copied.
+            # The `rna` data set now has additional `cell#mean` and `gene#variance` data copied from the above.
+            # It does not contain `cell#variance` and `gene#mean`, as these were not requested to be copied.
 
         .. note::
 
@@ -403,22 +403,22 @@ class DafWriter(DafReader):
             _back_items = {
                 name: BackData(name=back) if isinstance(back, str) else back
                 for name, back in back_data.items()
-                if ";" not in name
+                if "#" not in name
             }
             _back_data1d = {
                 name: BackData(name=back) if isinstance(back, str) else back
                 for name, back in back_data.items()
-                if ";" in name and "," not in prefix(name, ";")
+                if "#" in name and "," not in prefix(name, "#")
             }
             _back_data2d = {
                 name: BackData(name=back) if isinstance(back, str) else back
                 for name, back in back_data.items()
-                if ";" in name and "," in prefix(name, ";")
+                if "#" in name and "," in prefix(name, "#")
             }
         else:
-            _back_items = {name: BackData() for name in back_data if ";" not in name}
-            _back_data1d = {name: BackData() for name in back_data if ";" in name and "," not in prefix(name, ";")}
-            _back_data2d = {name: BackData() for name in back_data if ";" in name and "," in prefix(name, ";")}
+            _back_items = {name: BackData() for name in back_data if "#" not in name}
+            _back_data1d = {name: BackData() for name in back_data if "#" in name and "," not in prefix(name, "#")}
+            _back_data2d = {name: BackData() for name in back_data if "#" in name and "," in prefix(name, "#")}
 
         try:
             yield adapter
@@ -478,7 +478,7 @@ class DafWriter(DafReader):
             if (not back.copy_on_error and is_error) or (back.optional and not adapter.has_data1d(data1d)):
                 continue
 
-            axis = prefix(data1d, ";")
+            axis = prefix(data1d, "#")
             back_axis = _back_axis_name(view, axis, back_axes)
 
             partial = adapter.get_vector(data1d)
@@ -497,11 +497,11 @@ class DafWriter(DafReader):
             if back.name is not None:
                 back_name = back.name
             elif view.has_data1d(data1d):
-                back_name = suffix(view.base_data1d(data1d), ";")
+                back_name = suffix(view.base_data1d(data1d), "#")
             else:
-                back_name = suffix(data1d, ";")
+                back_name = suffix(data1d, "#")
 
-            self.set_data1d(f"{back_axis};{back_name}", complete, overwrite=back.overwrite)
+            self.set_data1d(f"{back_axis}#{back_name}", complete, overwrite=back.overwrite)
 
     def _copy_back_data2d(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
         self,
@@ -516,18 +516,18 @@ class DafWriter(DafReader):
             if (not back.copy_on_error and is_error) or (back.optional and not adapter.has_data2d(data2d)):
                 continue
 
-            (view_rows_axis, view_columns_axis) = prefix(data2d, ";").split(",")
+            (view_rows_axis, view_columns_axis) = prefix(data2d, "#").split(",")
             back_rows_axis_name = _back_axis_name(view, view_rows_axis, back_axes)
             back_columns_axis_name = _back_axis_name(view, view_columns_axis, back_axes)
 
             if back.name is not None:
                 back_name = back.name
             elif view.has_data2d(data2d):
-                back_name = suffix(view.base_data2d(data2d), ";")
+                back_name = suffix(view.base_data2d(data2d), "#")
             else:
-                back_name = suffix(data2d, ";")
+                back_name = suffix(data2d, "#")
 
-            complete_name = f"{back_rows_axis_name},{back_columns_axis_name};{back_name}"
+            complete_name = f"{back_rows_axis_name},{back_columns_axis_name}#{back_name}"
 
             partial = adapter.get_matrix(data2d)
             partial_row_indices = view.axis_slice_indices(view_rows_axis) if view.has_axis(view_rows_axis) else None
@@ -691,10 +691,10 @@ class DafWriter(DafReader):
 
         view_data: Dict[str, str] = {}
         for required_name in required_inputs:
-            view_data[required_name] = suffix(required_name, ";") if ";" in required_name else required_name
+            view_data[required_name] = suffix(required_name, "#") if "#" in required_name else required_name
         for optional_name in optional_inputs:
             if self.has_data(optional_name):
-                view_data[optional_name] = suffix(optional_name, ";") if ";" in optional_name else optional_name
+                view_data[optional_name] = suffix(optional_name, "#") if "#" in optional_name else optional_name
 
         unique: Optional[List[None]] = None
         if name.endswith("#"):
@@ -744,11 +744,11 @@ class DafWriter(DafReader):
                 self.create_axis(axis, work.axis_entries(axis))
 
     def _copy_data(self, work: DafReader, name: str, overwrite: bool) -> None:
-        if name.endswith(";"):
+        if name.endswith("#"):
             return
-        if ";" not in name:
+        if "#" not in name:
             self.set_item(name, work.get_item(name), overwrite=overwrite)
-        elif "," in prefix(name, ";"):
+        elif "," in prefix(name, "#"):
             self.set_data2d(name, work.get_matrix(name), overwrite=overwrite)
         else:
             self.set_data1d(name, work.get_vector(name), overwrite=overwrite)
@@ -768,8 +768,8 @@ def _back_axis_name(view: StorageView, axis: str, back_axes: Mapping[str, BackAx
 def _all_axes(names: Collection[str]) -> Set[str]:
     axes: Set[str] = set()
     for name in names:
-        if ";" in name:
-            axes.update(prefix(name, ";").split(","))
+        if "#" in name:
+            axes.update(prefix(name, "#").split(","))
     return axes
 
 
@@ -801,7 +801,7 @@ def computation(  # pylint: disable=too-many-arguments
 
     .. note::
 
-        If the computation creates a new axis, list it in the outputs as ``axis;``.
+        If the computation creates a new axis, list it in the outputs as ``axis#``.
 
     By default, the ``name`` will append the wrapped function's name (with a ``#`` suffix). The ``storage`` and
     ``derived`` used will, by default, be simple `.MemoryStorage` objects. You can overwrite this in an arbitrary way
@@ -818,12 +818,12 @@ def computation(  # pylint: disable=too-many-arguments
 
         @daf.computation(
             required_inputs={
-                "foo,bar;baz": '''
+                "foo,bar#baz": '''
                     Input baz per foo and bar.
                     '''
             },
             assured_outputs={
-                "foo,bar;vaz": '''
+                "foo,bar#vaz": '''
                     Output vaz per foo and bar.
                 '''
             },
@@ -836,7 +836,7 @@ def computation(  # pylint: disable=too-many-arguments
             '''
             # Directly work on the `data` here, invoking `DafWriter.computation` is automatic.
             # That is, this can write any intermediate results it wants into the `data`.
-            # It must create `foo,bar;vaz`, which will be copied into the caller's data.
+            # It must create `foo,bar#vaz`, which will be copied into the caller's data.
 
     Then ``help(compute_vaz)`` will print:
 
@@ -846,12 +846,12 @@ def computation(  # pylint: disable=too-many-arguments
 
         **Required Inputs**
 
-        ``foo,bar;baz``
+        ``foo,bar#baz``
             Input baz per foo and bar.
 
         **Assured Outputs**
 
-        ``foo,bar;vaz``
+        ``foo,bar#vaz``
             Output vaz per foo and bar.
 
         If ``overwrite``, will overwrite existing data.

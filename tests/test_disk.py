@@ -108,32 +108,32 @@ def test_disk_vector_of_str() -> None:
     with TemporaryDirectory() as directory:
         for writer, make_reader in writers(directory):
 
-            assert not writer.has_data1d("cell;type")
+            assert not writer.has_data1d("cell#type")
             with expect_raise("missing axis: cell in the storage: test"):
                 writer.data1d_names("cell")
             with expect_raise("missing axis: cell in the storage: test"):
-                writer.get_data1d("cell;type")
+                writer.get_data1d("cell#type")
 
             cell_names = freeze(as_vector(["cell0", "cell1"]))
             writer.create_axis("cell", cell_names)
 
-            assert not writer.has_data1d("cell;type")
+            assert not writer.has_data1d("cell#type")
             assert len(writer.data1d_names("cell")) == 0
-            with expect_raise("missing 1D data: cell;type in the storage: test"):
-                writer.get_data1d("cell;type")
+            with expect_raise("missing 1D data: cell#type in the storage: test"):
+                writer.get_data1d("cell#type")
 
             cell_types = freeze(as_vector(["T", "B"]))
-            writer.set_vector("cell;type", cell_types)
+            writer.set_vector("cell#type", cell_types)
 
             for reader in (make_reader(), writer):
-                assert reader.has_data1d("cell;type")
-                assert set(reader.data1d_names("cell")) == set(["cell;type"])
-                assert is_vector(reader.get_data1d("cell;type"), dtype=STR_DTYPE)
-                assert np.all(reader.get_data1d("cell;type") == cell_types)
+                assert reader.has_data1d("cell#type")
+                assert set(reader.data1d_names("cell")) == set(["cell#type"])
+                assert is_vector(reader.get_data1d("cell#type"), dtype=STR_DTYPE)
+                assert np.all(reader.get_data1d("cell#type") == cell_types)
 
             new_cell_types = freeze(as_vector(["B", "T"]))
-            writer.set_vector("cell;type", new_cell_types, overwrite=True)
-            assert np.all(writer.get_data1d("cell;type") == new_cell_types)
+            writer.set_vector("cell#type", new_cell_types, overwrite=True)
+            assert np.all(writer.get_data1d("cell#type") == new_cell_types)
 
             # pylint: disable=duplicate-code
 
@@ -147,7 +147,7 @@ def test_disk_vector_of_str() -> None:
                   axes:
                     cell: {frozen}1D numpy.ndarray of 2 of <U5
                   data:
-                    cell;type: {frozen}1D numpy.ndarray of 2 of {dtype}
+                    cell#type: {frozen}1D numpy.ndarray of 2 of {dtype}
                 """,
             )
 
@@ -158,34 +158,34 @@ def test_disk_vector_of_bool() -> None:
     with TemporaryDirectory() as directory:
         for writer, make_reader in writers(directory):
 
-            assert not writer.has_data1d("gene;significant")
+            assert not writer.has_data1d("gene#significant")
             with expect_raise("missing axis: gene in the storage: test"):
                 writer.data1d_names("gene")
             with expect_raise("missing axis: gene in the storage: test"):
-                writer.get_data1d("gene;significant")
+                writer.get_data1d("gene#significant")
 
             gene_names = freeze(as_vector(["gene0", "gene1", "gene2"]))
             writer.create_axis("gene", gene_names)
 
-            assert not writer.has_data1d("gene;significant")
+            assert not writer.has_data1d("gene#significant")
             assert len(writer.data1d_names("gene")) == 0
-            with expect_raise("missing 1D data: gene;significant in the storage: test"):
-                writer.get_data1d("gene;significant")
+            with expect_raise("missing 1D data: gene#significant in the storage: test"):
+                writer.get_data1d("gene#significant")
 
             significant_genes_mask = freeze(as_vector([False, True, False]))
-            writer.set_vector("gene;significant", significant_genes_mask)
+            writer.set_vector("gene#significant", significant_genes_mask)
 
             for reader in (make_reader(), writer):
-                assert reader.has_data1d("gene;significant")
-                assert set(reader.data1d_names("gene")) == set(["gene;significant"])
-                assert is_vector(reader.get_data1d("gene;significant"), dtype="bool")
-                assert np.all(reader.get_data1d("gene;significant") == significant_genes_mask)
+                assert reader.has_data1d("gene#significant")
+                assert set(reader.data1d_names("gene")) == set(["gene#significant"])
+                assert is_vector(reader.get_data1d("gene#significant"), dtype="bool")
+                assert np.all(reader.get_data1d("gene#significant") == significant_genes_mask)
                 if isinstance(writer, FilesWriter):
-                    assert is_frozen(be_vector(reader.get_data1d("gene;significant")))
+                    assert is_frozen(be_vector(reader.get_data1d("gene#significant")))
 
             new_significant_genes_mask = freeze(as_vector([False, False, True]))
-            writer.set_vector("gene;significant", new_significant_genes_mask, overwrite=True)
-            assert np.all(writer.get_data1d("gene;significant") == new_significant_genes_mask)
+            writer.set_vector("gene#significant", new_significant_genes_mask, overwrite=True)
+            assert np.all(writer.get_data1d("gene#significant") == new_significant_genes_mask)
 
             frozen = "frozen " if isinstance(writer, FilesWriter) else ""
             expect_description(
@@ -197,7 +197,7 @@ def test_disk_vector_of_bool() -> None:
                   axes:
                     gene: {frozen}1D numpy.ndarray of 3 of <U5
                   data:
-                    gene;significant: {frozen}1D numpy.ndarray of 3 of bool (1 true, 33.33%)
+                    gene#significant: {frozen}1D numpy.ndarray of 3 of bool (1 true, 33.33%)
                 """,
             )
 
@@ -206,43 +206,43 @@ def test_disk_matrix_of_int() -> None:
     with TemporaryDirectory() as directory:
         for writer, make_reader in writers(directory):
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             with expect_raise("missing axis: cell in the storage: test"):
                 writer.data2d_names("cell,gene")
             with expect_raise("missing axis: cell in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+                writer.get_data2d("cell,gene#UMIs")
 
             cell_names = freeze(as_vector(["cell0", "cell1"]))
             writer.create_axis("cell", cell_names)
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             with expect_raise("missing axis: gene in the storage: test"):
                 writer.data2d_names("cell,gene")
             with expect_raise("missing axis: gene in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+                writer.get_data2d("cell,gene#UMIs")
 
             gene_names = freeze(as_vector(["gene0", "gene1", "gene2"]))
             writer.create_axis("gene", gene_names)
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             assert len(writer.data2d_names("cell,gene")) == 0
-            with expect_raise("missing 2D data: cell,gene;UMIs in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+            with expect_raise("missing 2D data: cell,gene#UMIs in the storage: test"):
+                writer.get_data2d("cell,gene#UMIs")
 
             umis = freeze(be_dense_in_rows(as_dense([[0, 10, 90], [190, 10, 0]])))
-            writer.set_matrix("cell,gene;UMIs", umis)
+            writer.set_matrix("cell,gene#UMIs", umis)
 
             for reader in (make_reader(), writer):
-                assert reader.has_data2d("cell,gene;UMIs")
-                assert set(reader.data2d_names("cell,gene")) == set(["cell,gene;UMIs"])
-                assert is_dense_in_rows(reader.get_data2d("cell,gene;UMIs"))
-                assert fast_all_close(reader.get_data2d("cell,gene;UMIs"), umis)
+                assert reader.has_data2d("cell,gene#UMIs")
+                assert set(reader.data2d_names("cell,gene")) == set(["cell,gene#UMIs"])
+                assert is_dense_in_rows(reader.get_data2d("cell,gene#UMIs"))
+                assert fast_all_close(reader.get_data2d("cell,gene#UMIs"), umis)
                 if isinstance(writer, FilesWriter):
-                    assert is_frozen(be_matrix(reader.get_data2d("cell,gene;UMIs")))
+                    assert is_frozen(be_matrix(reader.get_data2d("cell,gene#UMIs")))
 
             new_umis = freeze(sp.csr_matrix([[90, 0, 10], [10, 0, 190]]))
-            writer.set_matrix("cell,gene;UMIs", new_umis, overwrite=True)
-            assert fast_all_close(writer.get_data2d("cell,gene;UMIs"), new_umis)
+            writer.set_matrix("cell,gene#UMIs", new_umis, overwrite=True)
+            assert fast_all_close(writer.get_data2d("cell,gene#UMIs"), new_umis)
 
             # pylint: disable=duplicate-code
 
@@ -257,7 +257,7 @@ def test_disk_matrix_of_int() -> None:
                     cell: {frozen}1D numpy.ndarray of 2 of <U5
                     gene: {frozen}1D numpy.ndarray of 3 of <U5
                   data:
-                    cell,gene;UMIs: {frozen}scipy.sparse.csr_matrix of 2x3 of int64 with 66.67% nnz
+                    cell,gene#UMIs: {frozen}scipy.sparse.csr_matrix of 2x3 of int64 with 66.67% nnz
                 """,
             )
 
@@ -268,43 +268,43 @@ def test_disk_mmap_of_int() -> None:
     with TemporaryDirectory() as directory:
         for writer, make_reader in writers(directory):
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             with expect_raise("missing axis: cell in the storage: test"):
                 writer.data2d_names("cell,gene")
             with expect_raise("missing axis: cell in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+                writer.get_data2d("cell,gene#UMIs")
 
             cell_names = freeze(as_vector(["cell0", "cell1"]))
             writer.create_axis("cell", cell_names)
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             with expect_raise("missing axis: gene in the storage: test"):
                 writer.data2d_names("cell,gene")
             with expect_raise("missing axis: gene in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+                writer.get_data2d("cell,gene#UMIs")
 
             gene_names = freeze(as_vector(["gene0", "gene1", "gene2"]))
             writer.create_axis("gene", gene_names)
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             assert len(writer.data2d_names("cell,gene")) == 0
-            with expect_raise("missing 2D data: cell,gene;UMIs in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+            with expect_raise("missing 2D data: cell,gene#UMIs in the storage: test"):
+                writer.get_data2d("cell,gene#UMIs")
 
-            with writer.create_dense_in_rows("cell,gene;UMIs", dtype="int16") as umis:
+            with writer.create_dense_in_rows("cell,gene#UMIs", dtype="int16") as umis:
                 umis[:] = np.array([[0, 10, 90], [190, 10, 0]])
 
             for reader in (make_reader(), writer):
-                assert reader.has_data2d("cell,gene;UMIs")
-                assert set(reader.data2d_names("cell,gene")) == set(["cell,gene;UMIs"])
-                assert is_dense_in_rows(reader.get_data2d("cell,gene;UMIs"))
-                assert fast_all_close(reader.get_data2d("cell,gene;UMIs"), umis)
+                assert reader.has_data2d("cell,gene#UMIs")
+                assert set(reader.data2d_names("cell,gene")) == set(["cell,gene#UMIs"])
+                assert is_dense_in_rows(reader.get_data2d("cell,gene#UMIs"))
+                assert fast_all_close(reader.get_data2d("cell,gene#UMIs"), umis)
                 if isinstance(writer, FilesWriter):
-                    assert is_frozen(be_matrix(reader.get_data2d("cell,gene;UMIs")))
+                    assert is_frozen(be_matrix(reader.get_data2d("cell,gene#UMIs")))
 
             new_umis = freeze(sp.csr_matrix([[90, 0, 10], [10, 0, 190]]))
-            writer.set_matrix("cell,gene;UMIs", new_umis, overwrite=True)
-            assert fast_all_close(writer.get_data2d("cell,gene;UMIs"), new_umis)
+            writer.set_matrix("cell,gene#UMIs", new_umis, overwrite=True)
+            assert fast_all_close(writer.get_data2d("cell,gene#UMIs"), new_umis)
 
             frozen = "frozen " if isinstance(writer, FilesWriter) else ""
             expect_description(
@@ -317,7 +317,7 @@ def test_disk_mmap_of_int() -> None:
                     cell: {frozen}1D numpy.ndarray of 2 of <U5
                     gene: {frozen}1D numpy.ndarray of 3 of <U5
                   data:
-                    cell,gene;UMIs: {frozen}scipy.sparse.csr_matrix of 2x3 of int64 with 66.67% nnz
+                    cell,gene#UMIs: {frozen}scipy.sparse.csr_matrix of 2x3 of int64 with 66.67% nnz
                 """,
             )
 
@@ -326,41 +326,41 @@ def test_disk_matrix_of_str() -> None:
     with TemporaryDirectory() as directory:
         for writer, make_reader in writers(directory):
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             with expect_raise("missing axis: cell in the storage: test"):
                 writer.data2d_names("cell,gene")
             with expect_raise("missing axis: cell in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+                writer.get_data2d("cell,gene#UMIs")
 
             cell_names = freeze(as_vector(["cell0", "cell1"]))
             writer.create_axis("cell", cell_names)
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             with expect_raise("missing axis: gene in the storage: test"):
                 writer.data2d_names("cell,gene")
             with expect_raise("missing axis: gene in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+                writer.get_data2d("cell,gene#UMIs")
 
             gene_names = freeze(as_vector(["gene0", "gene1", "gene2"]))
             writer.create_axis("gene", gene_names)
 
-            assert not writer.has_data2d("cell,gene;UMIs")
+            assert not writer.has_data2d("cell,gene#UMIs")
             assert len(writer.data2d_names("cell,gene")) == 0
-            with expect_raise("missing 2D data: cell,gene;UMIs in the storage: test"):
-                writer.get_data2d("cell,gene;UMIs")
+            with expect_raise("missing 2D data: cell,gene#UMIs in the storage: test"):
+                writer.get_data2d("cell,gene#UMIs")
 
             levels = freeze(be_dense_in_rows(as_dense([[None, "Low", "High"], ["High", "Low", None]])))
-            writer.set_matrix("cell,gene;level", levels)
+            writer.set_matrix("cell,gene#level", levels)
 
             for reader in (make_reader(), writer):
-                assert reader.has_data2d("cell,gene;level")
-                assert set(reader.data2d_names("cell,gene")) == set(["cell,gene;level"])
-                assert is_dense_in_rows(reader.get_data2d("cell,gene;level"))
-                assert np.all(reader.get_data2d("cell,gene;level") == levels)
+                assert reader.has_data2d("cell,gene#level")
+                assert set(reader.data2d_names("cell,gene")) == set(["cell,gene#level"])
+                assert is_dense_in_rows(reader.get_data2d("cell,gene#level"))
+                assert np.all(reader.get_data2d("cell,gene#level") == levels)
 
             new_levels = freeze(be_dense_in_rows(as_dense([["High", None, "Low"], ["Low", None, "High"]])))
-            writer.set_matrix("cell,gene;level", new_levels, overwrite=True)
-            assert np.all(writer.get_data2d("cell,gene;level") == new_levels)
+            writer.set_matrix("cell,gene#level", new_levels, overwrite=True)
+            assert np.all(writer.get_data2d("cell,gene#level") == new_levels)
 
             frozen = "frozen " if isinstance(writer, FilesWriter) else ""
             expect_description(
@@ -373,6 +373,6 @@ def test_disk_matrix_of_str() -> None:
                     cell: {frozen}1D numpy.ndarray of 2 of <U5
                     gene: {frozen}1D numpy.ndarray of 3 of <U5
                   data:
-                    cell,gene;level: {frozen}row-major numpy.ndarray of 2x3 of object
+                    cell,gene#level: {frozen}row-major numpy.ndarray of 2x3 of object
                 """,
             )

@@ -9,7 +9,7 @@ you choose to use it).
 .. note::
 
     To avoid ambiguities and to ensure that storing ``daf`` data in files works as expected, do **not** use ``,``,
-    ``;``, ``=`` or ``|`` characters in axis, property or entry names. In addition, since axis and property names are
+    ``#``, ``=`` or ``|`` characters in axis, property or entry names. In addition, since axis and property names are
     used as part of file names in certain storage formats, also avoid characters that are invalid in file names, most
     importantly ``/``, but also ``"``, ``:``, and ``\\``.
 
@@ -17,52 +17,52 @@ you choose to use it).
 
 **2D Names**
 
-All 2D names start with ``rows_axis,columns_axis;``.
+All 2D names start with ``rows_axis,columns_axis#``.
 
-* | *rows_axis* ``,`` *columns_axis* ``;`` *property*
+* | *rows_axis* ``,`` *columns_axis* ``#`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   The name of a property with a value per each combination of two axes entries, optionally processed by a series of
   `.ElementWise` `.operations`.
 
-  For example: ``cell,gene|UMIs``, ``cell,gene;fraction|Log,base=2,factor=1e-1|Abs``.
+  For example: ``cell,gene|UMIs``, ``cell,gene#fraction|Log,base=2,factor=1e-1|Abs``.
 
 .. _1d_names:
 
 **1D Names**
 
-All 1D names start with ``axis;``.
+All 1D names start with ``axis#``.
 
-* | *axis* ``;`` *property*
+* | *axis* ``#`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   The name of a property with a value per entry along some axis, optionally processed by a series of `.ElementWise`
   `.operations`.
 
-  For example: ``cell;age``, ``cell;age|Clamp,min=6,max=8``.
+  For example: ``cell#age``, ``cell#age|Clamp,min=6,max=8``.
 
-* | *axis* ``;`` *second_axis* ``=`` *entry* ``,`` *property*
+* | *axis* ``#`` *second_axis* ``=`` *entry* ``,`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   The slice for a specific entry of the data of a 2D property, optionally processed by a series of `.ElementWise`
   `.operations`.
 
-  For example: ``cell;gene=SOX8,UMIs``, ``cell;gene=SOX8,fraction|Log,base=2,factor=1e-1``.
+  For example: ``cell#gene=SOX8,UMIs``, ``cell#gene=SOX8,fraction|Log,base=2,factor=1e-1``.
 
-* | *axis* ``;`` *second_axis* ``,`` *property*
+* | *axis* ``#`` *second_axis* ``,`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
   | ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   A reduction of 2D data into a single value per row, optionally processed by a series of `.ElementWise` `.operations`.
 
-  For example: ``cell;gene,UMIs|Sum``, ``cell;gene,fraction|Log,base=2,factor=1e-5|Max|Clip,min=-12,max=-7``.
+  For example: ``cell#gene,UMIs|Sum``, ``cell#gene,fraction|Log,base=2,factor=1e-5|Max|Clip,min=-12,max=-7``.
 
 .. _0d_names:
 
 **0D Names**
 
-  No 0D names contain ``;`` (at least not before the first ``|``).
+  No 0D names contain ``#`` (at least not before the first ``|``).
 
 * | *property*
 
@@ -115,19 +115,19 @@ All 1D names start with ``axis;``.
 
     See `.operations` for the list of built-in `.ElementWise` and `.Reduction` operations. Additional operations can be
     offered by other Python packages. In all the above, prefixing the operation name with ``!`` will prevent their
-    results from being cached. For example, ``cell;gene,UMIs|!Sum`` will not cache the total number of UMIs per cell.
+    results from being cached. For example, ``cell#gene,UMIs|!Sum`` will not cache the total number of UMIs per cell.
     The current implementation doesn't cache any 0D data regardless of whether a ``!`` was specified.
 
 **Motivation**
 
 The above scheme makes sense if you consider that each name starts with a description of the axes/shape of the result,
 followed by how to extract the result from the data set. This means that to get the sum of the UMIs of all the genes for
-each cell, we first consider this is per-cell 1D data and therefore must start with ``cell;``. We therefore write
-``cell;gene,UMIs|Sum`` instead of ``cell,gene;UMIs|Sum``.
+each cell, we first consider this is per-cell 1D data and therefore must start with ``cell#``. We therefore write
+``cell#gene,UMIs|Sum`` instead of ``cell,gene#UMIs|Sum``.
 
 This may seem unintuitive at first, but it has some advantages, such as clearly identify the axes/shape of the result of
 a pipeline. An important feature of the scheme is that the name of **any** 1D data along some ``axis`` has the common
-prefix ``axis;``. This makes it easy to express data for `.get_columns`, or describe the X and Y coordinates of a
+prefix ``axis#``. This makes it easy to express data for `.get_columns`, or describe the X and Y coordinates of a
 scatter plot, or anything along these lines, by providing the common axis and a list suffixes to append to it.
 """
 
@@ -219,7 +219,7 @@ class BaseName:  # pylint: disable=too-few-public-methods
         #: The canonical format of the name.
         self.canonical: str
 
-        parts = base_name.split(";", 1)
+        parts = base_name.split("#", 1)
 
         if len(parts) == 2:
             for axis in parts[0].split(","):
@@ -281,18 +281,18 @@ class BaseName:  # pylint: disable=too-few-public-methods
         elif self.ndim == 1:
             if len(self.axes) == 1:
                 assert self.entries[0] is None
-                self.canonical = f"{self.axes[0]};{self.property}"
+                self.canonical = f"{self.axes[0]}#{self.property}"
             else:
                 assert len(self.axes) == 2
                 assert self.entries[0] is not None
                 assert self.entries[1] is None
-                self.canonical = f"{self.axes[0]};{self.axes[1]}={self.entries[1]},{self.property}"
+                self.canonical = f"{self.axes[0]}#{self.axes[1]}={self.entries[1]},{self.property}"
 
         else:
             assert len(self.axes) == 2
             assert self.entries[0] is None
             assert self.entries[1] is None
-            self.canonical = f"{self.axes[0]},{self.axes[1]};{self.property}"
+            self.canonical = f"{self.axes[0]},{self.axes[1]}#{self.property}"
 
 
 class OperationName:  # pylint: disable=too-few-public-methods
@@ -441,7 +441,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         self.base = base.as_reader()
 
         #: How to store derived data computed from the storage data, for example, an alternate layout of 2D data, of the
-        #: result of a pipeline (e.g. ``cell,gene;UMIs|Sum``). By default this is stored in a `.MemoryStorage` so
+        #: result of a pipeline (e.g. ``cell,gene#UMIs|Sum``). By default this is stored in a `.MemoryStorage` so
         #: expensive operations (such as `.as_layout`) will only be computed once in the application's lifetime. You can
         #: explicitly set this to `.NO_STORAGE` to disable the caching, or specify some persistent storage such as
         #: `.FilesWriter` to allow the caching to be reused across multiple application invocations. You can even set
@@ -509,7 +509,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
                 cell: 2 entries
                 gene: 3 entries
               data:
-              - cell,gene;UMIs
+              - cell,gene#UMIs
         """
         description = description or {}
         if self.name in description:
@@ -538,7 +538,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Assert that all the listed data ``names`` exist in the data set, regardless if each is a 0D, 1D or 2D data name.
 
-        To verify an axis exists, list it as ``axis;``.
+        To verify an axis exists, list it as ``axis#``.
         """
         for name in names:
             assert self.has_data(name), f"missing the data: {name} which is {reason} in the data set: {self.name}"
@@ -547,13 +547,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Return whether the data set contains the ``name`` data, regardless of whether it is a 0D, 1D or 2D data.
 
-        To test whether an axis exists, you can use the ``axis;`` name.
+        To test whether an axis exists, you can use the ``axis#`` name.
         """
-        if name.endswith(";"):
+        if name.endswith("#"):
             return self.has_axis(name[:-1])
-        if ";" not in name:
+        if "#" not in name:
             return self.has_item(name)
-        axes = prefix(name, ";").split(",")
+        axes = prefix(name, "#").split(",")
         assert 1 <= len(axes) <= 2, f"{len(axes)}D name: {name} for: has_data for the data set: {self.name}"
         if len(axes) == 1:
             return self.has_data1d(name)
@@ -634,20 +634,20 @@ class DafReader:  # pylint: disable=too-many-public-methods
         Return the names of the 1D data that exists in the data set for a specific ``axis`` (which must exist), in
         alphabetical order.
 
-        The returned names are in the format ``axis;name`` which uniquely identifies the 1D data. If not ``full``, the
-        returned names include only the simple ``name`` without the ``axis;`` prefix.
+        The returned names are in the format ``axis#name`` which uniquely identifies the 1D data. If not ``full``, the
+        returned names include only the simple ``name`` without the ``axis#`` prefix.
         """
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         names = sorted(self.chain._data1d_names(axis))
         if not full:
-            names = [suffix(name, ";") for name in names]
+            names = [suffix(name, "#") for name in names]
         return names
 
     def has_data1d(self, name: str) -> bool:
         """
         Check whether the ``name`` 1D data exists.
 
-        The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
+        The name must be in the format ``axis#name`` which uniquely identifies the 1D data.
         """
         return self.chain.has_data1d(name)
 
@@ -670,7 +670,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         The name is the name of some 1D data as described :ref:`above <1d_names>`.
         """
         vector = self.get_vector(name)
-        axis = prefix(name, ";")
+        axis = prefix(name, "#")
         index = self.axis_entries(axis)
         return freeze(optimize(pd.Series(vector, index=index)))
 
@@ -678,13 +678,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Return the names of the 2D data that exists in the data set for a specific pair of ``axes`` (which must exist).
 
-        The returned names are in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data. If
-        not ``full``, the returned names include only the simple ``name`` without the ``row_axis,columns_axis;`` prefix.
+        The returned names are in the format ``rows_axis,columns_axis#name`` which uniquely identifies the 2D data. If
+        not ``full``, the returned names include only the simple ``name`` without the ``row_axis,columns_axis#`` prefix.
 
         .. note::
 
             Data will be listed in the results even if it is only stored in the other layout (that is, as
-            ``columns_axis,rows_axis;name``). Such data can still be fetched (e.g. using `.get_matrix`), in which case
+            ``columns_axis,rows_axis#name``). Such data can still be fetched (e.g. using `.get_matrix`), in which case
             it will be re-layout internally (and the result will be cached in `.derived`).
         """
         if isinstance(axes, str):
@@ -698,16 +698,16 @@ class DafReader:  # pylint: disable=too-many-public-methods
         names_set.update([transpose_name(name) for name in self.chain._data2d_names((axes[1], axes[0]))])
         names = sorted(names_set)
         if not full:
-            names = [suffix(name, ";") for name in names]
+            names = [suffix(name, "#") for name in names]
         return names
 
     def has_data2d(self, name: str) -> bool:
         """
         Check whether the ``name`` 2D data exists.
 
-        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
+        The name must be in the format ``rows_axis,columns_axis#name`` which uniquely identifies the 2D data.
 
-        This will also succeed if only the transposed ``columns_axis,rows_axis;name`` data exists in the data set.
+        This will also succeed if only the transposed ``columns_axis,rows_axis#name`` data exists in the data set.
         However, fetching the data in the specified order is likely to be less efficient.
         """
         return self.chain.has_data2d(name) or self.chain.has_data2d(transpose_name(name))
@@ -735,12 +735,12 @@ class DafReader:  # pylint: disable=too-many-public-methods
             Storing `.Sparse` data in a ``pandas.DataFrame`` fails in various unpleasant ways. Therefore, data for
             ``get_frame`` is always returned in a `.Dense` format. Do **not** call ``get_frame`` unless you are certain
             that the data size is "within reason", or that the data is memory-mapped from a `.Dense` format on disk. In
-            one of our data sets, calling ``get_frame("cell,gene;UMIs")`` would result in creating a ``numpy.ndarray``
+            one of our data sets, calling ``get_frame("cell,gene#UMIs")`` would result in creating a ``numpy.ndarray``
             of ~240GB(!), compared to the "mere" ~6GB needed to hold the data in a ``scipy.csr_matrix``.
         """
         name += "|Densify"
         dense = be_dense_in_rows(self.get_matrix(name))
-        axes = prefix(name, ";").split(",")
+        axes = prefix(name, "#").split(",")
         index = self.axis_entries(axes[0])
         columns = self.axis_entries(axes[1])
         frame = pd.DataFrame(dense, index=index, columns=columns)
@@ -757,12 +757,12 @@ class DafReader:  # pylint: disable=too-many-public-methods
         If no ``columns`` are specified, returns all the 1D properties for the ``axis``, in alphabetical order (that is,
         as if ``columns`` was set to `.data1d_names` with ``full=False`` for the ``axis``).
 
-        The specified ``columns`` names should only be the suffix following the ``axis;`` prefix in the 1D name
+        The specified ``columns`` names should only be the suffix following the ``axis#`` prefix in the 1D name
         of the data, as described :ref:`above <1d_names>`.
         """
         index = self.axis_entries(axis)
         columns = columns or self.data1d_names(axis, full=False)
-        data = {column: self.get_vector(f"{axis};{column}") for column in columns}
+        data = {column: self.get_vector(f"{axis}#{column}") for column in columns}
         frame = pd.DataFrame(data, index=index)
         frame.index.name = axis
         return freeze(optimize(frame))
@@ -789,8 +789,8 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
             If any of the axes is sliced, the view will ignore any derived data based on the sliced axes. While some
             derived data is safe to slice, some isn't, and it isn't easy to tell the difference; for example, when
-            slicing the ``gene`` axis, then ``cell,gene;Log,...`` is safe to slice, but
-            ``cell,gene;Folds|Significant,...`` is not. The code therefore plays it safe by ignoring any derived data
+            slicing the ``gene`` axis, then ``cell,gene#Log,...`` is safe to slice, but
+            ``cell,gene#Folds|Significant,...`` is not. The code therefore plays it safe by ignoring any derived data
             using any of the sliced axes.
         """
         # pylint: disable=duplicate-code
@@ -886,7 +886,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         size = self.axis_size(axis)
         entry = base_name.entries[0]
         index = None if entry is None else self.axis_index(axis, entry)
-        name = f"{axis};{base_name.property}"
+        name = f"{axis}#{base_name.property}"
         assert self.chain.has_data1d(name), f"missing 1D data: {name} in the data set: {self.name}"
 
         base_vector = freeze(optimize(be_vector(as_vector(self.chain._get_data1d(axis, name)), size=size)))
@@ -906,7 +906,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         row_entry, column_entry = base_name.entries
         row_index = None if row_entry is None else self.axis_index(rows_axis, row_entry)
         column_index = None if column_entry is None else self.axis_index(columns_axis, column_entry)
-        name = f"{rows_axis},{columns_axis};{base_name.property}"
+        name = f"{rows_axis},{columns_axis}#{base_name.property}"
 
         if self.chain.has_data2d(name):
             base_data2d = self.chain.get_data2d(name)
@@ -915,7 +915,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
                 base_matrix_in_rows = base_matrix
 
         if base_matrix_in_rows is None:
-            transposed_name = f"{columns_axis},{rows_axis};{base_name.property}"
+            transposed_name = f"{columns_axis},{rows_axis}#{base_name.property}"
             if self.chain.has_data2d(transposed_name):
                 base_data2d = self.chain.get_data2d(transposed_name)
                 base_matrix = be_matrix(as_matrix(base_data2d).transpose(), shape=(rows_size, columns_size))
@@ -949,9 +949,9 @@ class DafReader:  # pylint: disable=too-many-public-methods
         pipeline_state.canonical += "|" + operation_object.canonical
 
         if isinstance(operation_object, _operations.Reduction):
-            pipeline_state.canonical = pipeline_state.canonical.replace(";", ",", 1)
+            pipeline_state.canonical = pipeline_state.canonical.replace("#", ",", 1)
             if pipeline_state.ndim == 2:
-                pipeline_state.canonical = pipeline_state.canonical.replace(",", ";", 1)
+                pipeline_state.canonical = pipeline_state.canonical.replace(",", "#", 1)
             pipeline_state.ndim -= 1
 
         cache = operation_name.cache and pipeline_state.allow_cache
@@ -1078,21 +1078,21 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
 def transpose_name(name: str) -> str:
     """
-    Given a 2D data name ``rows_axis,columns_axis;name`` return the transposed data name
-    ``columns_axis,rows_axis;name``.
+    Given a 2D data name ``rows_axis,columns_axis#name`` return the transposed data name
+    ``columns_axis,rows_axis#name``.
 
     .. note::
 
-        This will refuse to transpose pipelined names ``rows_axis,columns_axis;name|operation|...`` as doing so would
-        change the meaning of the name. For example, ``cell,gene;UMIs|Sum`` gives the sum of the UMIs of all the genes
-        in each cell, while ``gene,cell;UMIs|Sum`` gives the sum of the UMIs for all the cells each gene.
+        This will refuse to transpose pipelined names ``rows_axis,columns_axis#name|operation|...`` as doing so would
+        change the meaning of the name. For example, ``cell,gene#UMIs|Sum`` gives the sum of the UMIs of all the genes
+        in each cell, while ``gene,cell#UMIs|Sum`` gives the sum of the UMIs for all the cells each gene.
     """
     assert "|" not in name, f"transposing the pipelined name: {name}"
 
-    name_parts = name.split(";", 1)
+    name_parts = name.split("#", 1)
 
     axes = name_parts[0].split(",")
     assert len(axes) == 2, f"invalid 2D data name: {name}"
 
     name_parts[0] = ",".join(reversed(axes))
-    return ";".join(name_parts)
+    return "#".join(name_parts)

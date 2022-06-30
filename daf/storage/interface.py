@@ -272,7 +272,7 @@ class StorageReader(ABC):
         """
         Return the names of the 1D data that exists in the storage for a specific ``axis`` (which must exist).
 
-        The returned names are in the format ``axis;name`` which uniquely identifies the 1D data.
+        The returned names are in the format ``axis#name`` which uniquely identifies the 1D data.
         """
         assert self._has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
         return self._data1d_names(axis)
@@ -285,10 +285,10 @@ class StorageReader(ABC):
         """
         Check whether the ``name`` 1D data exists.
 
-        The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
+        The name must be in the format ``axis#name`` which uniquely identifies the 1D data.
         """
-        assert ";" in name, f"0D name: {name} for: has_data1d for the storage: {self.name}"
-        axis = prefix(name, ";")
+        assert "#" in name, f"0D name: {name} for: has_data1d for the storage: {self.name}"
+        axis = prefix(name, "#")
         axes = axis.split(",")
         assert len(axes) == 1, f"{len(axes)}D name: {name} for: has_data1d for the storage: {self.name}"
         return self._has_axis(axis) and self._has_data1d(axis, name)
@@ -301,10 +301,10 @@ class StorageReader(ABC):
         """
         Get the ``name`` 1D data (which must exist) as an `.Known1D`.
 
-        The name must be in the format ``axis;name`` which uniquely identifies the 1D data.
+        The name must be in the format ``axis#name`` which uniquely identifies the 1D data.
         """
-        assert ";" in name, f"0D name: {name} for: get_data1d for the storage: {self.name}"
-        axis = prefix(name, ";")
+        assert "#" in name, f"0D name: {name} for: get_data1d for the storage: {self.name}"
+        axis = prefix(name, "#")
         axes = axis.split(",")
         assert len(axes) == 1, f"{len(axes)}D name: {name} for: has_data1d for the storage: {self.name}"
         assert self._has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
@@ -319,7 +319,7 @@ class StorageReader(ABC):
         """
         Return the names of the 2D data that exists in the storage for a specific pair of ``axes`` (which must exist).
 
-        The returned names are in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
+        The returned names are in the format ``rows_axis,columns_axis#name`` which uniquely identifies the 2D data.
 
         If two copies of the data exist in transposed axes order, then two different names will be returned.
         """
@@ -339,10 +339,10 @@ class StorageReader(ABC):
         """
         Check whether the ``name`` 2D data exists.
 
-        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
+        The name must be in the format ``rows_axis,columns_axis#name`` which uniquely identifies the 2D data.
         """
-        assert ";" in name, f"0D name: {name} for: has_data2d for the storage: {self.name}"
-        axes = prefix(name, ";").split(",")
+        assert "#" in name, f"0D name: {name} for: has_data2d for the storage: {self.name}"
+        axes = prefix(name, "#").split(",")
         assert len(axes) == 2, f"{len(axes)}D name: {name} for: has_data2d for the storage: {self.name}"
         return self._has_axis(axes[0]) and self._has_axis(axes[1]) and self._has_data2d((axes[0], axes[1]), name)
 
@@ -354,10 +354,10 @@ class StorageReader(ABC):
         """
         Get the ``name`` 2D data (which must exist).
 
-        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data.
+        The name must be in the format ``rows_axis,columns_axis#name`` which uniquely identifies the 2D data.
         """
-        assert ";" in name, f"0D name: {name} for: get_data2d for the storage: {self.name}"
-        axes = prefix(name, ";").split(",")
+        assert "#" in name, f"0D name: {name} for: get_data2d for the storage: {self.name}"
+        axes = prefix(name, "#").split(",")
         assert len(axes) == 2, f"{len(axes)}D name: {name} for: has_data2d for the storage: {self.name}"
         assert self._has_axis(axes[0]), f"missing axis: {axes[0]} in the storage: {self.name}"
         assert self._has_axis(axes[1]), f"missing axis: {axes[1]} in the storage: {self.name}"
@@ -492,7 +492,7 @@ class StorageWriter(StorageReader):
         """
         Set a ``name`` `.Vector` data.
 
-        The name must be in the format ``axis;name`` which uniquely identifies the 1D data. The data must be
+        The name must be in the format ``axis#name`` which uniquely identifies the 1D data. The data must be
         `.is_frozen` and `.is_optimal`.
 
         If ``overwrite``, will silently overwrite an existing 1D data of the same name, otherwise overwriting will fail.
@@ -501,8 +501,8 @@ class StorageWriter(StorageReader):
         assert_data(is_frozen(vector), "frozen 1D numpy.ndarray", vector)
         assert_data(is_optimal(vector), "optimal 1D numpy.ndarray", vector)
 
-        assert ";" in name, f"0D name: {name} for: set_vector for the storage: {self.name}"
-        axis = prefix(name, ";")
+        assert "#" in name, f"0D name: {name} for: set_vector for the storage: {self.name}"
+        axis = prefix(name, "#")
         axes = axis.split(",")
         assert len(axes) == 1, f"{len(axes)}D name: {name} for: set_vector for the storage: {self.name}"
         assert self._has_axis(axis), f"missing axis: {axis} in the storage: {self.name}"
@@ -526,7 +526,7 @@ class StorageWriter(StorageReader):
         """
         Set a ``name`` ``matrix``.
 
-        The name must be in the format ``rows_axis,columns_axis;name`` which uniquely identifies the 2D data. The data
+        The name must be in the format ``rows_axis,columns_axis#name`` which uniquely identifies the 2D data. The data
         must be an `.is_frozen` `.is_optimal` `.MatrixInRows`.
 
         If ``overwrite``, will silently overwrite an existing 2D data of the same name, otherwise overwriting will fail.
@@ -535,8 +535,8 @@ class StorageWriter(StorageReader):
         assert_data(is_optimal(matrix), "optimal matrix", matrix)
         assert_data(is_frozen(matrix), "frozen matrix", matrix)
 
-        assert ";" in name, f"0D name: {name} for: set_matrix for the storage: {self.name}"
-        axes = prefix(name, ";").split(",")
+        assert "#" in name, f"0D name: {name} for: set_matrix for the storage: {self.name}"
+        axes = prefix(name, "#").split(",")
         assert len(axes) == 2, f"{len(axes)}D name: {name} for: set_matrix for the storage: {self.name}"
         assert self._has_axis(axes[0]), f"missing axis: {axes[0]} in the storage: {self.name}"
         assert self._has_axis(axes[1]), f"missing axis: {axes[1]} in the storage: {self.name}"
@@ -568,8 +568,8 @@ class StorageWriter(StorageReader):
         Create an uninitialized `.ROW_MAJOR` .`DenseInRows` of some ``dtype`` to be set by the ``name`` in the storage,
         expecting the code to initialize it.
         """
-        assert ";" in name, f"0D name: {name} for: create_dense_in_rows for the storage: {self.name}"
-        axes = prefix(name, ";").split(",")
+        assert "#" in name, f"0D name: {name} for: create_dense_in_rows for the storage: {self.name}"
+        axes = prefix(name, "#").split(",")
         assert len(axes) == 2, f"{len(axes)}D name: {name} for: create_dense_in_rows for the storage: {self.name}"
         assert self._has_axis(axes[0]), f"missing axis: {axes[0]} in the storage: {self.name}"
         assert self._has_axis(axes[1]), f"missing axis: {axes[1]} in the storage: {self.name}"

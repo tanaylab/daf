@@ -31,10 +31,10 @@ def make_base() -> MemoryStorage:
     memory.create_axis("gene", gene_names)
 
     cell_types = freeze(as_vector(["T", "B"]))
-    memory.set_vector("cell;type", cell_types)
+    memory.set_vector("cell#type", cell_types)
 
     umis = freeze(be_dense_in_rows(as_dense([[0, 10, 90], [190, 10, 0]])))
-    memory.set_matrix("cell,gene;UMIs", umis)
+    memory.set_matrix("cell,gene#UMIs", umis)
 
     return memory
 
@@ -202,16 +202,16 @@ def check_same_axes(view: StorageView, base: StorageReader) -> None:
 
 def check_same_vector(view: StorageView, base: StorageReader) -> None:
     check_data1d_names(view, "cell", base)
-    assert view.base_data1d("cell;type") == "cell;type"
-    assert view.exposed_data1d("cell;type") == "cell;type"
-    check_vector_value(view, "cell;type", base)
+    assert view.base_data1d("cell#type") == "cell#type"
+    assert view.exposed_data1d("cell#type") == "cell#type"
+    check_vector_value(view, "cell#type", base)
 
 
 def check_same_data2d(view: StorageView, base: StorageReader) -> None:
     check_data2d_names(view, "cell,gene", base)
-    assert view.base_data2d("cell,gene;UMIs") == "cell,gene;UMIs"
-    assert view.exposed_data2d("cell,gene;UMIs") == "cell,gene;UMIs"
-    check_data2d_value(view, "cell,gene;UMIs", base)
+    assert view.base_data2d("cell,gene#UMIs") == "cell,gene#UMIs"
+    assert view.exposed_data2d("cell,gene#UMIs") == "cell,gene#UMIs"
+    check_data2d_value(view, "cell,gene#UMIs", base)
 
 
 def test_default_view() -> None:
@@ -227,19 +227,19 @@ def test_default_view() -> None:
         view,
         detail=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell in frozen 1D numpy.ndarray of 2 of <U5
-            gene: all 3 entries of gene in frozen 1D numpy.ndarray of 3 of <U5
-          data:
-            one: from one in builtins.float = 1.0
-            zero: from zero in builtins.float = 0.0
-            cell;type: from cell;type in frozen 1D numpy.ndarray of 2 of <U1
-            cell,gene;UMIs: from cell,gene;UMIs in frozen row-major numpy.ndarray of 2x3 of int64
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell in frozen 1D numpy.ndarray of 2 of <U5
+                gene: all 3 entries of gene in frozen 1D numpy.ndarray of 3 of <U5
+              data:
+                one: from one in builtins.float = 1.0
+                zero: from zero in builtins.float = 0.0
+                cell#type: from cell#type in frozen 1D numpy.ndarray of 2 of <U1
+                cell,gene#UMIs: from cell,gene#UMIs in frozen row-major numpy.ndarray of 2x3 of int64
+            """,
     )
 
     expect_description(
@@ -247,35 +247,35 @@ def test_default_view() -> None:
         detail=True,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell in frozen 1D numpy.ndarray of 2 of <U5
-            gene: all 3 entries of gene in frozen 1D numpy.ndarray of 3 of <U5
-          data:
-            one: from one in builtins.float = 1.0
-            zero: from zero in builtins.float = 0.0
-            cell;type: from cell;type in frozen 1D numpy.ndarray of 2 of <U1
-            cell,gene;UMIs: from cell,gene;UMIs in frozen row-major numpy.ndarray of 2x3 of int64
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: frozen 1D numpy.ndarray of 2 of <U5
-            gene: frozen 1D numpy.ndarray of 3 of <U5
-          data: {}
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: frozen 1D numpy.ndarray of 2 of <U5
-            gene: frozen 1D numpy.ndarray of 3 of <U5
-          data:
-            one: builtins.float = 1.0
-            zero: builtins.float = 0.0
-            cell;type: frozen 1D numpy.ndarray of 2 of <U1
-            cell,gene;UMIs: frozen row-major numpy.ndarray of 2x3 of int64
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell in frozen 1D numpy.ndarray of 2 of <U5
+                gene: all 3 entries of gene in frozen 1D numpy.ndarray of 3 of <U5
+              data:
+                one: from one in builtins.float = 1.0
+                zero: from zero in builtins.float = 0.0
+                cell#type: from cell#type in frozen 1D numpy.ndarray of 2 of <U1
+                cell,gene#UMIs: from cell,gene#UMIs in frozen row-major numpy.ndarray of 2x3 of int64
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: frozen 1D numpy.ndarray of 2 of <U5
+                gene: frozen 1D numpy.ndarray of 3 of <U5
+              data: {}
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: frozen 1D numpy.ndarray of 2 of <U5
+                gene: frozen 1D numpy.ndarray of 3 of <U5
+              data:
+                one: builtins.float = 1.0
+                zero: builtins.float = 0.0
+                cell#type: frozen 1D numpy.ndarray of 2 of <U1
+                cell,gene#UMIs: frozen row-major numpy.ndarray of 2x3 of int64
+            """,
     )
 
 
@@ -298,34 +298,34 @@ def test_hide_item() -> None:
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            gene: all 3 entries of gene
-          data:
-            zero: from zero
-            cell;type: from cell;type
-            cell,gene;UMIs: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                gene: all 3 entries of gene
+              data:
+                zero: from zero
+                cell#type: from cell#type
+                cell,gene#UMIs: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
@@ -344,132 +344,132 @@ def test_hide_axis() -> None:
     assert view.exposed_axis("gene") is None
 
     check_data2d_names(view, "cell,gene", None)
-    check_data2d_value(view, "cell,gene;UMIs", None)
+    check_data2d_value(view, "cell,gene#UMIs", None)
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-          data:
-            one: from one
-            zero: from zero
-            cell;type: from cell;type
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+              data:
+                one: from one
+                zero: from zero
+                cell#type: from cell#type
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
 def test_hide_vector() -> None:
     base = make_base()
-    view = StorageView(base, name="view", data={"cell;type": None})
+    view = StorageView(base, name="view", data={"cell#type": None})
 
     check_same_data(view, base)
     check_same_axes(view, base)
     check_same_data2d(view, base)
 
     check_data1d_names(view, "cell", [])
-    assert view.exposed_data1d("cell;type") is None
-    check_vector_value(view, "cell;type", None)
+    assert view.exposed_data1d("cell#type") is None
+    check_vector_value(view, "cell#type", None)
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            gene: all 3 entries of gene
-          data:
-            one: from one
-            zero: from zero
-            cell,gene;UMIs: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                gene: all 3 entries of gene
+              data:
+                one: from one
+                zero: from zero
+                cell,gene#UMIs: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
 def test_hide_data2d() -> None:
     base = make_base()
-    view = StorageView(base, name="view", data={"cell,gene;UMIs": None})
+    view = StorageView(base, name="view", data={"cell,gene#UMIs": None})
 
     check_same_data(view, base)
     check_same_axes(view, base)
     check_same_vector(view, base)
 
     check_data2d_names(view, "cell,gene", [])
-    assert view.exposed_data2d("cell,gene;UMIs") is None
-    check_data2d_value(view, "cell,gene;UMIs", None)
+    assert view.exposed_data2d("cell,gene#UMIs") is None
+    check_data2d_value(view, "cell,gene#UMIs", None)
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            gene: all 3 entries of gene
-          data:
-            one: from one
-            zero: from zero
-            cell;type: from cell;type
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                gene: all 3 entries of gene
+              data:
+                one: from one
+                zero: from zero
+                cell#type: from cell#type
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
@@ -493,35 +493,35 @@ def test_rename_item() -> None:
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            gene: all 3 entries of gene
-          data:
-            none: from zero
-            one: from one
-            cell;type: from cell;type
-            cell,gene;UMIs: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                gene: all 3 entries of gene
+              data:
+                none: from zero
+                one: from one
+                cell#type: from cell#type
+                cell,gene#UMIs: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
@@ -542,142 +542,142 @@ def test_rename_axis() -> None:
     assert view.exposed_axis("cell") == "cell"
     assert view.exposed_axis("gene") == "value"
 
-    check_data2d_names(view, "cell,value", ["cell,value;UMIs"])
-    assert view.base_data2d("cell,value;UMIs") == "cell,gene;UMIs"
-    assert view.exposed_data2d("cell,gene;UMIs") == "cell,value;UMIs"
-    check_data2d_value(view, "cell,value;UMIs", "cell,gene;UMIs", base)
+    check_data2d_names(view, "cell,value", ["cell,value#UMIs"])
+    assert view.base_data2d("cell,value#UMIs") == "cell,gene#UMIs"
+    assert view.exposed_data2d("cell,gene#UMIs") == "cell,value#UMIs"
+    check_data2d_value(view, "cell,value#UMIs", "cell,gene#UMIs", base)
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            value: all 3 entries of gene
-          data:
-            one: from one
-            zero: from zero
-            cell;type: from cell;type
-            cell,value;UMIs: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            value: 3 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                value: all 3 entries of gene
+              data:
+                one: from one
+                zero: from zero
+                cell#type: from cell#type
+                cell,value#UMIs: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                value: 3 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
 def test_rename_vector() -> None:
     base = make_base()
-    view = StorageView(base, name="view", data={"cell;type": "kind"})
+    view = StorageView(base, name="view", data={"cell#type": "kind"})
 
     check_same_data(view, base)
     check_same_axes(view, base)
     check_same_data2d(view, base)
 
-    check_data1d_names(view, "cell", ["cell;kind"])
-    assert view.base_data1d("cell;kind") == "cell;type"
-    assert view.exposed_data1d("cell;type") == "cell;kind"
-    check_vector_value(view, "cell;kind", "cell;type", base)
+    check_data1d_names(view, "cell", ["cell#kind"])
+    assert view.base_data1d("cell#kind") == "cell#type"
+    assert view.exposed_data1d("cell#type") == "cell#kind"
+    check_vector_value(view, "cell#kind", "cell#type", base)
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            gene: all 3 entries of gene
-          data:
-            one: from one
-            zero: from zero
-            cell;kind: from cell;type
-            cell,gene;UMIs: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                gene: all 3 entries of gene
+              data:
+                one: from one
+                zero: from zero
+                cell#kind: from cell#type
+                cell,gene#UMIs: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
 def test_rename_data2d() -> None:
     base = make_base()
-    view = StorageView(base, name="view", data={"cell,gene;UMIs": "counts"})
+    view = StorageView(base, name="view", data={"cell,gene#UMIs": "counts"})
 
     check_same_data(view, base)
     check_same_axes(view, base)
     check_same_vector(view, base)
 
-    check_data2d_names(view, "cell,gene", ["cell,gene;counts"])
-    assert view.base_data2d("cell,gene;counts") == "cell,gene;UMIs"
-    assert view.exposed_data2d("cell,gene;UMIs") == "cell,gene;counts"
-    check_data2d_value(view, "cell,gene;counts", "cell,gene;UMIs", base)
+    check_data2d_names(view, "cell,gene", ["cell,gene#counts"])
+    assert view.base_data2d("cell,gene#counts") == "cell,gene#UMIs"
+    assert view.exposed_data2d("cell,gene#UMIs") == "cell,gene#counts"
+    check_data2d_value(view, "cell,gene#counts", "cell,gene#UMIs", base)
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            gene: all 3 entries of gene
-          data:
-            one: from one
-            zero: from zero
-            cell;type: from cell;type
-            cell,gene;counts: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                gene: all 3 entries of gene
+              data:
+                one: from one
+                zero: from zero
+                cell#type: from cell#type
+                cell,gene#counts: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
@@ -699,45 +699,45 @@ def test_slice_axis_strings() -> None:
     assert view.exposed_axis("gene") == "gene"
 
     check_data2d_names(view, "cell,gene", base)
-    assert view.base_data2d("cell,gene;UMIs") == "cell,gene;UMIs"
-    assert view.exposed_data2d("cell,gene;UMIs") == "cell,gene;UMIs"
-    check_data2d_value(view, "cell,gene;UMIs", as_dense([[90, 0], [0, 190]]))
-    check_data2d_value(view, "cell,gene;UMIs", as_dense([[90, 0], [0, 190]]))
+    assert view.base_data2d("cell,gene#UMIs") == "cell,gene#UMIs"
+    assert view.exposed_data2d("cell,gene#UMIs") == "cell,gene#UMIs"
+    check_data2d_value(view, "cell,gene#UMIs", as_dense([[90, 0], [0, 190]]))
+    check_data2d_value(view, "cell,gene#UMIs", as_dense([[90, 0], [0, 190]]))
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            gene: 2 out of 3 entries of gene (66.67%)
-          data:
-            one: from one
-            zero: from zero
-            cell;type: from cell;type
-            cell,gene;UMIs: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 2 entries
-          data:
-          - cell,gene;UMIs
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                gene: 2 out of 3 entries of gene (66.67%)
+              data:
+                one: from one
+                zero: from zero
+                cell#type: from cell#type
+                cell,gene#UMIs: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 2 entries
+              data:
+              - cell,gene#UMIs
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
@@ -759,45 +759,45 @@ def test_slice_axis_mask() -> None:
     assert view.exposed_axis("gene") == "gene"
 
     check_data2d_names(view, "cell,gene", base)
-    assert view.base_data2d("cell,gene;UMIs") == "cell,gene;UMIs"
-    assert view.exposed_data2d("cell,gene;UMIs") == "cell,gene;UMIs"
-    check_data2d_value(view, "cell,gene;UMIs", as_dense([[0, 90], [190, 0]]))
-    check_data2d_value(view, "cell,gene;UMIs", as_dense([[0, 90], [190, 0]]))
+    assert view.base_data2d("cell,gene#UMIs") == "cell,gene#UMIs"
+    assert view.exposed_data2d("cell,gene#UMIs") == "cell,gene#UMIs"
+    check_data2d_value(view, "cell,gene#UMIs", as_dense([[0, 90], [190, 0]]))
+    check_data2d_value(view, "cell,gene#UMIs", as_dense([[0, 90], [190, 0]]))
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            cell: all 2 entries of cell
-            gene: 2 out of 3 entries of gene (66.67%)
-          data:
-            one: from one
-            zero: from zero
-            cell;type: from cell;type
-            cell,gene;UMIs: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 2 entries
-          data:
-          - cell,gene;UMIs
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                cell: all 2 entries of cell
+                gene: 2 out of 3 entries of gene (66.67%)
+              data:
+                one: from one
+                zero: from zero
+                cell#type: from cell#type
+                cell,gene#UMIs: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 2 entries
+              data:
+              - cell,gene#UMIs
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )
 
 
@@ -819,58 +819,58 @@ def test_rename_slice_axis_indices() -> None:
     assert view.exposed_axis("cell") == "place"
     assert view.exposed_axis("gene") == "gene"
 
-    check_data1d_names(view, "place", ["place;type", "place;full_index"])
+    check_data1d_names(view, "place", ["place#type", "place#full_index"])
 
-    assert view.base_data1d("place;type") == "cell;type"
-    assert view.exposed_data1d("cell;type") == "place;type"
-    check_vector_value(view, "place;type", as_vector(["B", "T"]))
-    check_vector_value(view, "place;type", as_vector(["B", "T"]))
+    assert view.base_data1d("place#type") == "cell#type"
+    assert view.exposed_data1d("cell#type") == "place#type"
+    check_vector_value(view, "place#type", as_vector(["B", "T"]))
+    check_vector_value(view, "place#type", as_vector(["B", "T"]))
 
-    assert view.base_data1d("place;full_index") == "cell;"
-    assert view.exposed_data1d("cell;") == "place;full_index"
-    check_vector_value(view, "place;full_index", as_vector([1, 0]))
-    check_vector_value(view, "place;full_index", as_vector([1, 0]))
+    assert view.base_data1d("place#full_index") == "cell#"
+    assert view.exposed_data1d("cell#") == "place#full_index"
+    check_vector_value(view, "place#full_index", as_vector([1, 0]))
+    check_vector_value(view, "place#full_index", as_vector([1, 0]))
 
-    check_data2d_names(view, "place,gene", ["place,gene;UMIs"])
-    assert view.base_data2d("place,gene;UMIs") == "cell,gene;UMIs"
-    assert view.exposed_data2d("cell,gene;UMIs") == "place,gene;UMIs"
-    check_data2d_value(view, "place,gene;UMIs", as_dense([[190, 10, 0], [0, 10, 90]]))
-    check_data2d_value(view, "place,gene;UMIs", as_dense([[190, 10, 0], [0, 10, 90]]))
+    check_data2d_names(view, "place,gene", ["place,gene#UMIs"])
+    assert view.base_data2d("place,gene#UMIs") == "cell,gene#UMIs"
+    assert view.exposed_data2d("cell,gene#UMIs") == "place,gene#UMIs"
+    check_data2d_value(view, "place,gene#UMIs", as_dense([[190, 10, 0], [0, 10, 90]]))
+    check_data2d_value(view, "place,gene#UMIs", as_dense([[190, 10, 0], [0, 10, 90]]))
 
     expect_description(
         view,
         deep=True,
         expected="""
-        view:
-          class: daf.storage.views.StorageView
-          cache: view.cache
-          base: base
-          axes:
-            gene: all 3 entries of gene
-            place: 2 out of 2 entries of cell (100.00%)
-          data:
-            one: from one
-            zero: from zero
-            place;full_index: from cell;
-            place;type: from cell;type
-            place,gene;UMIs: from cell,gene;UMIs
-        view.cache:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            gene: 3 entries
-            place: 2 entries
-          data:
-          - place;type
-          - place,gene;UMIs
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            cell: 2 entries
-            gene: 3 entries
-          data:
-          - one
-          - zero
-          - cell;type
-          - cell,gene;UMIs
-        """,
+            view:
+              class: daf.storage.views.StorageView
+              cache: view.cache
+              base: base
+              axes:
+                gene: all 3 entries of gene
+                place: 2 out of 2 entries of cell (100.00%)
+              data:
+                one: from one
+                zero: from zero
+                place#full_index: from cell#
+                place#type: from cell#type
+                place,gene#UMIs: from cell,gene#UMIs
+            view.cache:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                gene: 3 entries
+                place: 2 entries
+              data:
+              - place#type
+              - place,gene#UMIs
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                cell: 2 entries
+                gene: 3 entries
+              data:
+              - one
+              - zero
+              - cell#type
+              - cell,gene#UMIs
+            """,
     )

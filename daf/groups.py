@@ -6,7 +6,7 @@ common to group cells into clusters, so we have a ``cell`` axis and a ``cluster`
 grouping (``cell``, ``sub-cluster``, ``cluster``).
 
 In this idiom, by convention there is a 1D data property for the "member" axis specifying the entry of the "group" axis
-it belongs to. That is, we may see something like ``cell;cluster`` which gives for each cell the (integer, 0-based)
+it belongs to. That is, we may see something like ``cell#cluster`` which gives for each cell the (integer, 0-based)
 index of the cluster it belongs to. Since integers don't support ``NaN``, by convention any negative value (typically
 ``-1``) is used to say "this cell belongs to no cluster".
 
@@ -16,19 +16,19 @@ to provide here:
 
 **Aggregation**
     Compute 1D data for the group axis based on 1D data of the members axis. For example, suppose we have a
-    ``cell;cluster`` as above, and also a ``cell;age`` 1D data. It is natural to want to aggregate it into a 1D
-    ``cluster;age.mean`` which gives the mean cell age in each cluster.
+    ``cell#cluster`` as above, and also a ``cell#age`` 1D data. It is natural to want to aggregate it into a 1D
+    ``cluster#age.mean`` which gives the mean cell age in each cluster.
 
 **Counting**
     Compute 2D data for the group axis based on discrete 1D data of the members axis. For example, if ``age`` is
     actually discrete (which is common in scRNA-seq data), then for more detailed analysis, one may create an ``age``
-    axis and then collect ``cluster,age;cells`` 2D data, which counts for each cluster and age the number of cells in
+    axis and then collect ``cluster,age#cells`` 2D data, which counts for each cluster and age the number of cells in
     the cluster that have that age.
 
 **Assignment**
     Compute 1D data for the member axis based on 1D data of the group axis. For example, an analyst may provide
-    ``cluster;type`` 1D data, which assigns a human-readable "cell type" to each cluster of cells. It would be natural
-    to assign these types into a ``cell;type`` 1D data, which assigns each cell the type of the cluster it
+    ``cluster#type`` 1D data, which assigns a human-readable "cell type" to each cluster of cells. It would be natural
+    to assign these types into a ``cell#type`` 1D data, which assigns each cell the type of the cluster it
     belongs to.
 """
 
@@ -77,13 +77,13 @@ __all__ = [
 
 @computation(
     required_inputs={
-        "member;group": """
+        "member#group": """
             The index of the group each member belongs to.
             If negative, the member is not a part of any group.
             """,
-        "member;value": "The value associated with each individual member.",
+        "member#value": "The value associated with each individual member.",
     },
-    assured_outputs={"group;value": "The aggregated value associated with each group."},
+    assured_outputs={"group#value": "The aggregated value associated with each group."},
 )
 def aggregate_group_data1d(
     data: DafWriter,
@@ -112,10 +112,10 @@ def aggregate_group_data1d(
     __DAF__
     """
     assert dtype is None or is_dtype(dtype), f"invalid dtype: {dtype}"
-    member_groups = data.get_vector("member;group")
+    member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
 
-    member_values_series = data.get_series("member;value")
+    member_values_series = data.get_series("member#value")
     grouped = _aggregate_pandas(member_values_series, aggregation, member_groups, dtype)
     grouped = grouped[grouped.index >= 0]
 
@@ -126,15 +126,15 @@ def aggregate_group_data1d(
         group_values = np.full(groups_count, default, dtype=dtype)
         group_values[grouped.index] = grouped.values
 
-    data.set_data1d("group;value", group_values, overwrite=overwrite)
+    data.set_data1d("group#value", group_values, overwrite=overwrite)
 
 
 @computation(
     required_inputs={
-        "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
-        "member,data;value": "The value associated with each individual member and data axis entry.",
+        "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
+        "member,data#value": "The value associated with each individual member and data axis entry.",
     },
-    assured_outputs={"group,data;value": "The aggregated value associated with each group and data axis entry."},
+    assured_outputs={"group,data#value": "The aggregated value associated with each group and data axis entry."},
 )
 def aggregate_group_data2d(  # pylint: disable=too-many-locals
     data: DafWriter,
@@ -169,10 +169,10 @@ def aggregate_group_data2d(  # pylint: disable=too-many-locals
     __DAF__
     """
     assert dtype is None or is_dtype(dtype), f"invalid dtype: {dtype}"
-    member_groups = data.get_vector("member;group")
+    member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
 
-    member_data_values = data.get_matrix("member,data;value")
+    member_data_values = data.get_matrix("member,data#value")
     dtype = dtype or dtype_of(member_data_values)
     assert dtype is not None
     groups_count = data.axis_size("group")
@@ -185,10 +185,10 @@ def aggregate_group_data2d(  # pylint: disable=too-many-locals
 
         if grouped.shape[0] == groups_count:
             group_values = grouped.iloc[np.arange(groups_count), :]
-            data.set_data2d("group,data;value", group_values, overwrite=overwrite)
+            data.set_data2d("group,data#value", group_values, overwrite=overwrite)
 
         else:
-            with data.create_dense_in_rows("group,data;value", dtype=dtype, overwrite=overwrite) as group_values:
+            with data.create_dense_in_rows("group,data#value", dtype=dtype, overwrite=overwrite) as group_values:
                 group_values[:] = default
                 group_values[grouped.index, :] = grouped.values[:]
 
@@ -203,7 +203,7 @@ def aggregate_group_data2d(  # pylint: disable=too-many-locals
                 group_vectors.append(as_vector(grouped))
             else:
                 group_vectors.append(be_vector(np.full(data_count, default)))
-        data.set_data2d("group,data;value", np.vstack(group_vectors), overwrite=overwrite)
+        data.set_data2d("group,data#value", np.vstack(group_vectors), overwrite=overwrite)
 
 
 @overload
@@ -260,9 +260,9 @@ def most_frequent(vector: Vector) -> Any:
 
 @computation(
     required_inputs={
-        "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
+        "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
     },
-    assured_outputs={"group;members": "How many members exist in the group."},
+    assured_outputs={"group#members": "How many members exist in the group."},
 )
 def count_group_members(data: DafWriter, *, dtype: DType = "int32", overwrite: bool = False) -> None:
     """
@@ -274,21 +274,21 @@ def count_group_members(data: DafWriter, *, dtype: DType = "int32", overwrite: b
     __DAF__
     """
     assert is_dtype(dtype, INT_DTYPES), f"non-integer dtype: {dtype}"
-    member_groups = data.get_vector("member;group")
+    member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
     member_groups = member_groups[member_groups >= 0]
     groups_count = data.axis_size("group")
     data.set_data1d(
-        "group;members", np.bincount(member_groups, minlength=groups_count).astype(dtype), overwrite=overwrite
+        "group#members", np.bincount(member_groups, minlength=groups_count).astype(dtype), overwrite=overwrite
     )
 
 
 @computation(
     required_inputs={
-        "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
-        "member;value": "The value associated with each individual member.",
+        "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
+        "member#value": "The value associated with each individual member.",
     },
-    assured_outputs={"group,value;members": "How many members have each value in each group."},
+    assured_outputs={"group,value#members": "How many members have each value in each group."},
 )
 def count_group_values(
     data: DafWriter, *, dtype: DType = "int32", dense: bool = False, overwrite: bool = False
@@ -311,9 +311,9 @@ def count_group_values(
     groups_count = data.axis_size("group")
     values_count = data.axis_size("value")
 
-    member_groups = data.get_vector("member;group")
+    member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
-    member_values = data.get_vector("member;value")
+    member_values = data.get_vector("member#value")
     grouped_mask = member_groups >= 0
     member_groups = member_groups[grouped_mask]
     member_values = member_values[grouped_mask].astype("str")
@@ -332,15 +332,15 @@ def count_group_values(
         data2d = data2d.toarray()
     assert has_dtype(data2d, dtype)
 
-    data.set_data2d("group,value;members", data2d, overwrite=overwrite)
+    data.set_data2d("group,value#members", data2d, overwrite=overwrite)
 
 
 @computation(
     required_inputs={
-        "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
-        "group;value": "The value associated with each group.",
+        "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
+        "group#value": "The value associated with each group.",
     },
-    assured_outputs={"member;value": "The value associated with the group of each member."},
+    assured_outputs={"member#value": "The value associated with the group of each member."},
 )
 def assign_group_values(
     data: DafWriter, *, dtype: Optional[DType] = None, default: Any = None, overwrite: bool = False
@@ -357,9 +357,9 @@ def assign_group_values(
     __DAF__
     """
     assert dtype is None or is_dtype(dtype), f"invalid dtype: {dtype}"
-    member_groups = data.get_vector("member;group")
+    member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
-    group_values = data.get_vector("group;value")
+    group_values = data.get_vector("group#value")
     dtype = dtype or dtype_of(group_values)
     assert dtype is not None
 
@@ -369,14 +369,14 @@ def assign_group_values(
         group_values = np.concatenate([[default], group_values], dtype=dtype)  # pylint: disable=unexpected-keyword-arg
 
     member_values = group_values.astype(dtype)[member_groups]
-    data.set_data1d("member;value", member_values, overwrite=overwrite)
+    data.set_data1d("member#value", member_values, overwrite=overwrite)
 
 
 @computation(
     required_inputs={
-        "member;group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
+        "member#group": "The index of the group each member belongs to. If negative, it is not a part of any group.",
     },
-    assured_outputs={"group;": "A new axis with one entry per group."},
+    assured_outputs={"group#": "A new axis with one entry per group."},
 )
 def create_group_axis(
     data: DafWriter,
@@ -397,7 +397,7 @@ def create_group_axis(
 
     __DAF__
     """
-    member_groups = data.get_vector("member;group")
+    member_groups = data.get_vector("member#group")
     assert_data(has_dtype(member_groups, INT_DTYPES), "group indices data", member_groups, dtype=INT_DTYPES)
     groups_count = np.max(member_groups) + 1
     group_entries = [format % group for group in range(groups_count)]

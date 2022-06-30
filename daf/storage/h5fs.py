@@ -32,11 +32,11 @@ A ``daf`` group inside an ``h5fs`` file will contain the following data sets:
 
 * Every 0D data will be stored as an attribute of the ``__daf__`` data set.
 
-* For axes, there will be an ``axis;`` data set containing the unique names of the entries along the axis.
+* For axes, there will be an ``axis#`` data set containing the unique names of the entries along the axis.
 
-* For 1D data, there will be an ``axis;property`` data set containing the data.
+* For 1D data, there will be an ``axis#property`` data set containing the data.
 
-* For dense 2D data, there will be a ``row_axis,column_axis;property`` data set containing the data.
+* For dense 2D data, there will be a ``row_axis,column_axis#property`` data set containing the data.
 
 .. note::
 
@@ -47,7 +47,7 @@ A ``daf`` group inside an ``h5fs`` file will contain the following data sets:
     ``None`` value. So do **not** use this magic string value in arrays of strings you pass to ``daf``, and don't be
     surprised if you see this value if you access the data directly from ``h5fs``. Sigh.
 
-* For sparse 2D data, there will be a group ``row_axis,column_axis;property`` which will contain three data sets:
+* For sparse 2D data, there will be a group ``row_axis,column_axis#property`` which will contain three data sets:
   ``data``, ``indices`` and ``indptr``, needed to construct the sparse ``scipy.sparse.csr_matrix``. The group will have
   a ``shape`` attribute whose value is an array of two integers, the rows count and the columns count of the matrix.
 
@@ -205,10 +205,10 @@ class H5fsReader(_interface.StorageReader):
             if name == "__daf__":
                 continue
 
-            if ";" not in name:
+            if "#" not in name:
                 continue
 
-            if name.endswith(";"):
+            if name.endswith("#"):
                 axis = name[:-1]
                 if isinstance(data, Dataset):
                     self._axes[axis] = data
@@ -218,7 +218,7 @@ class H5fsReader(_interface.StorageReader):
                         self._matrices[(other_axis, axis)] = {}
                 continue
 
-            axis = _interface.prefix(name, ";")
+            axis = _interface.prefix(name, "#")
             if "," not in axis:
                 if isinstance(data, Dataset):
                     vector_data.append((axis, name, data))
@@ -383,7 +383,7 @@ class H5fsWriter(H5fsReader, _interface.StorageWriter):
     def _create_axis(self, axis: str, entries: Vector) -> None:
         entries = entries.astype("S")  # type: ignore
         self._vectors[axis] = {}
-        self._axes[axis] = dataset = self.group.create_dataset(f"{axis};", entries.shape, dtype=entries.dtype)
+        self._axes[axis] = dataset = self.group.create_dataset(f"{axis}#", entries.shape, dtype=entries.dtype)
         dataset[:] = entries
         for other_axis in self._axes:
             self._matrices[(axis, other_axis)] = {}

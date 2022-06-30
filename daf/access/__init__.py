@@ -21,23 +21,23 @@ Accessing data in ``daf`` is based on string names in the following format(s):
 * 1D/2D data is specified along some axes, where each ``axis`` has a simple name and a string name for each entry along
   the axis.
 
-* 1D data along some axis is identified by ``axis;name``, e.g. ``cell;age`` might assign an age to every cell in the
+* 1D data along some axis is identified by ``axis#name``, e.g. ``cell#age`` might assign an age to every cell in the
   data set. Such data is returned as a ``numpy`` 1D array (that is, `.Vector`) or as a ``pandas.Series``.
 
-* 2D data along two axes is identifies by ``rows_axis,columns_axis;name``, e.g. ``cell,gene;UMIs`` would give the number
+* 2D data along two axes is identifies by ``rows_axis,columns_axis#name``, e.g. ``cell,gene#UMIs`` would give the number
   of unique molecular identifiers (that is, the count of mRNA molecules) for each gene in each cell.
 
   All such data is provided in `.ROW_MAJOR` order; that is, in the above example, each row will describe a cell, and
-  will contain (consecutively in memory) the UMIs of each gene. Requesting ``gene,cell;UMIs`` will return data where
+  will contain (consecutively in memory) the UMIs of each gene. Requesting ``gene,cell#UMIs`` will return data where
   each row describes a cell, and will contain (consecutively in memory) its UMIs in each cell.
 
   .. note::
 
     Calling ``.transpose()`` on 2D data does **not** modify the memory layout; this is why it is an extremely fast
-    operation. That is, the transpose of ``cell,gene;UMIs`` data contains the same rows, columns, and values as
-    ``gene,cell;UMIs`` data, but the former will be in `.COLUMN_MAJOR` layout and the latter will be in `.ROW_MAJOR`
+    operation. That is, the transpose of ``cell,gene#UMIs`` data contains the same rows, columns, and values as
+    ``gene,cell#UMIs`` data, but the former will be in `.COLUMN_MAJOR` layout and the latter will be in `.ROW_MAJOR`
     layout. The two may be "equal" but will **not** be identical when it comes to performance (for non-trivial data
-    sizes). For example, summing the UMIs of each cell would be **much** slower for the ``gene,cell;UMIs`` data. It is
+    sizes). For example, summing the UMIs of each cell would be **much** slower for the ``gene,cell#UMIs`` data. It is
     therefore **important** to keep track of the memory order of any non-trivial 2D data, and ensure operations are
     applied to the right layout. Otherwise the code will experience **extreme** slowdowns.
 

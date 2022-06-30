@@ -37,29 +37,29 @@ def test_chain_item() -> None:
         chain,
         deep=True,
         expected="""
-        chain:
-          class: daf.storage.chains.StorageChain
-          chain:
-          - delta
-          - base
-          axes: {}
-          data:
-          - base_item
-          - both_item
-          - delta_item
-        delta:
-          class: daf.storage.memory.MemoryStorage
-          axes: {}
-          data:
-          - both_item
-          - delta_item
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes: {}
-          data:
-          - base_item
-          - both_item
-    """,
+            chain:
+              class: daf.storage.chains.StorageChain
+              chain:
+              - delta
+              - base
+              axes: {}
+              data:
+              - base_item
+              - both_item
+              - delta_item
+            delta:
+              class: daf.storage.memory.MemoryStorage
+              axes: {}
+              data:
+              - both_item
+              - delta_item
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes: {}
+              data:
+              - base_item
+              - both_item
+            """,
     )
 
 
@@ -93,29 +93,29 @@ def test_chain_axis() -> None:
         chain,
         deep=True,
         expected="""
-        chain:
-          class: daf.storage.chains.StorageChain
-          chain:
-          - delta
-          - base
-          axes:
-            base_axis: 2 entries
-            both_axis: 3 entries
-            delta_axis: 3 entries
-          data: []
-        delta:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            both_axis: 3 entries
-            delta_axis: 3 entries
-          data: []
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            base_axis: 2 entries
-            both_axis: 3 entries
-          data: []
-        """,
+            chain:
+              class: daf.storage.chains.StorageChain
+              chain:
+              - delta
+              - base
+              axes:
+                base_axis: 2 entries
+                both_axis: 3 entries
+                delta_axis: 3 entries
+              data: []
+            delta:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                both_axis: 3 entries
+                delta_axis: 3 entries
+              data: []
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                base_axis: 2 entries
+                both_axis: 3 entries
+              data: []
+            """,
     )
 
 
@@ -125,59 +125,59 @@ def test_chain_vector() -> None:
     base.create_axis("axis", axis_names)
 
     base_values = freeze(as_vector([0, 1]))
-    base.set_vector("axis;base_vector", base_values)
+    base.set_vector("axis#base_vector", base_values)
     base_both_values = freeze(as_vector([0, 1]))
-    base.set_vector("axis;both_vector", base_both_values)
+    base.set_vector("axis#both_vector", base_both_values)
 
     delta = MemoryStorage(name="delta")
     delta.create_axis("axis", axis_names)
 
     delta_both_values = freeze(as_vector([2, 3]))
-    delta.set_vector("axis;both_vector", delta_both_values)
+    delta.set_vector("axis#both_vector", delta_both_values)
 
     delta_values = freeze(as_vector([4, 5]))
-    delta.set_vector("axis;delta_vector", delta_values)
+    delta.set_vector("axis#delta_vector", delta_values)
 
     chain = StorageChain([delta.as_reader(), base, NO_STORAGE], name="chain")
 
-    assert set(chain.data1d_names("axis")) == set(["axis;base_vector", "axis;both_vector", "axis;delta_vector"])
+    assert set(chain.data1d_names("axis")) == set(["axis#base_vector", "axis#both_vector", "axis#delta_vector"])
 
-    assert fast_all_close(chain.get_data1d("axis;base_vector"), base_values)
-    assert fast_all_close(chain.get_data1d("axis;both_vector"), delta_both_values)
-    assert fast_all_close(chain.get_data1d("axis;delta_vector"), delta_values)
+    assert fast_all_close(chain.get_data1d("axis#base_vector"), base_values)
+    assert fast_all_close(chain.get_data1d("axis#both_vector"), delta_both_values)
+    assert fast_all_close(chain.get_data1d("axis#delta_vector"), delta_values)
 
-    assert not chain.has_data1d("axis;neither_vector")
+    assert not chain.has_data1d("axis#neither_vector")
 
     expect_description(
         chain,
         deep=True,
         expected="""
-        chain:
-          class: daf.storage.chains.StorageChain
-          chain:
-          - delta
-          - base
-          axes:
-            axis: 2 entries
-          data:
-          - axis;base_vector
-          - axis;both_vector
-          - axis;delta_vector
-        delta:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            axis: 2 entries
-          data:
-          - axis;both_vector
-          - axis;delta_vector
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            axis: 2 entries
-          data:
-          - axis;base_vector
-          - axis;both_vector
-    """,
+            chain:
+              class: daf.storage.chains.StorageChain
+              chain:
+              - delta
+              - base
+              axes:
+                axis: 2 entries
+              data:
+              - axis#base_vector
+              - axis#both_vector
+              - axis#delta_vector
+            delta:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                axis: 2 entries
+              data:
+              - axis#both_vector
+              - axis#delta_vector
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                axis: 2 entries
+              data:
+              - axis#base_vector
+              - axis#both_vector
+            """,
     )
 
 
@@ -189,63 +189,65 @@ def test_chain_data2d() -> None:
     base.create_axis("column", column_names)
 
     base_values = freeze(be_dense_in_rows(as_dense([[0, 1, 2], [3, 4, 5]])))
-    base.set_matrix("row,column;base_data2d", base_values)
+    base.set_matrix("row,column#base_data2d", base_values)
     base_both_values = freeze(be_dense_in_rows(as_dense([[6, 7, 8], [9, 10, 11]])))
-    base.set_matrix("row,column;both_data2d", base_both_values)
+    base.set_matrix("row,column#both_data2d", base_both_values)
 
     delta = MemoryStorage(name="delta")
     delta.create_axis("row", row_names)
     delta.create_axis("column", column_names)
 
     delta_both_values = freeze(be_matrix_in_rows(as_dense([[12, 13, 14], [15, 16, 17]])))
-    delta.set_matrix("row,column;both_data2d", delta_both_values)
+    delta.set_matrix("row,column#both_data2d", delta_both_values)
 
     delta_values = freeze(be_matrix_in_rows(as_dense([[18, 19, 20], [21, 22, 23]])))
-    delta.set_matrix("row,column;delta_data2d", delta_values)
+    delta.set_matrix("row,column#delta_data2d", delta_values)
 
     chain = StorageChain([delta, delta, base], name="chain")
 
     assert set(chain.data2d_names(("row", "column"))) == set(
-        ["row,column;base_data2d", "row,column;both_data2d", "row,column;delta_data2d"]
+        ["row,column#base_data2d", "row,column#both_data2d", "row,column#delta_data2d"]
     )
 
-    assert fast_all_close(chain.get_data2d("row,column;base_data2d"), base_values)
-    assert fast_all_close(chain.get_data2d("row,column;both_data2d"), delta_both_values)
-    assert fast_all_close(chain.get_data2d("row,column;delta_data2d"), delta_values)
+    assert fast_all_close(chain.get_data2d("row,column#base_data2d"), base_values)
+    assert fast_all_close(chain.get_data2d("row,column#both_data2d"), delta_both_values)
+    assert fast_all_close(chain.get_data2d("row,column#delta_data2d"), delta_values)
 
-    assert not chain.has_data2d("row,column;neither_data2d")
+    assert not chain.has_data2d("row,column#neither_data2d")
 
     expect_description(
         chain,
         deep=True,
+        # pylint: disable=duplicate-code
         expected="""
-        chain:
-          class: daf.storage.chains.StorageChain
-          chain:
-          - delta
-          - base
-          axes:
-            column: 3 entries
-            row: 2 entries
-          data:
-          - row,column;base_data2d
-          - row,column;both_data2d
-          - row,column;delta_data2d
-        delta:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            column: 3 entries
-            row: 2 entries
-          data:
-          - row,column;both_data2d
-          - row,column;delta_data2d
-        base:
-          class: daf.storage.memory.MemoryStorage
-          axes:
-            column: 3 entries
-            row: 2 entries
-          data:
-          - row,column;base_data2d
-          - row,column;both_data2d
-    """,
+            chain:
+              class: daf.storage.chains.StorageChain
+              chain:
+              - delta
+              - base
+              axes:
+                column: 3 entries
+                row: 2 entries
+              data:
+              - row,column#base_data2d
+              - row,column#both_data2d
+              - row,column#delta_data2d
+            delta:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                column: 3 entries
+                row: 2 entries
+              data:
+              - row,column#both_data2d
+              - row,column#delta_data2d
+            base:
+              class: daf.storage.memory.MemoryStorage
+              axes:
+                column: 3 entries
+                row: 2 entries
+              data:
+              - row,column#base_data2d
+              - row,column#both_data2d
+            """,
+        # pylint: enable=duplicate-code
     )
