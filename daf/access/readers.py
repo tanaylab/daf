@@ -33,6 +33,10 @@ All 2D names start with ``rows_axis,columns_axis#``.
 
 All 1D names start with ``axis#``.
 
+* | *axis* ``#``
+
+  The name of the entries of the axis. That is, ``get_vector("axis#")`` is the same as ``axis_entries("axis")``.
+
 * | *axis* ``#`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
@@ -40,6 +44,14 @@ All 1D names start with ``axis#``.
   `.operations`.
 
   For example: ``cell#age``, ``cell#age|Clamp,min=6,max=8``.
+
+* | *axis* [ ``#`` *axis_property* ]+ ``#`` *property*?
+    [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
+
+  The name of properties which are indices or entry names of some axes, followed by the name of a property of the final
+  axis, optionally processed by a series of `.ElementWise` `.operations`.
+
+  For example: ``cell#type#color``, ``cell#donor#treatment#``, ``cell#donor#age|Clamp,min=30,max=60``.
 
 * | *axis* ``#`` *second_axis* ``=`` *entry* ``,`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
@@ -158,6 +170,7 @@ from ..storage import StorageWriter
 from ..storage import prefix
 from ..storage import suffix
 from ..typing import ROW_MAJOR
+from ..typing import STR_DTYPE
 from ..typing import AnyData
 from ..typing import FrameInColumns
 from ..typing import FrameInRows
@@ -174,6 +187,7 @@ from ..typing import be_matrix_in_rows
 from ..typing import be_sparse_in_rows
 from ..typing import be_vector
 from ..typing import freeze
+from ..typing import has_dtype
 from ..typing import is_dense_in_rows
 from ..typing import is_matrix_in_rows
 from ..typing import is_sparse_in_rows
@@ -201,8 +215,11 @@ class BaseName:  # pylint: disable=too-few-public-methods
         #: The name of the base data (start of pipeline).
         self.name = base_name
 
-        #: The property to get the data of.
-        self.property: str
+        #: The properties to get the data of.
+        #:
+        #: If there is more than one, this means looking up properties in other axes.
+        #: An empty name means fetching the axis entries.
+        self.properties: List[str]
 
         #: The axes to access for the base data (start of pipeline).
         self.axes: List[str] = []
@@ -229,7 +246,16 @@ class BaseName:  # pylint: disable=too-few-public-methods
             parts = parts[1:]
 
         parts = parts[0].split(",")
-        self.property = parts[-1]
+
+        self.properties = parts[-1].split("#")
+        assert len(self.properties) == 1 or self.ndim == 1, (
+            f"specifying an axis properties chain for {self.ndim}D data "
+            f"in the data name: {full_name} "
+            f"for the data set: {dataset_name}"
+        )
+        assert (
+            "##" not in parts[-1]
+        ), f"invalid axis properties chain in the data name: {full_name} for the data set: {dataset_name}"
 
         for part in parts[:-1]:
             axis_parts = part.split("=", 1)
@@ -259,14 +285,12 @@ class BaseName:  # pylint: disable=too-few-public-methods
             self.axes.reverse()
             self.entries.reverse()
 
+        self.canonical = "#".join(self.properties)
         if self.ndim == 0:
-            if len(self.axes) == 0:
-                self.canonical = self.property
-            elif len(self.axes) == 1:
+            if len(self.axes) == 1:
                 assert self.entries[0] is not None
-                self.canonical = f"{self.axes[0]}={self.entries[0]},{self.property}"
-            else:
-                assert len(self.axes) == 2
+                self.canonical = f"{self.axes[0]}={self.entries[0]},{self.canonical}"
+            elif len(self.axes) == 2:
                 assert self.entries[0] is not None
                 assert self.entries[1] is not None
                 sorted_axes = self.axes
@@ -275,24 +299,24 @@ class BaseName:  # pylint: disable=too-few-public-methods
                     sorted_axes.reverse()
                     sorted_entries.reverse()
                 self.canonical = (
-                    f"{sorted_axes[0]}={sorted_entries[0]},{sorted_axes[1]}={sorted_entries[1]},{self.property}"
+                    f"{sorted_axes[0]}={sorted_entries[0]},{sorted_axes[1]}={sorted_entries[1]},{self.canonical}"
                 )
 
         elif self.ndim == 1:
             if len(self.axes) == 1:
                 assert self.entries[0] is None
-                self.canonical = f"{self.axes[0]}#{self.property}"
+                self.canonical = f"{self.axes[0]}#{self.canonical}"
             else:
                 assert len(self.axes) == 2
                 assert self.entries[0] is not None
                 assert self.entries[1] is None
-                self.canonical = f"{self.axes[0]}#{self.axes[1]}={self.entries[1]},{self.property}"
+                self.canonical = f"{self.axes[0]}#{self.axes[1]}={self.entries[1]},{self.canonical}"
 
         else:
             assert len(self.axes) == 2
             assert self.entries[0] is None
             assert self.entries[1] is None
-            self.canonical = f"{self.axes[0]},{self.axes[1]}#{self.property}"
+            self.canonical = f"{self.axes[0]},{self.axes[1]}#{self.canonical}"
 
 
 class OperationName:  # pylint: disable=too-few-public-methods
@@ -879,24 +903,43 @@ class DafReader:  # pylint: disable=too-many-public-methods
         return self._get_base_matrix(base_name)
 
     def _get_base_item(self, base_name: BaseName) -> Any:
-        assert self.has_item(base_name.property), f"missing item: {base_name.property} in the data set: {self.name}"
-        return self.chain._get_item(base_name.property)
+        assert len(base_name.properties) == 1
+        assert self.has_item(
+            base_name.properties[0]
+        ), f"missing item: {base_name.properties[0]} in the data set: {self.name}"
+        return self.chain._get_item(base_name.properties[0])
 
     def _get_base_vector(self, base_name: BaseName) -> Any:
+        value: Optional[Vector] = None
         axis = base_name.axes[0]
-        size = self.axis_size(axis)
+        for next_property in base_name.properties:
+            next_name = f"{axis}#{next_property}"
+            if next_property == "":
+                next_value = self.axis_entries(axis)
+            else:
+                size = self.axis_size(axis)
+                assert self.chain.has_data1d(next_name), f"missing 1D data: {next_name} in the data set: {self.name}"
+                next_value = freeze(optimize(be_vector(as_vector(self.chain._get_data1d(axis, next_name)), size=size)))
+
+            if value is None:
+                value = next_value
+            elif has_dtype(value, STR_DTYPE):
+                next_series = pd.Series(next_value, index=self.chain._axis_entries(axis))
+                value = freeze(optimize(as_vector(next_series[value])))
+            else:
+                value = freeze(optimize(next_value[value]))
+            axis = next_property
+
+        assert value is not None
         entry = base_name.entries[0]
-        index = None if entry is None else self.axis_index(axis, entry)
-        name = f"{axis}#{base_name.property}"
-        assert self.chain.has_data1d(name), f"missing 1D data: {name} in the data set: {self.name}"
-
-        base_vector = freeze(optimize(be_vector(as_vector(self.chain._get_data1d(axis, name)), size=size)))
-
-        if index is None:
-            return base_vector
-        return base_vector[index]
+        if entry is None:
+            return value
+        index = self.axis_index(base_name.axes[0], entry)
+        return value[index]
 
     def _get_base_matrix(self, base_name: BaseName) -> Any:
+        assert len(base_name.properties) == 1
+
         base_data2d: Any
         base_matrix: Optional[Matrix] = None
         base_matrix_in_rows: Optional[MatrixInRows] = None
@@ -907,7 +950,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         row_entry, column_entry = base_name.entries
         row_index = None if row_entry is None else self.axis_index(rows_axis, row_entry)
         column_index = None if column_entry is None else self.axis_index(columns_axis, column_entry)
-        name = f"{rows_axis},{columns_axis}#{base_name.property}"
+        name = f"{rows_axis},{columns_axis}#{base_name.properties[0]}"
 
         if self.chain.has_data2d(name):
             base_data2d = self.chain.get_data2d(name)
@@ -916,7 +959,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
                 base_matrix_in_rows = base_matrix
 
         if base_matrix_in_rows is None:
-            transposed_name = f"{columns_axis},{rows_axis}#{base_name.property}"
+            transposed_name = f"{columns_axis},{rows_axis}#{base_name.properties[0]}"
             if self.chain.has_data2d(transposed_name):
                 base_data2d = self.chain.get_data2d(transposed_name)
                 base_matrix = be_matrix(as_matrix(base_data2d).transpose(), shape=(rows_size, columns_size))
