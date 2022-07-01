@@ -11,7 +11,9 @@ you choose to use it).
     To avoid ambiguities and to ensure that storing ``daf`` data in files works as expected, do **not** use ``,``,
     ``#``, ``=`` or ``|`` characters in axis, property or entry names. In addition, since axis and property names are
     used as part of file names in certain storage formats, also avoid characters that are invalid in file names, most
-    importantly ``/``, but also ``"``, ``:``, and ``\\``.
+    importantly ``/``, but also ``"``, ``:``, and ``\\``. If you want to be friendly to interactive shell usage, try to
+    avoid characters used by shell such as ``'``, ``"``, ``*``, ``?``, ``&``, ``$`` and ``;``, even though these can be
+    quoted.
 
 .. _2d_names:
 
@@ -49,9 +51,11 @@ All 1D names start with ``axis#``.
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   The name of properties which are indices or entry names of some axes, followed by the name of a property of the final
-  axis, optionally processed by a series of `.ElementWise` `.operations`.
+  axis, optionally processed by a series of `.ElementWise` `.operations`. A property can refer to an axis either
+  by using its exact name or adding some qualifier using ``.``.
 
-  For example: ``cell#type#color``, ``cell#donor#treatment#``, ``cell#donor#age|Clamp,min=30,max=60``.
+  For example: ``cell#type#color``, ``metacell#type.projected#color``, ``cell#donor#treatment#``,
+  ``cell#donor#age|Clamp,min=30,max=60``.
 
 * | *axis* ``#`` *second_axis* ``=`` *entry* ``,`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
@@ -929,6 +933,8 @@ class DafReader:  # pylint: disable=too-many-public-methods
             else:
                 value = freeze(optimize(next_value[value]))
             axis = next_property
+            if not self.chain.has_axis(axis):
+                axis = prefix(axis, ".")
 
         assert value is not None
         entry = base_name.entries[0]

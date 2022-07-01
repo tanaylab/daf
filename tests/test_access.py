@@ -82,11 +82,12 @@ def test_daf_data1d() -> None:
     cell_types = as_vector(["T", "B"])
     data.create_axis("type", ["B", "T"])
     data.set_data1d("cell#type", ["T", "B"])
+    data.set_data1d("cell#type.projected", [0, 1])
     data.set_data1d("type#color", ["red", "green"])
 
     assert data.has_data1d("cell#type")
-    assert data.data1d_names("cell") == ["cell#type"]
-    assert data.data1d_names("cell", full=False) == ["type"]
+    assert data.data1d_names("cell") == ["cell#type", "cell#type.projected"]
+    assert data.data1d_names("cell", full=False) == ["type", "type.projected"]
     assert is_vector(data.get_vector("cell#type"))
     assert is_frozen(data.get_vector("cell#type"))
     assert list(data.get_vector("cell#type")) == ["T", "B"]
@@ -94,6 +95,7 @@ def test_daf_data1d() -> None:
     assert list(data.get_vector("type#")) == ["B", "T"]
     assert list(data.get_vector("cell#type#")) == ["T", "B"]
     assert list(data.get_vector("cell#type#color")) == ["green", "red"]
+    assert list(data.get_vector("cell#type.projected#color")) == ["red", "green"]
 
     assert is_series(data.get_series("cell#type"))
     assert is_frozen(data.get_series("cell#type"))
