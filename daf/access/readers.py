@@ -15,6 +15,13 @@ you choose to use it).
     avoid characters used by shell such as ``'``, ``"``, ``*``, ``?``, ``&``, ``$`` and ``;``, even though these can be
     quoted.
 
+The following data is used in all the examples below:
+
+.. doctest::
+
+    >>> import daf
+    >>> data = daf.DafReader(daf.FilesReader(daf.DAF_EXAMPLE_PATH), name="example")
+
 .. _2d_names:
 
 **2D Names**
@@ -25,9 +32,45 @@ All 2D names start with ``rows_axis,columns_axis#``.
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   The name of a property with a value per each combination of two axes entries, optionally processed by a series of
-  `.ElementWise` `.operations`.
+  `.ElementWise` `.operations`. For example:
 
-  For example: ``cell,gene|UMIs``, ``cell,gene#fraction|Log,base=2,factor=1e-1|Abs``.
+.. doctest::
+
+    >>> data.get_matrix("metacell,gene#UMIs")
+    array([[  5.,   6.,  66.,   1.,   1.,   1.,   0., 110.,  13.,   1.],
+           [ 13.,   2.,   1.,   2.,   1.,   3.,   2.,   3.,   7.,   1.],
+           [211.,   1.,   2.,   0.,  91.,   0.,   0.,   1.,   2.,   4.],
+           [  1.,   0., 179.,   1.,   0.,   2.,   0.,   9.,   1.,   2.],
+           [  3.,   0.,   2.,  18.,   1.,   1.,   1.,   1., 126.,   1.],
+           [ 14.,   0.,   1.,   1.,   2.,  10.,   3.,   3.,   6.,   6.],
+           [  3.,   2.,   0.,   0.,   1.,   2.,   0.,   2.,   2.,   3.],
+           [  0.,   1.,   0.,   0.,   0.,   1.,   1.,   0.,   5.,   1.],
+           [ 62.,   0.,   0.,   0.,   2.,   0.,   2.,   0.,   1.,   0.],
+           [326.,   0.,   0.,   0., 151.,   0.,   0.,   1.,   0.,   2.]],
+          dtype=float32)
+
+    >>> data.get_matrix("metacell,gene#UMIs|Fraction|Log,base=2,factor=1e-1|Abs")
+    array([[3.0056686 , 2.9499593 , 1.239466  , 3.2528863 , 3.2528863 ,
+            3.2528863 , 3.321928  , 0.64562523, 2.610649  , 3.2528863 ],
+           [1.0848889 , 2.6698513 , 2.959358  , 2.6698513 , 2.959358  ,
+            2.4288433 , 2.6698513 , 2.4288433 , 1.7369655 , 2.959358  ],
+           [0.36534712, 3.2764134 , 3.2322907 , 3.321928  , 1.3523018 ,
+            3.321928  , 3.321928  , 3.2764134 , 3.2322907 , 3.1478987 ],
+           [3.2497783 , 3.321928  , 0.02566493, 3.2497783 , 3.321928  ,
+            3.1810656 , 3.321928  , 2.7744403 , 3.2497783 , 3.1810656 ],
+           [3.0651526 , 3.321928  , 3.1457713 , 2.2050104 , 3.2311625 ,
+            3.2311625 , 3.2311625 , 3.2311625 , 0.1231482 , 3.2311625 ],
+           [1.3063312 , 3.321928  , 3.038135  , 3.038135  , 2.801096  ,
+            1.6556655 , 2.5975626 , 2.5975626 , 2.1175697 , 2.1175697 ],
+           [1.7369655 , 2.0995355 , 3.321928  , 3.321928  , 2.5849624 ,
+            2.0995355 , 3.321928  , 2.0995355 , 2.0995355 , 1.7369655 ],
+           [3.321928  , 2.2439256 , 3.321928  , 3.321928  , 3.321928  ,
+            2.2439256 , 2.2439256 , 3.321928  , 0.6092099 , 2.2439256 ],
+           [0.03614896, 3.321928  , 3.321928  , 3.321928  , 2.9450738 ,
+            3.321928  , 2.9450738 , 3.321928  , 3.1212306 , 3.321928  ],
+           [0.35999608, 3.321928  , 3.321928  , 3.321928  , 1.2702659 ,
+            3.321928  , 3.321928  , 3.2921808 , 3.321928  , 3.2630343 ]],
+          dtype=float32)
 
 .. _1d_names:
 
@@ -37,33 +80,65 @@ All 1D names start with ``axis#``.
 
 * | *axis* ``#``
 
-  The name of the entries of the axis. That is, ``get_vector("axis#")`` is the same as ``axis_entries("axis")``.
+  The name of the entries of the axis. That is, ``get_vector("axis#")`` is the same as ``axis_entries("axis")``. For
+  example:
+
+.. doctest::
+
+    >>> data.get_vector("cell_type#")
+    array(['Amnion', 'Forebrain/Midbrain/Hindbrain', 'Neural tube Posterior',
+           'Presomitic mesoderm', 'Surface ectoderm', 'caudal mesoderm',
+           'epiblast'], dtype=object)
+
+    >>> data.axis_entries("cell_type")
+    array(['Amnion', 'Forebrain/Midbrain/Hindbrain', 'Neural tube Posterior',
+           'Presomitic mesoderm', 'Surface ectoderm', 'caudal mesoderm',
+           'epiblast'], dtype=object)
 
 * | *axis* ``#`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   The name of a property with a value per entry along some axis, optionally processed by a series of `.ElementWise`
-  `.operations`.
+  `.operations`. For example:
 
-  For example: ``cell#age``, ``cell#age|Clamp,min=6,max=8``.
+.. doctest::
+
+    >>> data.get_vector("batch#age")
+    array([51, 38, 21, 31, 26, 43, 36, 27, 33, 45, 49, 41, 45])
+
+    >>> data.get_vector("batch#age|Clip,min=30,max=45")
+    array([45, 38, 30, 31, 30, 43, 36, 30, 33, 45, 45, 41, 45])
 
 * | *axis* [ ``#`` *axis_property* ]+ ``#`` *property*?
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   The name of properties which are indices or entry names of some axes, followed by the name of a property of the final
-  axis, optionally processed by a series of `.ElementWise` `.operations`. A property can refer to an axis either
-  by using its exact name or adding some qualifier using ``.``.
+  axis, optionally processed by a series of `.ElementWise` `.operations`. For example:
 
-  For example: ``cell#type#color``, ``metacell#type.projected#color``, ``cell#donor#treatment#``,
-  ``cell#donor#age|Clamp,min=30,max=60``.
+.. doctest::
+
+    >>> data.get_vector("metacell#cell_type#color")
+    array(['#f7f79e', '#CDE089', '#1a3f52', '#f7f79e', '#cc7818', '#647A4F',
+           '#635547', '#635547', '#A8DBF7', '#1a3f52'], dtype=object)
+
+  A property can refer to an axis either by using its exact name as above or adding some qualifier using ``.``. For
+  example, if we had a ``metacell#cell_type.projected`` property containing the cell type obtained by projecting the
+  data on an atlas, we could write ``metacell#cell_type.projected#color`` to access the color of the projected cell type
+  of each metacell, using the ``cell_type#color`` property.
 
 * | *axis* ``#`` *second_axis* ``=`` *entry* ``,`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   The slice for a specific entry of the data of a 2D property, optionally processed by a series of `.ElementWise`
-  `.operations`.
+  `.operations`. For example:
 
-  For example: ``cell#gene=SOX8,UMIs``, ``cell#gene=SOX8,fraction|Log,base=2,factor=1e-1``.
+.. doctest::
+
+    >>> data.get_vector("metacell#gene=FOXA1,UMIs")
+    array([6., 2., 1., 0., 0., 0., 2., 1., 0., 0.], dtype=float32)
+
+    >>> data.get_vector("metacell#gene=FOXA1,UMIs|Clip,min=1,max=4")
+    array([4., 2., 1., 1., 1., 1., 2., 1., 1., 1.], dtype=float32)
 
 * | *axis* ``#`` *second_axis* ``,`` *property*
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
@@ -71,8 +146,18 @@ All 1D names start with ``axis#``.
     [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
 
   A reduction of 2D data into a single value per row, optionally processed by a series of `.ElementWise` `.operations`.
+  For example:
 
-  For example: ``cell#gene,UMIs|Sum``, ``cell#gene,fraction|Log,base=2,factor=1e-5|Max|Clip,min=-12,max=-7``.
+.. doctest::
+
+    >>> data.get_vector("metacell#gene,UMIs|Sum")
+    array([204.,  35., 312., 195., 154.,  46.,  15.,   9.,  67., 480.],
+          dtype=float32)
+
+    >>> data.get_vector("metacell#gene,UMIs|Fraction|Log,base=2,factor=1e-5|Max|Clip,min=-1.5,max=-0.5")
+    array([-0.89103884, -1.4288044 , -0.5642817 , -0.5       , -0.5       ,
+           -1.5       , -1.5       , -0.84797084, -0.5       , -0.5581411 ],
+          dtype=float32)
 
 .. _0d_names:
 
@@ -82,39 +167,60 @@ All 1D names start with ``axis#``.
 
 * | *property*
 
-  The name of a 0D data item property.
+  The name of a 0D data item property. For example:
 
-  For example: ``doi_url``.
+.. doctest::
+
+    >>> data.get_item("created")
+    datetime.datetime(2022, 7, 6, 16, 49, 44)
 
 * | *axis* ``=`` *entry* ``,`` *property*
 
-  The value for a specific entry of the data of a 1D property.
+  The value for a specific entry of the data of a 1D property. For example:
 
-  For example: ``cell=ACTG,age``.
+.. doctest::
+
+    >>> data.get_item("batch=Batch_1,age")
+    38
 
 * | *axis* ``=`` *entry* ``,`` *second_axis* ``=`` *second_entry* ``,`` *property*
 
-  The value for a specific entry of the data of a 2D property.
+  The value for a specific entry of the data of a 2D property. For example:
 
-  For example: ``cell=ACTG,gene=SOX8,UMIs``.
+.. doctest::
+
+    >>> data.get_item("metacell=Metacell_1,gene=FOXA1,UMIs")
+    2.0
 
 * | *axis* ``,`` *property*
   | [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
     ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
 
   A reduction into a single value of 1D property with a value per entry along some axis, optionally processed by a
-  series of `.ElementWise` `.operations`.
+  series of `.ElementWise` `.operations`. For example:
 
-  For example: ``cell,age|Mean``, ``cell,age|Clamp,min=6,max=8|Mean``.
+.. doctest::
+
+    >>> data.get_item("batch,age|Mean")
+    37.38461538461539
+
+    >>> data.get_item("batch,age|Clip,min=30,max=40|Mean")
+    36.0
 
 * | *axis* ``,`` *second_axis* ``=`` *entry* ``,`` *property*
   | [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
     ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
 
   A reduction into a single value of a slice for a specific entry of the data of a 2D property, optionally processed by
-  a series of `.ElementWise` `.operations`.
+  a series of `.ElementWise` `.operations`. For example:
 
-  For example: ``cell,gene=SOX8,UMIs|Max``, ``cell,gene=SOX8,fraction|Log,base=2,factor=1e-1|Mean``.
+.. doctest::
+
+    >>> data.get_item("metacell,gene=FOXA1,UMIs|Max")
+    6.0
+
+    >>> data.get_item("metacell,gene=FOXA1,UMIs|Clip,min=1,max=3|Mean")
+    1.4
 
 * | *axis* ``,`` *second_axis* ``,`` *property*
   | [ ``|`` ``!``? `.ElementWise` [ ``,`` *param* ``=`` *value* ]* ]*
@@ -123,9 +229,15 @@ All 1D names start with ``axis#``.
     ``|`` ``!``? `.Reduction` [ ``,`` *param* ``=`` *value* ]*
 
   A reduction of 2D data into a single value per row and then to a single value, optionally processed by a series of
-   `.ElementWise` `.operations`.
+   `.ElementWise` `.operations`. For example:
 
-  For example: ``cell,gene,UMIs|Sum|Max``, ``cell,gene,fraction|Log,base=2,factor=1e-5|Max|Clip,min=-12,max=-7|Mean``.
+.. doctest::
+
+    >>> data.get_item("metacell,gene,UMIs|Sum|Max")
+    480.0
+
+    >>> data.get_item("metacell,gene,UMIs|Fraction|Log,base=2,factor=1e-5|Max|Clip,min=-1.5,max=-0.5|Mean")
+    -0.8790237
 
 .. note::
 
@@ -450,6 +562,14 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         It is safe to add new data to the ``base`` after wrapping it with a ``DafReader``, but overwriting existing data
         is **not** safe, since any cached ``derived`` data will **not** be updated, causing subtle problems.
+
+    The following data is used in all the examples below:
+
+    .. doctest::
+
+        >>> import daf
+        >>> import yaml
+        >>> data = daf.DafReader(daf.FilesReader(daf.DAF_EXAMPLE_PATH), name="example")
     """
 
     def __init__(self, base: StorageReader, *, derived: Optional[StorageWriter] = None, name: str = ".daf#") -> None:
@@ -527,17 +647,33 @@ class DafReader:  # pylint: disable=too-many-public-methods
         If ``description`` is provided, collect the result into it. This allows collecting multiple data set
         descriptions into a single overall system state description.
 
-        An example output (without ``detail`` or ``deep``) of a data set with just per-cell-per-gene UMIs:
+        For example:
 
-        .. code:: yaml
+        .. doctest::
 
-            test.daf:
-              class: daf.access.writers.DafWriter
+            >>> print(yaml.dump(data.description()).strip())
+            example:
               axes:
-                cell: 2 entries
-                gene: 3 entries
+                batch: 13 entries
+                cell: 524 entries
+                cell_type: 7 entries
+                gene: 10 entries
+                metacell: 10 entries
+              class: daf.access.readers.DafReader
               data:
+              - created
+              - batch#age
+              - batch#sex
+              - cell#batch
+              - cell#metacell
+              - cell_type#color
+              - gene#feature_gene
+              - gene#forbidden_gene
+              - metacell#cell_type
+              - metacell#umap_x
+              - metacell#umap_y
               - cell,gene#UMIs
+              - metacell,gene#UMIs
         """
         description = description or {}
         if self.name in description:
@@ -562,12 +698,27 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
     # pylint: enable=duplicate-code
 
-    def verify_has(self, names: Collection[str], *, reason: str = "required") -> None:
+    def verify_has(self, names: Union[str, Collection[str]], *, reason: str = "required") -> None:
         """
         Assert that all the listed data ``names`` exist in the data set, regardless if each is a 0D, 1D or 2D data name.
 
         To verify an axis exists, list it as ``axis#``.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.verify_has("cell#")
+            >>> data.verify_has(["metacell,gene#UMIs", "batch#age"])
+            >>> data.verify_has(["cell#color"])  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+             ...
+            AssertionError: missing the data: cell#color which is required in the data set: example
+
+
         """
+        if isinstance(names, str):
+            names = [names]
         for name in names:
             kind = f"axis: {name[:-1]}" if name.endswith("#") else f"data: {name}"
             assert self.has_data(name), f"missing the {kind} which is {reason} in the data set: {self.name}"
@@ -577,6 +728,16 @@ class DafReader:  # pylint: disable=too-many-public-methods
         Return whether the data set contains the ``name`` data, regardless of whether it is a 0D, 1D or 2D data.
 
         To test whether an axis exists, you can use the ``axis#`` name.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.has_data("cell#")
+            True
+
+            >>> data.has_data("cell,gene#fraction")
+            False
         """
         if name.endswith("#"):
             return self.has_axis(name[:-1])
@@ -591,12 +752,29 @@ class DafReader:  # pylint: disable=too-many-public-methods
     def item_names(self) -> List[str]:
         """
         Return the list of names of the 0D data items that exists in the data set, in alphabetical order.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.item_names()
+            ['created']
         """
         return sorted(self.chain.item_names())
 
     def has_item(self, name: str) -> bool:
         """
         Check whether the ``name`` 0D data item exists in the data set.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.has_item("created")
+            True
+
+            >>> data.has_item("modified")
+            False
         """
         return self.chain.has_item(name)
 
@@ -605,6 +783,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
         Access a 0D data item from the data set (which must exist) by its ``name``.
 
         The name is the name of some 0D data as described :ref:`above <0d_names>`.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.get_item("created")
+            datetime.datetime(2022, 7, 6, 16, 49, 44)
         """
         parsed_name = ParsedName(full_name=name, dataset_name=self.name)
         assert (
@@ -615,18 +800,42 @@ class DafReader:  # pylint: disable=too-many-public-methods
     def axis_names(self) -> List[str]:
         """
         Return the list of names of the axes that exist in the data set, in alphabetical order.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.axis_names()
+            ['batch', 'cell', 'cell_type', 'gene', 'metacell']
         """
         return sorted(self.chain._axis_names())
 
     def has_axis(self, axis: str) -> bool:
         """
         Check whether the ``axis`` exists in the data set.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.has_axis("cell")
+            True
+
+            >>> data.has_axis("height")
+            False
         """
         return self.chain._has_axis(axis)
 
     def axis_size(self, axis: str) -> int:
         """
         Get the number of entries along some ``axis`` (which must exist).
+
+        For example:
+
+        .. doctest::
+
+            >>> data.axis_size("metacell")
+            10
         """
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         return self.chain._axis_size(axis)
@@ -634,6 +843,22 @@ class DafReader:  # pylint: disable=too-many-public-methods
     def axis_entries(self, axis: str) -> Vector:
         """
         Get the unique name of each entry in the data set along some ``axis`` (which must exist).
+
+        .. note::
+
+            You can also get the axis entries using ``.get_vector`` by passing it the 1D data name ``axis#``.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.axis_entries("gene")
+            array(['RSPO3', 'FOXA1', 'WNT6', 'TNNI1', 'MSGN1', 'LMO2', 'SFRP5',
+                   'DLX5', 'ITGA4', 'FOXA2'], dtype=object)
+
+            >>> data.get_vector("gene#")
+            array(['RSPO3', 'FOXA1', 'WNT6', 'TNNI1', 'MSGN1', 'LMO2', 'SFRP5',
+                   'DLX5', 'ITGA4', 'FOXA2'], dtype=object)
         """
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         return freeze(optimize(as_vector(self.chain._axis_entries(axis))))
@@ -641,6 +866,22 @@ class DafReader:  # pylint: disable=too-many-public-methods
     def axis_indices(self, axis: str) -> Mapping[str, int]:
         """
         Return a mapping from the axis string entries to the integer indices.
+
+        For example:
+
+        .. doctest::
+
+            >>> print(yaml.dump(data.axis_indices("gene")).strip())
+            DLX5: 7
+            FOXA1: 1
+            FOXA2: 9
+            ITGA4: 8
+            LMO2: 5
+            MSGN1: 4
+            RSPO3: 0
+            SFRP5: 6
+            TNNI1: 3
+            WNT6: 2
         """
         indices = self._axis_indices.get(axis)
         if indices is None:
@@ -650,6 +891,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
     def axis_index(self, axis: str, entry: str) -> int:
         """
         Return the index of the ``entry`` (which must exist) in the entries of the ``axis`` (which must exist).
+
+        For example:
+
+        .. doctest::
+
+            >>> data.axis_index("gene", "FOXA2")
+            9
         """
         indices = self.axis_indices(axis)
         index = indices.get(entry)
@@ -665,6 +913,16 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         The returned names are in the format ``axis#name`` which uniquely identifies the 1D data. If not ``full``, the
         returned names include only the simple ``name`` without the ``axis#`` prefix.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.data1d_names("batch")
+            ['batch#age', 'batch#sex']
+
+            >>> data.data1d_names("batch", full=False)
+            ['age', 'sex']
         """
         assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
         names = sorted(self.chain._data1d_names(axis))
@@ -677,6 +935,16 @@ class DafReader:  # pylint: disable=too-many-public-methods
         Check whether the ``name`` 1D data exists.
 
         The name must be in the format ``axis#name`` which uniquely identifies the 1D data.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.has_data1d("batch#age")
+            True
+
+            >>> data.has_data1d("batch#height")
+            False
         """
         return self.chain.has_data1d(name)
 
@@ -685,6 +953,13 @@ class DafReader:  # pylint: disable=too-many-public-methods
         Get the ``name`` 1D data (which must exist) as a `.Vector`.
 
         The name is the name of some 1D data as described :ref:`above <1d_names>`.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.get_vector("batch#age")
+            array([51, 38, 21, 31, 26, 43, 36, 27, 33, 45, 49, 41, 45])
         """
         parsed_name = ParsedName(full_name=name, dataset_name=self.name)
         assert (
@@ -697,6 +972,24 @@ class DafReader:  # pylint: disable=too-many-public-methods
         Get the ``name`` 1D data (which must exist) as a ``pandas.Series``.
 
         The name is the name of some 1D data as described :ref:`above <1d_names>`.
+
+        .. doctest::
+
+            >>> data.get_series("batch#age")
+            Batch_0     51
+            Batch_1     38
+            Batch_2     21
+            Batch_3     31
+            Batch_4     26
+            Batch_5     43
+            Batch_6     36
+            Batch_7     27
+            Batch_8     33
+            Batch_9     45
+            Batch_10    49
+            Batch_11    41
+            Batch_12    45
+            dtype: int64
         """
         vector = self.get_vector(name)
         axis = prefix(name, "#")
@@ -715,6 +1008,14 @@ class DafReader:  # pylint: disable=too-many-public-methods
             Data will be listed in the results even if it is only stored in the other layout (that is, as
             ``columns_axis,rows_axis#name``). Such data can still be fetched (e.g. using `.get_matrix`), in which case
             it will be re-layout internally (and the result will be cached in `.derived`).
+
+        .. doctest::
+
+            >>> data.data2d_names("metacell,gene")
+            ['metacell,gene#UMIs']
+
+            >>> data.data2d_names("metacell,gene", full=False)
+            ['UMIs']
         """
         if isinstance(axes, str):
             parts = axes.split(",")
@@ -738,6 +1039,16 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         This will also succeed if only the transposed ``columns_axis,rows_axis#name`` data exists in the data set.
         However, fetching the data in the specified order is likely to be less efficient.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.has_data2d("cell,gene#UMIs")
+            True
+
+            >>> data.has_data2d("cell,gene#fraction")
+            False
         """
         return self.chain.has_data2d(name) or self.chain.has_data2d(transpose_name(name))
 
@@ -746,6 +1057,23 @@ class DafReader:  # pylint: disable=too-many-public-methods
         Get the ``name`` 2D data (which must exist) as a `.MatrixInRows`.
 
         The name is the name of some 2D data as described :ref:`above <2d_names>`.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.get_matrix("metacell,gene#UMIs")
+            array([[  5.,   6.,  66.,   1.,   1.,   1.,   0., 110.,  13.,   1.],
+                   [ 13.,   2.,   1.,   2.,   1.,   3.,   2.,   3.,   7.,   1.],
+                   [211.,   1.,   2.,   0.,  91.,   0.,   0.,   1.,   2.,   4.],
+                   [  1.,   0., 179.,   1.,   0.,   2.,   0.,   9.,   1.,   2.],
+                   [  3.,   0.,   2.,  18.,   1.,   1.,   1.,   1., 126.,   1.],
+                   [ 14.,   0.,   1.,   1.,   2.,  10.,   3.,   3.,   6.,   6.],
+                   [  3.,   2.,   0.,   0.,   1.,   2.,   0.,   2.,   2.,   3.],
+                   [  0.,   1.,   0.,   0.,   0.,   1.,   1.,   0.,   5.,   1.],
+                   [ 62.,   0.,   0.,   0.,   2.,   0.,   2.,   0.,   1.,   0.],
+                   [326.,   0.,   0.,   0., 151.,   0.,   0.,   1.,   0.,   2.]],
+                  dtype=float32)
         """
         parsed_name = ParsedName(full_name=name, dataset_name=self.name)
         assert (
@@ -766,6 +1094,24 @@ class DafReader:  # pylint: disable=too-many-public-methods
             that the data size is "within reason", or that the data is memory-mapped from a `.Dense` format on disk. In
             one of our data sets, calling ``get_frame("cell,gene#UMIs")`` would result in creating a ``numpy.ndarray``
             of ~240GB(!), compared to the "mere" ~6GB needed to hold the data in a ``scipy.csr_matrix``.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.get_frame("metacell,gene#UMIs")  # doctest: +ELLIPSIS
+            gene        RSPO3  FOXA1   WNT6  TNNI1  MSGN1  LMO2  SFRP5   DLX5  ITGA4  FOXA2
+            metacell...
+            Metacell_0    5.0    6.0   66.0    1.0    1.0   1.0    0.0  110.0   13.0    1.0
+            Metacell_1   13.0    2.0    1.0    2.0    1.0   3.0    2.0    3.0    7.0    1.0
+            Metacell_2  211.0    1.0    2.0    0.0   91.0   0.0    0.0    1.0    2.0    4.0
+            Metacell_3    1.0    0.0  179.0    1.0    0.0   2.0    0.0    9.0    1.0    2.0
+            Metacell_4    3.0    0.0    2.0   18.0    1.0   1.0    1.0    1.0  126.0    1.0
+            Metacell_5   14.0    0.0    1.0    1.0    2.0  10.0    3.0    3.0    6.0    6.0
+            Metacell_6    3.0    2.0    0.0    0.0    1.0   2.0    0.0    2.0    2.0    3.0
+            Metacell_7    0.0    1.0    0.0    0.0    0.0   1.0    1.0    0.0    5.0    1.0
+            Metacell_8   62.0    0.0    0.0    0.0    2.0   0.0    2.0    0.0    1.0    0.0
+            Metacell_9  326.0    0.0    0.0    0.0  151.0   0.0    0.0    1.0    0.0    2.0
         """
         name += "|Densify"
         dense = be_dense_in_rows(self.get_matrix(name))
@@ -788,6 +1134,27 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         The specified ``columns`` names should only be the suffix following the ``axis#`` prefix in the 1D name
         of the data, as described :ref:`above <1d_names>`.
+
+        For example:
+
+        .. doctest::
+
+            >>> data.get_columns("batch")  # doctest: +ELLIPSIS
+                     age     sex
+            batch...
+            Batch_0   51  female
+            Batch_1   38  female
+            Batch_2   21    male
+            Batch_3   31  female
+            Batch_4   26    male
+            Batch_5   43  female
+            Batch_6   36  female
+            Batch_7   27    male
+            Batch_8   33    male
+            Batch_9   45  female
+            Batch_10  49    male
+            Batch_11  41    male
+            Batch_12  45    male
         """
         index = self.axis_entries(axis)
         columns = columns or self.data1d_names(axis, full=False)
@@ -821,6 +1188,14 @@ class DafReader:  # pylint: disable=too-many-public-methods
             slicing the ``gene`` axis, then ``cell,gene#Log,...`` is safe to slice, but
             ``cell,gene#Folds|Significant,...`` is not. The code therefore plays it safe by ignoring any derived data
             using any of the sliced axes.
+
+        For example:
+
+        .. doctest::
+
+            >>> view = data.view(axes=dict(gene=['FOXA1', 'FOXA2']))
+            >>> view.axis_entries("gene")
+            array(['FOXA1', 'FOXA2'], dtype=object)
         """
         # pylint: disable=duplicate-code
 
@@ -1136,6 +1511,13 @@ def transpose_name(name: str) -> str:
         This will refuse to transpose pipelined names ``rows_axis,columns_axis#name|operation|...`` as doing so would
         change the meaning of the name. For example, ``cell,gene#UMIs|Sum`` gives the sum of the UMIs of all the genes
         in each cell, while ``gene,cell#UMIs|Sum`` gives the sum of the UMIs for all the cells each gene.
+
+    For example:
+
+    .. doctest::
+
+        >>> daf.transpose_name("metacell,gene#UMIs")
+        'gene,metacell#UMIs'
     """
     assert "|" not in name, f"transposing the pipelined name: {name}"
 

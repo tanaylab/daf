@@ -10,3 +10,4 @@ recursive-include daf *.py
 recursive-include daf py.typed
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
+recursive-include daf/example *

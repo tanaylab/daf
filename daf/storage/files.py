@@ -401,7 +401,7 @@ class FilesReader(_interface.StorageReader):
         assert list(csv_data.columns) == [axis_header, name_header], f"invalid 1D data CSV file: {self.path}/{name}.csv"
         array = np.full(self.axis_size(axis), None, dtype="object")
         series = pd.Series(array, index=self.axis_entries(axis))
-        series[csv_data[axis_header]] = csv_data[name_header].values
+        series[csv_data[axis_header].values] = csv_data[name_header].values
         return be_vector(array, dtype=STR_DTYPE)
 
     def _read_2d_csv(self, axes: Tuple[str, str], name: str) -> DenseInRows:

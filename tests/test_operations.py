@@ -116,6 +116,15 @@ def test_log() -> None:
     )
 
 
+def test_fraction() -> None:
+    check_element_wise(
+        Fraction(_input_dtype="float32", dtype="float64"),
+        canonical="Fraction,dtype=float64",
+        input_dense=np.array([[1, 2, 2], [3, 3, 4]], dtype="float32"),
+        expected_output=np.array([[0.2, 0.4, 0.4], [0.3, 0.3, 0.4]], dtype="float64"),
+    )
+
+
 def test_reformat() -> None:
     check_element_wise(
         Densify(_input_dtype="float32"),

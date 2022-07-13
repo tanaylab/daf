@@ -37,6 +37,7 @@ inspect.TypeAliasForwardRef.__hash__ = lambda self: hash(self.name)
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosectionlabel',
+    'sphinx.ext.doctest',
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
     'autodocsumm',

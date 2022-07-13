@@ -1,0 +1,10 @@
+data_dtype: float32
+indices_dtype: int32
+indptr_dtype: int32
+nnz: 455
+shape:
+- 524
+- 10
+version:
+- 1
+- 0

@@ -60,7 +60,7 @@ clean-docs:
 
 TODO = todo$()x
 
-pc: is_dev $(TODO) history format smells dist pytest docs staged tox  ## check everything before commit
+pc: is_dev $(TODO) history format smells dist pytest doctest docs staged tox  ## check everything before commit
 
 ci: history format smells dist docs tox  ## check everything in a CI server
 
@@ -180,6 +180,12 @@ pytest: .make.pytest  ## run tests on the active Python with pytest
 
 .make.pytest: .make.build
 	pytest -vv -s --cov=$(NAME) --cov-report=html --cov-report=term --no-cov-on-fail tests
+	touch $@
+
+doctest: .make.doctest  ## run tests on the active Python with doctest
+
+.make.doctest: $(DOCS_SOURCE_FILES) $(PY_PACKAGE_FILES) $(RST_SOURCE_FILES)
+	$(MAKE) -C docs doctest
 	touch $@
 
 tox: .make.tox  ## run tests on a clean Python version with tox

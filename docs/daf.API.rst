@@ -5,6 +5,7 @@ DAF API
 
 .. toctree::
 
+  daf.example
   daf.access
   daf.storage
   daf.typing

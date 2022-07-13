@@ -41,6 +41,7 @@ setup(
     keywords="daf",
     name="daf",
     packages=find_packages(include=["daf"]),
+    package_data={"":["daf/example/*"]},
     test_suite="tests",
     tests_require=test_requirements,
     extras_require={"dev": dev_requirements},

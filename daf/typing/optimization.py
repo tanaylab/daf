@@ -282,9 +282,11 @@ def optimize(  # pylint: disable=too-many-branches,too-many-statements
         else:
             freeze = False
 
-        with _freezing.unfrozen(data) as melted:  # type: ignore
-            melted.sum_duplicates()  # type: ignore
-            melted.sort_indices()  # type: ignore
+        assert isinstance(data, (sp.csr_matrix, sp.csc_matrix))
+        if not data.has_canonical_format or not data.has_sorted_indices:
+            with _freezing.unfrozen(data) as melted:
+                melted.sum_duplicates()
+                melted.sort_indices()
 
     else:
         assert False, f"expected known data, got: {_descriptions.data_description(data)}"

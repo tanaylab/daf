@@ -20,6 +20,7 @@ __version__ = "0.2.0-dev.1"
 import sys
 
 from .access import *
+from .example import *
 from .groups import *
 from .storage import *
 from .typing import *

@@ -26,6 +26,7 @@ from abc import abstractmethod
 from typing import Any
 from typing import Dict
 from typing import Optional
+from typing import Union
 
 import numpy as np
 import scipy.sparse as sp  # type: ignore
@@ -50,6 +51,7 @@ __all__ = [
     "Ceil",
     "Clip",
     "Log",
+    "Fraction",
     "Densify",
     "Sparsify",
     "Significant",
@@ -64,6 +66,7 @@ __all__ = [
     "Reduction",
     "parse_float_parameter",
     "parse_int_parameter",
+    "parse_number_parameter",
     "parse_bool_parameter",
     "float_dtype_for",
 ]
@@ -343,14 +346,14 @@ class Clip(ElementWise):
         min: str,  # pylint: disable=redefined-builtin
         max: str,  # pylint: disable=redefined-builtin
     ) -> None:
-        self._min = parse_float_parameter(min, "parameter: min of the operation: Clip")
-        self._max = parse_float_parameter(max, "parameter: max of the operation: Clip")
+        self._min = parse_number_parameter(min, "parameter: min of the operation: Clip")
+        self._max = parse_number_parameter(max, "parameter: max of the operation: Clip")
         assert self._min < self._max, f"empty allowed values Clip range [ {self._min} .. {self._max} ]"
         if isinstance(self._min, float) or isinstance(self._max, float):
             dtype = dtype or float_dtype_for(_input_dtype)
         else:
             dtype = dtype or _input_dtype
-        canonical = f"min={self._min},max={self._max}"
+        canonical = f"min={float(self._min)},max={float(self._max)}"
         super().__init__(densifies=False, sparsifies=False, dtype=dtype, canonical=canonical)
 
     def _ndarray_to_ndarray(self, input_ndarray: np.ndarray, output_ndarray: np.ndarray) -> None:
@@ -403,6 +406,55 @@ class Log(ElementWise):
         else:
             np.log(input_ndarray, out=output_ndarray, casting="same_kind")
             output_ndarray /= np.log(self._base)
+
+
+@operation
+class Fraction(ElementWise):
+    """
+    An operation that scales the values such that the sum will be 1.
+
+    For 2D data, scales each row separately such that the sum of its entries will be 1.
+
+    .. note::
+
+        This assumes the data is non-negative. All-zero data is allowed and will stay all-zero, rather than be converted
+        to ``NaN``.
+
+    **Optional Parameters:**
+
+    ``dtype``
+        The data type of the output. By default, we use ``float32`` if the input data type is up to 32 bits and
+        ``float64`` otherwise.
+
+    .. note::
+
+        Be **very** careful when applying this to a subset of the data. For example, if slicing the data to include just
+        a single module of related genes, then writing ``cell,gene#UMIs|Fraction`` will give the fraction of the UMIs of
+        each gene out of the total UMIs of this small subset of the genes, which is very different from the fraction of
+        the UMIs of each gene out of the total UMIs of all the genes in the cell. It is therefore common to provide an
+        explicit ``cell,gene#fraction`` property computed for the full data, which will maintain its values if the data
+        is later sliced to focus on a subset of the genes.
+    """
+
+    def __init__(self, *, _input_dtype: str, dtype: Optional[str] = None) -> None:
+        dtype = dtype or float_dtype_for(_input_dtype)
+        super().__init__(densifies=True, sparsifies=False, dtype=dtype)
+
+    def _ndarray_to_ndarray(self, input_ndarray: np.ndarray, output_ndarray: np.ndarray) -> None:
+        if input_ndarray.ndim == 2:
+            totals = np.sum(input_ndarray, axis=1)
+            totals[totals == 0] = 1
+            np.reciprocal(totals, out=totals)
+            np.multiply(input_ndarray, totals[:, np.newaxis], out=output_ndarray)
+            return
+
+        assert input_ndarray.ndim == 1
+        total = np.sum(input_ndarray)
+        if total == 0:
+            scale = 1
+        else:
+            scale = 1 / total
+        np.multiply(input_ndarray, scale, out=output_ndarray)
 
 
 class Reformat(ElementWise):
@@ -846,6 +898,17 @@ def parse_int_parameter(text: str, description: str) -> int:
         return int(text)
     except ValueError as error:
         raise ValueError(str(error) + " for the " + description)  # pylint: disable=raise-missing-from
+
+
+def parse_number_parameter(text: str, description: str) -> Union[int, float]:
+    """
+    Given the ``text`` value of a parameter, convert it to an numeric value, and if it is invalid, assert using the
+    ``description``.
+    """
+    try:
+        return parse_int_parameter(text, description)
+    except ValueError:
+        return parse_float_parameter(text, description)
 
 
 def parse_bool_parameter(text: str, description: str) -> bool:
