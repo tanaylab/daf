@@ -73,6 +73,7 @@ from ..typing import is_matrix_in_rows
 from ..typing import is_sparse_in_rows
 from ..typing import optimize
 from .readers import DafReader
+from .readers import ParsedName
 from .readers import transpose_name
 
 # pylint: enable=duplicate-code
@@ -324,27 +325,50 @@ class DafWriter(DafReader):
           is a just a collection of the data to copy on success, preserving the names and requiring that such data will
           not use any sliced axes.
 
+        .. todo::
+
+            Currently the `.adapter` ``data`` mapping is restricted to simple properties such as ``cell#age``. Lift this
+            restriction to allow for derived properties such as ``cell#batch#age``.
+
         A contrived example might look like:
 
-        .. code:: python
+        .. testcode::
 
-            rna = DafReader(...)
+            import daf
 
-            # Assume the `rna` data set has `cell` and `gene` axes, and a per-cell-per-gene `UMIs` matrix.
+            data = daf.DafWriter(
+                storage=daf.MemoryStorage(name="example.storage"),
+                base=daf.FilesReader(daf.DAF_EXAMPLE_PATH, name="example.base"),
+                name="example"
+            )
 
-            with rna.adapter(axes=dict(cell="x", gene="y", data={ "cell,gene:UMIs": "z" }), hide_implicit=True,
-                             back_data=[ "x#mean", "y#variance" ]) as adapter:
-
+            with data.adapter(
+                axes=dict(metacell="y", gene="x"),
+                data={"metacell,gene#UMIs|Fraction": "z"},
+                hide_implicit=True,
+                back_data={"x#mean": "mean_fraction"}
+            ) as adapter:
                 # The `adapter` data set has only `x` and `y` axes, and a per-x-per-y `z` matrix,
                 # matching the expectations of `collect_stats`:
 
-                collect_stats(adapter)
+                # Assume this is some generic code for capturing statistics.
+                adapter.set_data1d("x#mean", adapter.get_vector("x#y,z|Mean"))
 
-                # Assume `collect_stats` created `x#mean`, `x#variance`, `y#mean`, `y#variance` in `adapter`.
-                # This has no effect on the `rna` data set (yet).
+            print(data.get_series("gene#mean_fraction"))
 
-            # The `rna` data set now has additional `cell#mean` and `gene#variance` data copied from the above.
-            # It does not contain `cell#variance` and `gene#mean`, as these were not requested to be copied.
+        .. testoutput::
+
+            RSPO3    0.320572
+            FOXA1    0.033420
+            WNT6     0.131119
+            TNNI1    0.020580
+            MSGN1    0.078621
+            LMO2     0.056920
+            SFRP5    0.026982
+            DLX5     0.088142
+            ITGA4    0.192769
+            FOXA2    0.050876
+            dtype: float32
 
         .. note::
 
@@ -372,11 +396,18 @@ class DafWriter(DafReader):
             unique = []
             name = name + str(id(unique))
 
+        canonical_data: Dict[str, Optional[str]] = {}
+        for data_name, data_alias in (data or {}).items():
+            parsed_name = ParsedName(full_name=data_name, dataset_name=self.name)
+            canonical_name = self._get_parsed(parsed_name)[0]
+            canonical_data[canonical_name] = data_alias
+
         # pylint: enable=duplicate-code
 
         view = StorageView(
-            self.chain, axes=axes, data=data, cache=cache, hide_implicit=hide_implicit, name=name + ".base"
+            self.chain, axes=axes, data=canonical_data, cache=cache, hide_implicit=hide_implicit, name=name + ".base"
         )
+
         adapter = DafWriter(storage or MemoryStorage(name=name + ".storage"), base=view, name=name)
 
         if unique is not None:
@@ -422,6 +453,7 @@ class DafWriter(DafReader):
 
         try:
             yield adapter
+
         except:
             self._copy_back(view, adapter, _back_axes, _back_items, _back_data1d, _back_data2d, is_error=True)
             raise
@@ -604,7 +636,9 @@ class DafWriter(DafReader):
         derived: Optional[StorageWriter] = None,
     ) -> Generator["DafWriter", None, None]:
         """
-        Implement some computation on a ``daf`` data set, with explicit input and output data names.
+        Implement some computation on a ``daf`` data set, with explicit input and output data names. This is rarely
+        invoked directly; typically a computation is wrapped in a function which is annotated by
+        `daf.access.writers.computation`.
 
         If the ``name`` starts with ``.``, it is appended to both the `.StorageView` and the `.DafWriter` names. If the
         name ends with ``#``, we append the object id to it to make it unique.
@@ -794,11 +828,11 @@ def computation(  # pylint: disable=too-many-arguments
         This is the simplest way to write a "well behaved" generic computation tool using ``daf``.
 
     The wrapped function must take a `.DafWriter` data set as its first argument and ``overwrite`` as a keyword argument
-    with a default value of ``False``. The data set is automatically replaced by a restricted view of the original data
-    set, by using `.DafWriter.computation`. The wrapped function will therefore only have access to the
-    ``required_inputs`` and ``optional_inputs``. It may freely write temporary results into the data, but only results
-    listed in ``assured_outputs`` and ``optional_outputs`` will be copied into the original data set. If ``overwrite``,
-    this will overwrite existing data.
+    with a default value of ``False``. The function can taker additional arguments if needed. The data set parameter is
+    automatically replaced by a restricted view of the original data set, by using `.DafWriter.computation`. The wrapped
+    function will therefore only have access to the ``required_inputs`` and ``optional_inputs``. It may freely write
+    temporary results into the data, but only results listed in ``assured_outputs`` and ``optional_outputs`` will be
+    copied into the original data set. If ``overwrite``, this will overwrite existing data.
 
     .. note::
 
@@ -814,47 +848,53 @@ def computation(  # pylint: disable=too-many-arguments
     ``__daf_optional_inputs__``, ``__daf_assured_outputs__`` and ``__daf_optional_inputs`` to support additional
     meta-programming.
 
-    That is, given something like:
+    For example:
 
-    .. code:: python
+    .. testcode::
+
+        import daf
 
         @daf.computation(
             required_inputs={
-                "foo,bar#baz": '''
-                    Input baz per foo and bar.
-                    '''
+                "x#": "The axis to compute statistics for.",
+                "y#": "The axis of the data to compute statistics for.",
+                "x,y#z": "The data to compute statistics for.",
             },
             assured_outputs={
-                "foo,bar#vaz": '''
-                    Output vaz per foo and bar.
-                '''
+                "x#mean": "The mean value of the data for each of the X values.",
             },
         )
-        def compute_vaz(data: DafWriter, ..., *, ..., overwrite: bool = False) -> None:
+        def compute_statistics(data: daf.DafWriter, *, overwrite: bool = False) -> None:
             '''
-            Compute vaz values.
+            Compute statistics for arbitrary 2D data.
+
+            For brevity here we only compute the mean for each row.
 
             __DAF__
             '''
-            # Directly work on the `data` here, invoking `DafWriter.computation` is automatic.
-            # That is, this can write any intermediate results it wants into the `data`.
-            # It must create `foo,bar#vaz`, which will be copied into the caller's data.
+            data.set_data1d("x#mean", data.get_vector("x#y,z|Mean"), overwrite=overwrite)
 
-    Then ``help(compute_vaz)`` will print:
+        print(compute_statistics.__doc__.strip())
 
-    .. code:: text
+    .. testoutput::
 
-        Compute vaz values.
+        Compute statistics for arbitrary 2D data.
+
+        For brevity here we only compute the mean for each row.
 
         **Required Inputs**
 
-        ``foo,bar#baz``
-            Input baz per foo and bar.
+        ``x#``
+            The axis to compute statistics for.
+        ``y#``
+            The axis of the data to compute statistics for.
+        ``x,y#z``
+            The data to compute statistics for.
 
         **Assured Outputs**
 
-        ``foo,bar#vaz``
-            Output vaz per foo and bar.
+        ``x#mean``
+            The mean value of the data for each of the X values.
 
         If ``overwrite``, will overwrite existing data.
     """

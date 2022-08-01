@@ -25,6 +25,9 @@ example data set contains the following:
     For each batch, either ``male`` or ``female`` depending on the sex of the donor the batch of cells was obtained
     from.
 
+ ``sex#`` **axis**
+    An axis with two entries, ``male`` and ``female``.
+
 ``cell#`` **axis**
     One entry per each sequenced cell. The names of the example entries are simply ``Cell_x`` where ``x`` is between 0
     and 523 (a total of 524 cells). Typically in real scRNA-seq data sets there would be anywhere between tens of

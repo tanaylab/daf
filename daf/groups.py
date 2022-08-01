@@ -15,21 +15,17 @@ such as ``daf``. However, once such group(s) are computed, there are universal o
 to provide here:
 
 **Aggregation**
-    Compute 1D data for the group axis based on 1D data of the members axis. For example, suppose we have a
-    ``cell#cluster`` as above, and also a ``cell#age`` 1D data. It is natural to want to aggregate it into a 1D
-    ``cluster#age.mean`` which gives the mean cell age in each cluster.
+    Compute 1D/2D data for the group axis based on 1D/2D data of the members of the group. See `.aggregate_group_data1d`
+    for an example computing the mean age of the cells in each metacell and `.aggregate_group_data2d` for an example
+    computing the total UMIs of each gene for each metacell (which is the same as the ``metacell,gene#UMIs``).
 
 **Counting**
-    Compute 2D data for the group axis based on discrete 1D data of the members axis. For example, if ``age`` is
-    actually discrete (which is common in scRNA-seq data), then for more detailed analysis, one may create an ``age``
-    axis and then collect ``cluster,age#cells`` 2D data, which counts for each cluster and age the number of cells in
-    the cluster that have that age.
+    Compute 2D data for the group axis based on discrete 1D data of the members axis. See `.count_group_values`
+    for an example counting how many cells in each metacell came from donors of either sex.
 
 **Assignment**
-    Compute 1D data for the member axis based on 1D data of the group axis. For example, an analyst may provide
-    ``cluster#type`` 1D data, which assigns a human-readable "cell type" to each cluster of cells. It would be natural
-    to assign these types into a ``cell#type`` 1D data, which assigns each cell the type of the cluster it
-    belongs to.
+    Compute 1D data for the member axis based on 1D data of the group axis. See `.assign_group_values` for an
+    example assigning for each cell the type of the metacell it belongs to.
 """
 
 # pylint: disable=duplicate-code
@@ -109,6 +105,33 @@ def aggregate_group_data1d(
     ``None`` which is acceptable for floating point values (becomes a ``NaN``), but would fail for integer data.
 
     __DAF__
+
+    For example:
+
+    .. testcode::
+
+        import daf
+        import numpy as np
+
+        data = daf.DafWriter(
+            storage=daf.MemoryStorage(name="example.storage"),
+            base=daf.FilesReader(daf.DAF_EXAMPLE_PATH, name="example.base"),
+            name="example"
+        )
+
+        with data.adapter(
+            axes=dict(cell="member", metacell="group"),
+            data={"cell#metacell": "group", "cell#batch#age": "property"},
+            hide_implicit=True,
+            back_data={"group#property": "age.mean"}
+        ) as adapter:
+            daf.aggregate_group_data1d(adapter, aggregation=np.mean)
+
+        print(data.get_vector("metacell#age.mean"))
+
+    .. testoutput::
+
+        [39 41 33 45 43 41 33 38 42 32]
     """
     assert dtype is None or is_dtype(dtype), f"invalid dtype: {dtype}"
     member_groups = data.get_vector("member#group")
@@ -169,6 +192,43 @@ def aggregate_group_data2d(  # pylint: disable=too-many-locals
         to parallelize the operation in general.
 
     __DAF__
+
+    For example:
+
+    .. testcode::
+
+        import daf
+        import numpy as np
+
+        data = daf.DafWriter(
+            storage=daf.MemoryStorage(name="example.storage"),
+            base=daf.FilesReader(daf.DAF_EXAMPLE_PATH, name="example.base"),
+            name="example"
+        )
+
+        with data.adapter(
+            axes=dict(cell="member", metacell="group", gene="axis"),
+            data={"cell#metacell": "group", "cell,gene#UMIs": "property"},
+            hide_implicit=True,
+            back_data={"group,axis#property": "UMIs_sum"},
+        ) as adapter:
+            daf.aggregate_group_data2d(adapter, aggregation=np.sum, overwrite=True)
+
+        print(data.get_series("gene#metacell=Metacell_0,UMIs_sum"))
+
+    .. testoutput::
+
+        RSPO3      5.0
+        FOXA1      6.0
+        WNT6      67.0
+        TNNI1      1.0
+        MSGN1      1.0
+        LMO2       1.0
+        SFRP5      0.0
+        DLX5     111.0
+        ITGA4     13.0
+        FOXA2      1.0
+        dtype: float32
     """
     assert dtype is None or is_dtype(dtype), f"invalid dtype: {dtype}"
     member_groups = data.get_vector("member#group")
@@ -273,6 +333,32 @@ def count_group_members(data: DafWriter, *, dtype: DType = "int32", overwrite: b
     value for storing counts.
 
     __DAF__
+
+    For example:
+
+    .. testcode::
+
+        import daf
+
+        data = daf.DafWriter(
+            storage=daf.MemoryStorage(name="example.storage"),
+            base=daf.FilesReader(daf.DAF_EXAMPLE_PATH, name="example.base"),
+            name="example"
+        )
+
+        with data.adapter(
+            axes=dict(cell="member", metacell="group"),
+            data={"cell#metacell": "group"},
+            hide_implicit=True,
+            back_data={"group#members": "cells"}
+        ) as adapter:
+            daf.count_group_members(adapter)
+
+        print(data.get_vector("metacell#cells"))
+
+    .. testoutput::
+
+        [ 53 114  36  47  52  97  26  31  34  34]
     """
     assert is_dtype(dtype, INT_DTYPES), f"non-integer dtype: {dtype}"
     member_groups = data.get_vector("member#group")
@@ -310,6 +396,44 @@ def count_group_values(
     By default, store the data in `.Sparse` format. If ``dense``, store it in `.Dense` format.
 
     __DAF__
+
+    For example:
+
+    .. testcode::
+
+        import daf
+
+        data = daf.DafWriter(
+            storage=daf.MemoryStorage(name="example.storage"),
+            base=daf.FilesReader(daf.DAF_EXAMPLE_PATH, name="example.base"),
+            name="example"
+        )
+
+        with data.adapter(
+            axes=dict(cell="member", metacell="group", sex="property"),
+            data={"cell#metacell": "group", "cell#batch#sex": "property"},
+            hide_implicit=True,
+            back_data={"group,property#members": "cells"}
+        ) as adapter:
+            daf.count_group_values(adapter)
+
+        print(data.get_frame("metacell,sex#cells"))
+
+    .. testoutput::
+        :options: +ELLIPSIS
+
+        sex         male  female
+        metacell...
+        Metacell_0    14      39
+        Metacell_1   114       0
+        Metacell_2    22      14
+        Metacell_3    47       0
+        Metacell_4    45       7
+        Metacell_5    97       0
+        Metacell_6    17       9
+        Metacell_7     9      22
+        Metacell_8    34       0
+        Metacell_9    18      16
     """
     assert is_dtype(dtype, NUM_DTYPES), f"non-numeric dtype: {dtype}"
     groups_count = data.axis_size("group")
@@ -360,6 +484,32 @@ def assign_group_values(
     acceptable for floating point values (becomes a ``NaN``), but would fail for integer data.
 
     __DAF__
+
+    For example:
+
+    .. testcode::
+
+        import daf
+
+        data = daf.DafWriter(
+            storage=daf.MemoryStorage(name="example.storage"),
+            base=daf.FilesReader(daf.DAF_EXAMPLE_PATH, name="example.base"),
+            name="example"
+        )
+
+        with data.adapter(
+            axes=dict(cell="member", metacell="group", sex="property"),
+            data={"cell#metacell": "group", "metacell#cell_type": "property"},
+            hide_implicit=True,
+            back_data={"member#property": "type"}
+        ) as adapter:
+            daf.assign_group_values(adapter)
+
+        print(data.get_item("cell=Cell_0,type"))
+
+    .. testoutput::
+
+        epiblast
     """
     assert dtype is None or is_dtype(dtype), f"invalid dtype: {dtype}"
     member_groups = data.get_vector("member#group")

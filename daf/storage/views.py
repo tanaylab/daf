@@ -265,7 +265,7 @@ class StorageView(_interface.StorageReader):  # pylint: disable=too-many-instanc
             self._base_item_views[base_data] = data_view
             return self.base._has_item(base_data)
 
-        axes, property = base_data.split("#")  # pylint: disable=redefined-builtin
+        axes, property = base_data.split("#", 1)  # pylint: disable=redefined-builtin
 
         if "," not in axes:
             self._base_data1d_views[base_data] = data_view

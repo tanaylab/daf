@@ -659,6 +659,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
                 cell_type: 7 entries
                 gene: 10 entries
                 metacell: 10 entries
+                sex: 2 entries
               class: daf.access.readers.DafReader
               data:
               - created
@@ -795,7 +796,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         assert (
             parsed_name.ndim == 0
         ), f"{parsed_name.ndim}D data name: {name} given to get_item for the data set: {self.name}"
-        return self._get_parsed(parsed_name)
+        return self._get_parsed(parsed_name)[1]
 
     def axis_names(self) -> List[str]:
         """
@@ -806,7 +807,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         .. doctest::
 
             >>> data.axis_names()
-            ['batch', 'cell', 'cell_type', 'gene', 'metacell']
+            ['batch', 'cell', 'cell_type', 'gene', 'metacell', 'sex']
         """
         return sorted(self.chain._axis_names())
 
@@ -965,7 +966,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         assert (
             parsed_name.ndim == 1
         ), f"{parsed_name.ndim}D data name: {name} given to get_vector for the data set: {self.name}"
-        return be_vector(self._get_parsed(parsed_name))
+        return be_vector(self._get_parsed(parsed_name)[1])
 
     def get_series(self, name: str) -> Series:
         """
@@ -1079,7 +1080,7 @@ class DafReader:  # pylint: disable=too-many-public-methods
         assert (
             parsed_name.ndim == 2
         ), f"{parsed_name.ndim}D data name: {name} given to get_matrix for the data set: {self.name}"
-        return be_matrix_in_rows(self._get_parsed(parsed_name))
+        return be_matrix_in_rows(self._get_parsed(parsed_name)[1])
 
     def get_frame(self, name: str) -> FrameInRows:
         """
@@ -1175,8 +1176,9 @@ class DafReader:  # pylint: disable=too-many-public-methods
         """
         Create a read-only view of the data set.
 
-        This can be used to create slices of some axes, rename axes and/or data, and/or hide some data. It is just a
-        thin wrapper around the constructor of `.StorageView`; see there for the semantics of the parameters.
+        This can be used to create slices of some axes, rename axes and/or data, and/or hide some data. It is a wrapper
+        around the constructor of `.StorageView`; see there for the semantics of the parameters, with the exception that
+        here keys of the ``data`` dictionary may be *any* data name, including derived data.
 
         If the ``name`` starts with ``.``, it is appended to both the `.StorageView` and the `.DafReader` names. If the
         name ends with ``#``, we append the object id to it to make it unique.
@@ -1196,6 +1198,22 @@ class DafReader:  # pylint: disable=too-many-public-methods
             >>> view = data.view(axes=dict(gene=['FOXA1', 'FOXA2']))
             >>> view.axis_entries("gene")
             array(['FOXA1', 'FOXA2'], dtype=object)
+
+        .. doctest::
+
+            >>> view = data.view(data={"metacell,gene#UMIs|Fraction": "fraction"})
+            >>> view.get_series("gene#metacell=Metacell_0,fraction")
+            RSPO3    0.024510
+            FOXA1    0.029412
+            WNT6     0.323529
+            TNNI1    0.004902
+            MSGN1    0.004902
+            LMO2     0.004902
+            SFRP5    0.000000
+            DLX5     0.539216
+            ITGA4    0.063725
+            FOXA2    0.004902
+            dtype: float32
         """
         # pylint: disable=duplicate-code
 
@@ -1212,14 +1230,21 @@ class DafReader:  # pylint: disable=too-many-public-methods
         for axis in axes or {}:
             assert self.has_axis(axis), f"missing axis: {axis} in the data set: {self.name}"
 
-        for data_name in data or {}:
-            assert self.has_data(data_name), f"missing data: {data_name} in the data set: {self.name}"
+        # pylint: disable=duplicate-code
+
+        canonical_data: Dict[str, Optional[str]] = {}
+        for data_name, data_alias in (data or {}).items():
+            parsed_name = ParsedName(full_name=data_name, dataset_name=self.name)
+            canonical_name = self._get_parsed(parsed_name)[0]
+            canonical_data[canonical_name] = data_alias
+
+        # pylint: enable=duplicate-code
 
         view = DafReader(
             StorageView(
                 self._view_base(axes, hide_implicit, name),
                 axes=axes,
-                data=data,
+                data=canonical_data,
                 cache=cache,
                 hide_implicit=hide_implicit,
                 name=name + ".base",
@@ -1259,17 +1284,17 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         return StorageView(self.derived, axes=hide_axes, name=name + ".derived.filtered")
 
-    def _get_parsed(self, parsed_name: ParsedName) -> Any:
+    def _get_parsed(self, parsed_name: ParsedName) -> Tuple[str, Any]:
         base_data = self._get_base_data(parsed_name.base)
 
         if len(parsed_name.operations) == 0:
-            return base_data
+            return parsed_name.base.name, base_data
 
         pipeline_state = PipelineState(parsed_name.base, base_data)
         for operation_name in parsed_name.operations:
             self._pipeline_step(pipeline_state, operation_name)
 
-        return pipeline_state.data
+        return pipeline_state.canonical, pipeline_state.data
 
     def _get_base_data(self, base_name: BaseName) -> Any:
         if len(base_name.axes) == 0:
@@ -1313,10 +1338,15 @@ class DafReader:  # pylint: disable=too-many-public-methods
 
         assert value is not None
         entry = base_name.entries[0]
-        if entry is None:
-            return value
-        index = self.axis_index(base_name.axes[0], entry)
-        return value[index]
+        if entry is not None:
+            index = self.axis_index(base_name.axes[0], entry)
+            value = value[index]
+            assert value is not None
+
+        if len(base_name.properties) > 1:
+            self.derived.set_vector(base_name.name, value)
+
+        return value
 
     def _get_base_matrix(self, base_name: BaseName) -> Any:
         assert len(base_name.properties) == 1

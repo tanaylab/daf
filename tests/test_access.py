@@ -209,7 +209,7 @@ def test_daf_view() -> None:
     memory.set_matrix("cell,gene#UMIs", umis)
 
     base = DafWriter(memory, name=".daf")
-    view = base.view(axes=dict(cell="profile"), data={"cell,gene#UMIs": "count"})
+    view = base.view(axes=dict(cell="profile"), data={"cell,gene#UMIs|Abs": "count"})
     assert fast_all_close(view.as_reader().get_matrix("profile,gene#count"), umis)
 
 
